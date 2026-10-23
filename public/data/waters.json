@@ -1,0 +1,259 @@
+{
+  "_about": "Curated fishery notes for major waters. Species lists are general and compiled from state agency lake/river profiles; verify current regs, limits and advisories with ADCNR (outdooralabama.com) and GA DNR WRD (georgiawildlife.com). 'center' is an approximate label point; null means 'shown only when tapping the NHD water feature'. Edit freely — the pipeline joins these onto NHD by gnis_names.",
+  "updated": "2026-10-23",
+  "waters": [
+    {
+      "id": "west-point",
+      "name": "West Point Lake",
+      "gnis_names": ["West Point Lake"],
+      "state": "GA/AL",
+      "river": "Chattahoochee",
+      "type": "reservoir",
+      "acres": 25900,
+      "manager": "U.S. Army Corps of Engineers, Mobile District",
+      "center": [-85.16, 33.0],
+      "species": [
+        {"name": "Largemouth bass"}, {"name": "Spotted bass"}, {"name": "Hybrid striped bass"},
+        {"name": "Striped bass"}, {"name": "Black & white crappie"}, {"name": "Channel catfish"},
+        {"name": "Blue catfish"}, {"name": "Flathead catfish"}, {"name": "Bluegill"}, {"name": "Redear sunfish"}
+      ],
+      "notes": "Big timbered creek arms; crappie around brush and bridges in spring. Hybrids school on main-lake points summer/fall. Boundary water — AL/GA reciprocal license applies on the main reservoir (check current terms).",
+      "links": [
+        {"label": "USACE West Point Lake", "url": "https://www.sam.usace.army.mil/Missions/Civil-Works/Recreation/West-Point-Lake/"},
+        {"label": "GA fishing forecasts", "url": "https://georgiawildlife.com/fishing"}
+      ]
+    },
+    {
+      "id": "harding",
+      "name": "Lake Harding (Bartletts Ferry)",
+      "gnis_names": ["Lake Harding", "Bartletts Ferry Reservoir"],
+      "state": "GA/AL",
+      "river": "Chattahoochee",
+      "type": "reservoir",
+      "acres": 5850,
+      "manager": "Georgia Power",
+      "center": [-85.1, 32.71],
+      "species": [
+        {"name": "Spotted bass"}, {"name": "Largemouth bass"}, {"name": "Hybrid striped bass"},
+        {"name": "Striped bass"}, {"name": "Crappie"}, {"name": "Bluegill"}, {"name": "Redear sunfish"},
+        {"name": "Channel catfish"}, {"name": "Flathead catfish"}
+      ],
+      "notes": "Heavily developed shoreline with docks — skip docks and seawalls for spotted bass. Halawakee and Mountain Oak creek arms on the Alabama side. Fall drawdown most years.",
+      "links": [{"label": "Georgia Power – West Georgia lakes", "url": "https://georgiapower.com/our-impact/lakes-rivers/our-lakes/west-georgia-lakes.html"}]
+    },
+    {
+      "id": "goat-rock",
+      "name": "Goat Rock Lake",
+      "gnis_names": ["Goat Rock Lake"],
+      "state": "GA/AL",
+      "river": "Chattahoochee",
+      "type": "reservoir",
+      "acres": 940,
+      "manager": "Georgia Power",
+      "center": [-85.075, 32.63],
+      "species": [
+        {"name": "Largemouth bass"}, {"name": "Spotted bass"}, {"name": "Hybrid striped bass"},
+        {"name": "Crappie"}, {"name": "Bluegill"}, {"name": "Channel catfish"}, {"name": "Flathead catfish"}
+      ],
+      "notes": "Narrow, riverine lake below Bartletts Ferry Dam; current from generation positions fish on points and eddies — check the generation schedule.",
+      "links": [{"label": "Georgia Power – West Georgia lakes", "url": "https://georgiapower.com/our-impact/lakes-rivers/our-lakes/west-georgia-lakes.html"}]
+    },
+    {
+      "id": "oliver",
+      "name": "Lake Oliver",
+      "gnis_names": ["Lake Oliver"],
+      "state": "GA/AL",
+      "river": "Chattahoochee",
+      "type": "reservoir",
+      "acres": 2150,
+      "manager": "Georgia Power",
+      "center": [-85.03, 32.55],
+      "species": [
+        {"name": "Largemouth bass"}, {"name": "Spotted bass"}, {"name": "Hybrid striped bass"},
+        {"name": "Crappie"}, {"name": "Bluegill"}, {"name": "Channel catfish"}
+      ],
+      "notes": "Upper end below Goat Rock Dam fishes best when they are generating.",
+      "links": [{"label": "Georgia Power – West Georgia lakes", "url": "https://georgiapower.com/our-impact/lakes-rivers/our-lakes/west-georgia-lakes.html"}]
+    },
+    {
+      "id": "hooch-fall-line",
+      "name": "Chattahoochee River (Columbus–Phenix City fall line)",
+      "gnis_names": ["Chattahoochee River"],
+      "state": "GA/AL",
+      "river": "Chattahoochee",
+      "type": "river",
+      "manager": "Georgia DNR / ADCNR",
+      "center": [-84.995, 32.465],
+      "species": [
+        {"name": "Shoal bass"}, {"name": "Spotted bass"}, {"name": "Largemouth bass"},
+        {"name": "Striped bass"}, {"name": "Hybrid striped bass"}, {"name": "Channel catfish"},
+        {"name": "Flathead catfish"}, {"name": "Redbreast sunfish"}
+      ],
+      "notes": "Urban whitewater course below North Highlands Dam. Water rises fast and dangerously during releases — always check the generation schedule and USGS gauge before wading or paddling.",
+      "links": [{"label": "GA DNR fishing regulations", "url": "https://georgiawildlife.com/fishing/regulations"}]
+    },
+    {
+      "id": "eufaula",
+      "name": "Lake Eufaula (Walter F. George Lake)",
+      "gnis_names": ["Walter F. George Lake", "Lake Eufaula", "Walter F George Reservoir"],
+      "state": "AL/GA",
+      "river": "Chattahoochee",
+      "type": "reservoir",
+      "acres": 45200,
+      "manager": "U.S. Army Corps of Engineers, Mobile District",
+      "center": [-85.1, 31.95],
+      "species": [
+        {"name": "Largemouth bass"}, {"name": "Crappie"}, {"name": "Hybrid striped bass"},
+        {"name": "White bass"}, {"name": "Channel catfish"}, {"name": "Blue catfish"},
+        {"name": "Bluegill"}, {"name": "Redear sunfish"}
+      ],
+      "notes": "Ledges and grass for bass; crappie on brush piles and standing timber in creek mouths. Eufaula NWR on the upper lake.",
+      "links": [{"label": "USACE Walter F. George Lake", "url": "https://www.sam.usace.army.mil/Missions/Civil-Works/Recreation/Walter-F-George-Lake/"}]
+    },
+    {
+      "id": "martin",
+      "name": "Lake Martin",
+      "gnis_names": ["Lake Martin"],
+      "state": "AL",
+      "river": "Tallapoosa",
+      "type": "reservoir",
+      "acres": 44000,
+      "manager": "Alabama Power",
+      "center": [-85.88, 32.78],
+      "species": [
+        {"name": "Alabama bass"}, {"name": "Largemouth bass"}, {"name": "Striped bass"},
+        {"name": "Crappie"}, {"name": "Bluegill"}, {"name": "Redear sunfish"},
+        {"name": "Channel catfish"}, {"name": "Flathead catfish"}
+      ],
+      "notes": "Deep, clear, rocky lake. Alabama (spotted) bass dominate; stripers on the lower lake in winter. Winter drawdown most years — watch for exposed hazards.",
+      "links": [{"label": "Alabama Power – Lake Martin", "url": "https://apcshorelines.com/lake/martin/"}]
+    },
+    {
+      "id": "yates",
+      "name": "Yates Lake",
+      "gnis_names": ["Yates Lake", "Yates Reservoir"],
+      "state": "AL",
+      "river": "Tallapoosa",
+      "type": "reservoir",
+      "acres": 2000,
+      "manager": "Alabama Power",
+      "center": [-85.875, 32.6],
+      "species": [
+        {"name": "Alabama bass"}, {"name": "Largemouth bass"}, {"name": "Striped bass"},
+        {"name": "Crappie"}, {"name": "Bluegill"}, {"name": "Channel catfish"}
+      ],
+      "notes": "Small riverine lake below Martin Dam; current-driven bite during generation.",
+      "links": [{"label": "Alabama Power – Yates", "url": "https://apcshorelines.com/lake/yates/"}]
+    },
+    {
+      "id": "thurlow",
+      "name": "Thurlow Lake",
+      "gnis_names": ["Thurlow Lake", "Thurlow Reservoir"],
+      "state": "AL",
+      "river": "Tallapoosa",
+      "type": "reservoir",
+      "acres": 574,
+      "manager": "Alabama Power",
+      "center": [-85.885, 32.55],
+      "species": [
+        {"name": "Alabama bass"}, {"name": "Largemouth bass"}, {"name": "Bluegill"}, {"name": "Channel catfish"}
+      ],
+      "notes": "Tiny lake above Tallassee; limited access.",
+      "links": [{"label": "Alabama Power – Thurlow", "url": "https://apcshorelines.com/lake/thurlow/"}]
+    },
+    {
+      "id": "harris",
+      "name": "R.L. Harris Lake (Lake Wedowee)",
+      "gnis_names": ["R L Harris Reservoir", "Lake Wedowee", "R. L. Harris Lake"],
+      "state": "AL",
+      "river": "Tallapoosa",
+      "type": "reservoir",
+      "acres": 10660,
+      "manager": "Alabama Power",
+      "center": [-85.55, 33.3],
+      "species": [
+        {"name": "Alabama bass"}, {"name": "Largemouth bass"}, {"name": "Striped bass"},
+        {"name": "Hybrid striped bass"}, {"name": "Crappie"}, {"name": "Bluegill"}, {"name": "Channel catfish"}
+      ],
+      "notes": "Clear, rocky, steep banks; Tallapoosa and Little Tallapoosa arms.",
+      "links": [{"label": "Alabama Power – Harris", "url": "https://apcshorelines.com/lake/harris/"}]
+    },
+    {
+      "id": "tallapoosa-river",
+      "name": "Tallapoosa River (free-flowing reaches)",
+      "gnis_names": ["Tallapoosa River", "Little Tallapoosa River"],
+      "state": "AL/GA",
+      "river": "Tallapoosa",
+      "type": "river",
+      "manager": "ADCNR / GA DNR",
+      "center": null,
+      "species": [
+        {"name": "Tallapoosa bass"}, {"name": "Alabama bass"}, {"name": "Largemouth bass"},
+        {"name": "Redbreast sunfish"}, {"name": "Channel catfish"}, {"name": "Flathead catfish"},
+        {"name": "Striped bass (seasonal)"}
+      ],
+      "notes": "Great float-fishing water between Harris and Martin (Horseshoe Bend area) and below Thurlow. Releases from Harris Dam change flows quickly.",
+      "links": [{"label": "ADCNR fishing regulations", "url": "https://www.outdooralabama.com/fishing/freshwater-fishing-regulations"}]
+    },
+    {
+      "id": "ogletree",
+      "name": "Lake Ogletree",
+      "gnis_names": ["Lake Ogletree", "Ogletree Lake"],
+      "state": "AL",
+      "river": "Saugahatchee Creek",
+      "type": "reservoir",
+      "manager": "City of Opelika (Opelika Utilities)",
+      "center": null,
+      "species": [
+        {"name": "Largemouth bass"}, {"name": "Crappie"}, {"name": "Bluegill"}, {"name": "Redear sunfish"}, {"name": "Channel catfish"}
+      ],
+      "notes": "Municipal water-supply lake — city permit and boating rules apply. Verify current rules with the city before fishing.",
+      "links": []
+    },
+    {
+      "id": "chewacla",
+      "name": "Chewacla Lake",
+      "gnis_names": ["Chewacla Lake"],
+      "state": "AL",
+      "river": "Chewacla Creek",
+      "type": "lake",
+      "manager": "Alabama State Parks (Chewacla State Park)",
+      "center": null,
+      "species": [{"name": "Largemouth bass"}, {"name": "Bluegill"}, {"name": "Channel catfish"}],
+      "notes": "Small park lake; check park rules for boats and motors.",
+      "links": [{"label": "Chewacla State Park", "url": "https://www.alapark.com/parks/chewacla-state-park"}]
+    },
+    {
+      "id": "al-pfl",
+      "name": "Alabama State Public Fishing Lakes (Lee, Chambers, Barbour, Coosa Co.)",
+      "gnis_names": ["Lee County Public Fishing Lake", "Chambers County Public Fishing Lake", "Barbour County Public Fishing Lake", "Coosa County Public Fishing Lake"],
+      "state": "AL",
+      "type": "lake",
+      "manager": "ADCNR Wildlife & Freshwater Fisheries",
+      "center": null,
+      "species": [{"name": "Largemouth bass"}, {"name": "Bluegill"}, {"name": "Redear sunfish"}, {"name": "Channel catfish"}, {"name": "Crappie"}],
+      "notes": "Managed, stocked lakes with daily permits, posted hours and limits. Great for kids and bank fishing.",
+      "links": [{"label": "ADCNR Public Fishing Lakes", "url": "https://www.outdooralabama.com/where-fish-alabama/state-public-fishing-lakes"}]
+    },
+    {
+      "id": "ga-pfa",
+      "name": "Georgia Public Fishing Areas (e.g., Big Lazer Creek PFA)",
+      "gnis_names": ["Big Lazer Creek Lake"],
+      "state": "GA",
+      "type": "lake",
+      "manager": "Georgia DNR Wildlife Resources Division",
+      "center": null,
+      "species": [{"name": "Largemouth bass"}, {"name": "Bluegill"}, {"name": "Redear sunfish"}, {"name": "Channel catfish"}, {"name": "Crappie"}],
+      "notes": "GA Lands Pass or license requirements apply; see PFA page for current rules.",
+      "links": [{"label": "GA Public Fishing Areas", "url": "https://georgiawildlife.com/fishing/pfa"}]
+    }
+  ],
+  "regulations": [
+    {"label": "Alabama freshwater fishing regulations (ADCNR)", "url": "https://www.outdooralabama.com/fishing/freshwater-fishing-regulations"},
+    {"label": "Alabama fishing licenses", "url": "https://www.outdooralabama.com/license-information"},
+    {"label": "Georgia fishing regulations (GA DNR WRD)", "url": "https://georgiawildlife.com/fishing/regulations"},
+    {"label": "Georgia licenses (Go Outdoors Georgia)", "url": "https://gooutdoorsgeorgia.com/"},
+    {"label": "Alabama fish consumption advisories (ADPH)", "url": "https://www.alabamapublichealth.gov/tox/fish-advisories.html"},
+    {"label": "Georgia fish consumption guidelines (EPD)", "url": "https://epd.georgia.gov/watershed-protection-branch/fish-consumption-guidelines"}
+  ]
+}

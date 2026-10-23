@@ -1,0 +1,58 @@
+# Rebuild all map data (OSM basemap extract, PAD-US, parcels, NHD, OSM access) into PMTiles.
+# Runs monthly and on demand. Publishes to:
+#   - a GitHub Release "tiles-YYYYMMDD" (always), and
+#   - Cloudflare R2 / any S3-compatible bucket if secrets R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET are set.
+name: Build map data
+on:
+  schedule:
+    - cron: "17 7 3 * *"   # 3rd of each month, 07:17 UTC
+  workflow_dispatch:
+    inputs:
+      steps:
+        description: "Space-separated steps to run (basemap arcgis osm nhd tiles) — blank = all"
+        required: false
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc || true
+      - name: Install tools
+        run: pipeline/scripts/00_setup.sh
+      - name: Cache NHD downloads
+        uses: actions/cache@v4
+        with: { path: pipeline/cache, key: nhd-v1 }
+      - name: Run pipeline
+        working-directory: pipeline/scripts
+        run: |
+          S="${{ github.event.inputs.steps }}"; S=${S:-"basemap arcgis osm nhd tiles"}
+          [[ $S == *basemap* ]] && ./10_basemap.sh
+          [[ $S == *arcgis* ]]  && python3 30_fetch_arcgis.py && python3 35_label_points.py
+          [[ $S == *osm* ]]     && python3 40_fetch_osm.py
+          [[ $S == *nhd* ]]     && python3 50_nhd.py && python3 60_enrich_waters.py
+          [[ $S == *tiles* ]]   && ./70_build_tiles.sh
+          ls -lh ../out
+      - name: Publish GitHub release
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          tag="tiles-$(date -u +%Y%m%d)"
+          gh release create "$tag" pipeline/out/*.pmtiles --title "Map data $tag" \
+            --notes "Automated build. Sources: Protomaps/OSM (ODbL), USGS PAD-US 4.1, USGS NHD, county GIS." || \
+          gh release upload "$tag" pipeline/out/*.pmtiles --clobber
+      - name: Upload to Cloudflare R2 (optional)
+        if: env.R2_BUCKET != ''
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          for f in pipeline/out/*.pmtiles; do
+            aws s3 cp "$f" "s3://$R2_BUCKET/valley-waters/$(basename "$f")" \
+              --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
+              --content-type application/octet-stream
+          done

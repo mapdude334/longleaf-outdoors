@@ -1,0 +1,51 @@
+# Build the PWA and publish to GitHub Pages.
+# Settings → Pages → Source: "GitHub Actions".
+# Optional repo variables (Settings → Secrets and variables → Actions → Variables):
+#   VITE_TILE_BASE    URL where *.pmtiles live (e.g. https://tiles.example.com/valley-waters/). Default: ./tiles/ on Pages.
+#   PAGES_HOST_TILES  "true" to copy PMTiles from the latest "tiles-*" release into the Pages site (keep total < ~1 GB).
+#   VITE_USGS_API_KEY optional api.waterdata.usgs.gov key (raises rate limits; it is public in the bundle).
+name: Deploy app
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Build map data"]
+    types: [completed]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_TILE_BASE: ${{ vars.VITE_TILE_BASE }}
+          VITE_USGS_API_KEY: ${{ vars.VITE_USGS_API_KEY }}
+        run: npm run build
+      - name: Bundle PMTiles into the site (optional)
+        if: vars.PAGES_HOST_TILES == 'true'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          tag=$(gh release list --limit 20 --json tagName -q '[.[] | select(.tagName|startswith("tiles-"))][0].tagName')
+          mkdir -p dist/tiles && gh release download "$tag" --pattern '*.pmtiles' --dir dist/tiles
+          ls -lh dist/tiles
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: dist }
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: { name: github-pages, url: "${{ steps.d.outputs.page_url }}" }
+    steps:
+      - id: d
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,63 @@
+{
+  "_about": "Hydropower and flood-control dams with release/generation info sources. Coordinates are approximate label points (OSM dam features in overlays.pmtiles are precise). 'cwms' enables a live USACE CWMS Data API lookup; 'usgs_radius_km' sets how far to look for live USGS gauges around the dam.",
+  "dams": [
+    {
+      "id": "west-point-dam", "name": "West Point Dam", "river": "Chattahoochee", "lake": "west-point",
+      "operator": "USACE Mobile District", "coords": [-85.1886, 32.9186], "usgs_radius_km": 12,
+      "cwms": {"office": "SAM", "like": "West.?Point.*"},
+      "links": [
+        {"label": "USACE West Point Lake (lake level & releases)", "url": "https://www.sam.usace.army.mil/Missions/Civil-Works/Recreation/West-Point-Lake/"},
+        {"label": "USACE Mobile District water management", "url": "https://water.sam.usace.army.mil/"}
+      ]
+    },
+    {
+      "id": "bartletts-ferry-dam", "name": "Bartletts Ferry Dam", "river": "Chattahoochee", "lake": "harding",
+      "operator": "Georgia Power", "coords": [-85.089, 32.664], "usgs_radius_km": 8,
+      "links": [{"label": "Georgia Power lake levels & generation", "url": "https://georgiapower.com/our-impact/lakes-rivers/our-lakes/west-georgia-lakes.html"}]
+    },
+    {
+      "id": "goat-rock-dam", "name": "Goat Rock Dam", "river": "Chattahoochee", "lake": "goat-rock",
+      "operator": "Georgia Power", "coords": [-85.0806, 32.6097], "usgs_radius_km": 8,
+      "links": [{"label": "Georgia Power lake levels & generation", "url": "https://georgiapower.com/our-impact/lakes-rivers/our-lakes/west-georgia-lakes.html"}]
+    },
+    {
+      "id": "oliver-dam", "name": "Oliver Dam", "river": "Chattahoochee", "lake": "oliver",
+      "operator": "Georgia Power", "coords": [-84.9981, 32.5153], "usgs_radius_km": 8,
+      "links": [{"label": "Georgia Power lake levels & generation", "url": "https://georgiapower.com/our-impact/lakes-rivers/our-lakes/west-georgia-lakes.html"}]
+    },
+    {
+      "id": "north-highlands-dam", "name": "North Highlands Dam", "river": "Chattahoochee", "lake": "hooch-fall-line",
+      "operator": "Georgia Power", "coords": [-84.9908, 32.4945], "usgs_radius_km": 8,
+      "links": [{"label": "Georgia Power lake levels & generation", "url": "https://georgiapower.com/our-impact/lakes-rivers/our-lakes/west-georgia-lakes.html"}]
+    },
+    {
+      "id": "wf-george-dam", "name": "Walter F. George Lock & Dam", "river": "Chattahoochee", "lake": "eufaula",
+      "operator": "USACE Mobile District", "coords": [-85.0647, 31.6253], "usgs_radius_km": 12,
+      "cwms": {"office": "SAM", "like": ".*George.*"},
+      "links": [
+        {"label": "USACE Walter F. George Lake", "url": "https://www.sam.usace.army.mil/Missions/Civil-Works/Recreation/Walter-F-George-Lake/"},
+        {"label": "USACE Mobile District water management", "url": "https://water.sam.usace.army.mil/"}
+      ]
+    },
+    {
+      "id": "harris-dam", "name": "R.L. Harris Dam", "river": "Tallapoosa", "lake": "harris",
+      "operator": "Alabama Power", "coords": [-85.6175, 33.2581], "usgs_radius_km": 15,
+      "links": [{"label": "Alabama Power – Harris lake level & generation", "url": "https://apcshorelines.com/lake/harris/"}]
+    },
+    {
+      "id": "martin-dam", "name": "Martin Dam", "river": "Tallapoosa", "lake": "martin",
+      "operator": "Alabama Power", "coords": [-85.9108, 32.6806], "usgs_radius_km": 10,
+      "links": [{"label": "Alabama Power – Lake Martin level & generation", "url": "https://apcshorelines.com/lake/martin/"}]
+    },
+    {
+      "id": "yates-dam", "name": "Yates Dam", "river": "Tallapoosa", "lake": "yates",
+      "operator": "Alabama Power", "coords": [-85.8908, 32.5767], "usgs_radius_km": 8,
+      "links": [{"label": "Alabama Power – Yates", "url": "https://apcshorelines.com/lake/yates/"}]
+    },
+    {
+      "id": "thurlow-dam", "name": "Thurlow Dam", "river": "Tallapoosa", "lake": "thurlow",
+      "operator": "Alabama Power", "coords": [-85.8889, 32.5375], "usgs_radius_km": 8,
+      "links": [{"label": "Alabama Power – Thurlow", "url": "https://apcshorelines.com/lake/thurlow/"}]
+    }
+  ]
+}

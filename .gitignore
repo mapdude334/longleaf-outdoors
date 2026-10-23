@@ -1,0 +1,7 @@
+node_modules/
+dist/
+pipeline/out/
+pipeline/cache/
+*.pmtiles
+*.mbtiles
+.env

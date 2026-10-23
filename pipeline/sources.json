@@ -1,0 +1,72 @@
+{
+  "aoi": {
+    "name": "East Alabama / West Georgia",
+    "bbox": [-86.35, 31.55, -84.35, 33.85],
+    "basemap_maxzoom": 15,
+    "terrain_maxzoom": 12
+  },
+  "protomaps": {
+    "builds_url": "https://build.protomaps.com",
+    "note": "Daily planet builds named YYYYMMDD.pmtiles. 10_basemap.sh picks yesterday's build unless PROTOMAPS_BUILD is set."
+  },
+  "terrain": {
+    "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+    "encoding": "terrarium",
+    "attribution": "Terrain: Mapzen/AWS Terrain Tiles (USGS 3DEP, SRTM, others)"
+  },
+  "nhd_hu4": {
+    "url_template": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU4/GDB/NHD_H_{huc}_HU4_GDB.zip",
+    "hucs": ["0313", "0315", "0314"],
+    "note": "0313 Apalachicola (Chattahoochee/Flint), 0315 Alabama (Coosa/Tallapoosa), 0314 Choctawhatchee-Escambia (south edge)."
+  },
+  "arcgis": [
+    {
+      "id": "public_lands",
+      "title": "PAD-US 4.1 Fee lands",
+      "url": "https://edits.nationalmap.gov/arcgis/rest/services/PAD-US/PAD_US_4_1/MapServer/0",
+      "where": "1=1",
+      "out_fields": "Category,Own_Type,Own_Name,Mang_Type,Mang_Name,Des_Tp,Unit_Nm,Loc_Nm,Pub_Access,GAP_Sts,GIS_Acres,State_Nm",
+      "tile": { "file": "overlays", "layer": "public_lands", "minzoom": 6, "maxzoom": 14 }
+    },
+    {
+      "id": "parcels_lee_al",
+      "title": "Lee County, AL parcels (City of Opelika GIS)",
+      "url": "https://explore.opelika-al.gov/server/rest/services/Lee_County_Parcels/MapServer/0",
+      "where": "1=1",
+      "out_fields": "*",
+      "tile": { "file": "parcels", "layer": "parcels", "minzoom": 12, "maxzoom": 15 },
+      "county": "Lee, AL"
+    },
+    {
+      "id": "parcels_muscogee_ga",
+      "title": "Muscogee County / Columbus, GA tax parcels",
+      "url": "https://ccggisprod.columbusga.org/server/rest/services/TaxAssessors/Base/MapServer/279",
+      "where": "1=1",
+      "out_fields": "*",
+      "tile": { "file": "parcels", "layer": "parcels", "minzoom": 12, "maxzoom": 15 },
+      "county": "Muscogee, GA"
+    }
+  ],
+  "overpass": {
+    "url": "https://overpass-api.de/api/interpreter",
+    "queries": {
+      "access": [
+        "nwr[\"leisure\"=\"slipway\"]",
+        "nwr[\"amenity\"=\"boat_ramp\"]",
+        "nwr[\"leisure\"=\"fishing\"]",
+        "nwr[\"man_made\"=\"pier\"][\"fishing\"!=\"no\"]",
+        "nwr[\"canoe\"=\"put_in\"]",
+        "nwr[\"leisure\"=\"marina\"]",
+        "nwr[\"tourism\"=\"camp_site\"]",
+        "nwr[\"highway\"=\"trailhead\"]",
+        "nwr[\"waterway\"=\"access_point\"]",
+        "nwr[\"amenity\"=\"parking\"][\"access\"!=\"private\"][\"boat\"=\"yes\"]"
+      ],
+      "dams": [
+        "nwr[\"waterway\"=\"dam\"]",
+        "nwr[\"waterway\"=\"weir\"]",
+        "nwr[\"power\"=\"plant\"][\"plant:source\"=\"hydro\"]"
+      ]
+    }
+  }
+}

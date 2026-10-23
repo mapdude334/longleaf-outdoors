@@ -1,0 +1,28 @@
+{
+  "name": "valley-waters",
+  "version": "0.1.0",
+  "description": "Offline-first fishing & outdoor map PWA for East Alabama / West Georgia",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@protomaps/basemaps": "^5.7.2",
+    "maplibre-contour": "^0.1.1",
+    "maplibre-gl": "^6.15.0",
+    "pmtiles": "^4.5.0",
+    "suncalc": "^2.1.1"
+  },
+  "devDependencies": {
+    "@types/suncalc": "^1.9.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vite-plugin-pwa": "^2.0.0"
+  },
+  "private": true,
+  "type": "module"
+}
