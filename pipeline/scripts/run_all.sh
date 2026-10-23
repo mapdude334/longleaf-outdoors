@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 ./10_basemap.sh
-python3 20_terrain.py
+# python3 20_terrain.py   # optional: self-host terrain.pmtiles (set VITE_TERRAIN_URL accordingly)
 python3 30_fetch_arcgis.py
 python3 35_label_points.py
 python3 40_fetch_osm.py
