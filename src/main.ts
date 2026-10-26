@@ -70,6 +70,40 @@ map.addControl({
 }, 'top-right');
 const geolocate = new GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true, showAccuracyCircle: true });
 map.addControl(geolocate, 'top-right');
+map.addControl({
+  onAdd() {
+    const control = document.createElement('div');
+    control.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    const tools = [
+      ['Map layers', '<path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4"/>', false],
+      ['Map legend', '<path d="M10 5h11M10 12h11M10 19h11"/><circle cx="4" cy="5" r="2"/><path d="M2 10h4v4H2zM2 19h4"/>', true],
+    ] as const;
+    for (const [label, icon, legend] of tools) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.setAttribute('aria-controls', 'tab-layers');
+      button.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="display:block;margin:auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round">${icon}</svg>`;
+      button.onclick = () => {
+        showTab('layers');
+        const panel = $('#tab-layers');
+        if (legend) {
+          const key = panel.querySelector<HTMLDetailsElement>('.legend')!;
+          key.open = true;
+          key.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          key.querySelector('summary')!.focus({ preventScroll: true });
+        } else {
+          panel.scrollTop = 0;
+          panel.querySelector<HTMLButtonElement>('[data-base]:not(:disabled)')?.focus({ preventScroll: true });
+        }
+      };
+      control.append(button);
+    }
+    return control;
+  },
+  onRemove() {},
+}, 'top-right');
 map.addControl(new ScaleControl({ unit: 'imperial' }), 'bottom-right');
 map.addControl(new AttributionControl({ compact: true }), 'bottom-right');
 
@@ -193,6 +227,7 @@ function renderLayers() {
     ['vector', 'Vector (offline)', !!av.basemap], ['topo', 'USGS Topo', true], ['imagery', 'Imagery', true], ['hybrid', 'Imagery + Topo', true],
   ];
   el.innerHTML = `
+    <h3>Map layers</h3>
     <h4>Basemap</h4>
     <div class="seg">${bases.map(([id, label, ok]) => `<button data-base="${id}" class="${ui.basemap === id ? 'active' : ''}" ${ok ? '' : 'disabled title="Install with the data pipeline"'}>${label}</button>`).join('')}</div>
     <label class="row"><input type="checkbox" id="t3d" ${ui.terrain3d ? 'checked' : ''}> 3D terrain (tilt with two fingers / right-drag)</label>
@@ -205,6 +240,8 @@ function renderLayers() {
       <div class="muted small" style="margin-top:.5rem">Access</div>
       ${Object.entries(ACCESS_COLORS).filter(([k]) => k !== 'other' && k !== 'parking').map(([k, c]) => `<div><span class="dot" style="background:${c}"></span>${ACCESS_LABELS[k]}</div>`).join('')}
       <div><span class="dot" style="background:#0288d1"></span>Stream gauge · <span class="dot" style="background:#26a69a"></span>Lake/stage gauge · <span class="dot" style="background:#9e9e9e"></span>No recent data</div>
+      <div><span class="dot" style="background:#263238;border:2px solid #ffca28"></span>Dam / release information</div>
+      <p class="muted small">Layer switches control what is shown. Some layers appear only when zoomed in; live layers need a connection unless cached.</p>
     </details>
     <p class="muted small">Data: ${esc(dataStatus || 'loading…')}<br>
     Overlays: ${av.overlays ? (av.overlays.where === 'device' ? 'offline pack on device' : 'streaming') : 'live services (install packs in Offline tab)'}.</p>`;
