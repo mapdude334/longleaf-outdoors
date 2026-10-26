@@ -42,6 +42,32 @@ const map = new Map({
 });
 (window as unknown as { vwMap: unknown }).vwMap = map; // handy for debugging in devtools
 map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right');
+map.addControl({
+  onAdd() {
+    const control = document.createElement('div');
+    control.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.title = 'Home · show all locations';
+    button.setAttribute('aria-label', 'Home · show all locations');
+    button.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="display:block;margin:auto"><path d="m3 11 9-8 9 8M5 10v11h5v-7h4v7h5V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    button.onclick = () => {
+      const points = [...waters.flatMap((w) => w.center ? [w.center] : []), ...dams.map((d) => d.coords), ...gauges.map((g) => g.coords)];
+      const extent: [[number, number], [number, number]] = points.length
+        ? [[Math.min(...points.map((p) => p[0])), Math.min(...points.map((p) => p[1]))], [Math.max(...points.map((p) => p[0])), Math.max(...points.map((p) => p[1]))]]
+        : [[AOI[0], AOI[1]], [AOI[2], AOI[3]]];
+      const panel = document.getElementById('sheet')!;
+      const open = panel.classList.contains('open');
+      // Collapse the phone sheet so the full location extent has room to breathe.
+      if (innerWidth <= 800) panel.classList.remove('open');
+      const peek = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) || 116;
+      map.fitBounds(extent, { padding: { top: 45, right: 55, bottom: innerWidth <= 800 ? peek + 24 : 45, left: innerWidth > 800 && open ? panel.offsetWidth + 35 : 45 }, maxZoom: 11, bearing: 0, pitch: 0, duration: 700 });
+    };
+    control.append(button);
+    return control;
+  },
+  onRemove() {},
+}, 'top-right');
 const geolocate = new GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true, showAccuracyCircle: true });
 map.addControl(geolocate, 'top-right');
 map.addControl(new ScaleControl({ unit: 'imperial' }), 'bottom-right');
