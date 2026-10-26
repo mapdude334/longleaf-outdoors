@@ -1,5 +1,6 @@
 import { renderDestination, selectDestination } from './destination';
 import { initWelcome } from './welcome';
+import { installSymbols, symbolHtml, highlightLocation } from './symbols';
 import { addShareControl } from './share';
 import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick, useLaunchInTrip, useSpotInTrip } from './trips';
 import { speciesForLabel, speciesHtml, speciesChoiceHtml } from './species';
@@ -44,6 +45,7 @@ const map = new Map({
   attributionControl: false,
   hash: 'map',
 });
+installSymbols(map);
 (window as unknown as { vwMap: unknown }).vwMap = map; // handy for debugging in devtools
 map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right');
 map.addControl({
@@ -256,11 +258,11 @@ function renderLayers() {
       ${[['FED', '#d9a441'], ['STAT', '#3f8f4f'], ['LOC', '#8e7cc3'], ['NGO', '#2a9d8f'], ['PVT', '#c0607a']].map(([k, c]) => `<div><span class="sw" style="background:${c}"></span>${MANAGER_TYPES[k]}</div>`).join('')}
       <div class="muted small">Dashed outline = restricted / closed access</div>
       <div class="muted small" style="margin-top:.5rem">Access</div>
-      <div><span class="dot" style="background:#0d47a1;border:2px solid #fff"></span>Water destination · select for lake information</div>
-      ${Object.entries(ACCESS_COLORS).filter(([k]) => k !== 'other' && k !== 'parking').map(([k, c]) => `<div><span class="dot" style="background:${c}"></span>${ACCESS_LABELS[k]}</div>`).join('')}
-      <div><span class="dot" style="background:#0288d1"></span>Stream gauge · <span class="dot" style="background:#26a69a"></span>Lake/stage gauge · <span class="dot" style="background:#9e9e9e"></span>No recent data</div>
-      <div><span class="dot" style="background:#263238;border:2px solid #ffca28"></span>Dam / release information</div>
-      <p class="muted small">Layer switches control what is shown. Some layers appear only when zoomed in; live layers need a connection unless cached.</p>
+      <div>${symbolHtml('water')}Water destination · select for lake information</div>
+      ${Object.entries(ACCESS_COLORS).filter(([k]) => k !== 'other').map(([k]) => `<div>${symbolHtml(k)}${ACCESS_LABELS[k]}</div>`).join('')}
+      <div>${symbolHtml('gauge')}Water gauge ${symbolHtml('stale')}No recent data</div>
+      <div>${symbolHtml('dam')}Dam / release information</div><div>${symbolHtml('spot')}My fishing spot · amber outline = selected location</div>
+      <p class="muted small">Layer switches control what is shown. Access icons appear from zoom 9 and labels from zoom 12. Icons may be hidden where crowded; zoom in to separate them. Some layers appear only when zoomed in; live layers need a connection unless cached.</p>
     </details>
     <p class="muted small">Data: ${esc(dataStatus || 'loading…')}<br>
     Overlays: ${av.overlays ? (av.overlays.where === 'device' ? 'offline pack on device' : 'streaming') : 'live services (install packs in Offline tab)'}.</p>`;
@@ -325,7 +327,7 @@ function renderMine() {
       <button class="btn ${isRecording() ? 'danger' : ''}" id="rec">${isRecording() ? '■ Stop track' : '● Record track'}</button>
     </div>
     <h4>Waypoints (${w.length})</h4>
-    <ul class="list">${w.map((p) => `<li data-id="${p.id}"><span class="dot" style="background:${WPT_TYPES[p.type]?.color}"></span><b>${esc(p.name)}</b> <span class="muted small">${esc(WPT_TYPES[p.type]?.label ?? '')} · ${fmtCoord(p.lng, p.lat, ui.coordFmt)}</span></li>`).join('') || '<li class="muted">Long-press (or right-click) the map to drop a waypoint.</li>'}</ul>
+    <ul class="list">${w.map((p) => `<li data-id="${p.id}">${symbolHtml(({ fish: 'spot', ramp: 'boat_ramp', camp: 'campground', hazard: 'hazard', parking: 'parking' } as Record<string, string>)[p.type] ?? 'other')}<b>${esc(p.name)}</b> <span class="muted small">${esc(WPT_TYPES[p.type]?.label ?? '')} · ${fmtCoord(p.lng, p.lat, ui.coordFmt)}</span></li>`).join('') || '<li class="muted">Long-press (or right-click) the map to drop a waypoint.</li>'}</ul>
     <h4>Tracks (${t.length})</h4>
     <ul class="list">${t.map((tr) => `<li data-track="${tr.id}"><b>${esc(tr.name)}</b> <span class="muted small">${(trackKm(tr) * 0.621).toFixed(2)} mi</span> <button class="link del-track">delete</button></li>`).join('') || '<li class="muted">No tracks yet.</li>'}</ul>
     <div class="row-btns"><button class="btn" id="gpx-out">Export GPX</button><label class="btn">Import GPX<input type="file" accept=".gpx,application/gpx+xml" hidden id="gpx-in"></label></div>
@@ -385,6 +387,8 @@ map.on('click', async (e) => {
   const box: [[number, number], [number, number]] = [[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]];
   const layers = CLICK_LAYERS.filter((id) => map.getLayer(id) && map.getLayoutProperty(id, 'visibility') !== 'none');
   const feats = map.queryRenderedFeatures(box, { layers });
+  const selectedPoint = feats.find((feature) => feature.geometry.type === 'Point');
+  if (selectedPoint?.geometry.type === 'Point') highlightLocation(map, selectedPoint.geometry.coordinates.slice(0, 2) as [number, number]);
   const by = (id: string) => feats.find((f) => f.layer.id === id);
   const sections: string[] = [];
   let after: ((root: HTMLElement) => void) | undefined;

@@ -1,17 +1,18 @@
 // Waypoints and GPS tracks, stored on the device. GPX import/export for Garmin/Lowrance/Humminbird/onX.
 import type { GeoJSONSource, Map } from 'maplibre-gl';
+import { SYMBOL_COLORS } from './symbols';
 import { esc, haversineKm, store, toast } from './util';
 
 export type Wpt = { id: string; name: string; type: string; lng: number; lat: number; notes?: string; time: number };
 export type Track = { id: string; name: string; pts: [number, number, number][]; time: number }; // lng, lat, epoch ms
 
 export const WPT_TYPES: Record<string, { label: string; color: string }> = {
-  fish: { label: 'Fish / structure', color: '#d81b60' },
-  ramp: { label: 'Launch', color: '#1565c0' },
-  hazard: { label: 'Hazard', color: '#e53935' },
-  parking: { label: 'Parking', color: '#546e7a' },
-  camp: { label: 'Camp', color: '#2e7d32' },
-  other: { label: 'Other', color: '#6a1b9a' },
+  fish: { label: 'Fish / structure', color: SYMBOL_COLORS.spot },
+  ramp: { label: 'Launch', color: SYMBOL_COLORS.boat_ramp },
+  hazard: { label: 'Hazard', color: SYMBOL_COLORS.hazard },
+  parking: { label: 'Parking', color: SYMBOL_COLORS.parking },
+  camp: { label: 'Camp', color: SYMBOL_COLORS.campground },
+  other: { label: 'Other', color: SYMBOL_COLORS.other },
 };
 
 let wpts: Wpt[] = store.get<Wpt[]>('wpts')?.v ?? [];
@@ -51,7 +52,7 @@ function render() {
   if (!mapRef) return;
   (mapRef.getSource('waypoints') as GeoJSONSource | undefined)?.setData({
     type: 'FeatureCollection',
-    features: wpts.map((w) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [w.lng, w.lat] }, properties: { id: w.id, name: w.name, color: WPT_TYPES[w.type]?.color ?? '#6a1b9a' } })),
+    features: wpts.map((w) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [w.lng, w.lat] }, properties: { id: w.id, name: w.name, type: w.type, color: WPT_TYPES[w.type]?.color ?? '#6a1b9a' } })),
   });
   const all = [...tracks, ...(recording ? [recording] : [])];
   (mapRef.getSource('track') as GeoJSONSource | undefined)?.setData({

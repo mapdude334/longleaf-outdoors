@@ -46,3 +46,9 @@ Tested October 26, 2026 in the desktop app's Chromium browser. These results do 
 - Physical GPS, background/screen-lock behavior, OS keyboard behavior, storage eviction, and Safari-specific behavior remain unverified. GPS recording still requires keeping the app open.
 - Browser storage may be cleared unless persistence is granted. Archive verification does not establish source-data completeness, freshness, or legal access.
 
+
+## Pictogram symbology pass — October 26, 2026
+
+- Replaced map point dots with 14 locally bundled badge SVGs, using Maki CC0 glyphs plus matching custom ramp, paddle, fish, hiking and gauge glyphs. Attribution and license are in public/symbols/.
+- Checked topo and imagery rendering, basemap switching, consistent legend/cards/trip symbols, and selection highlighting in desktop Chromium. No browser errors during the imagery check.
+- All 14 badges are in the production service worker precache. The 320 × 568 phone preview passed overflow, visible navigation and 44px navigation target checks. Physical-device offline tests remain outstanding.

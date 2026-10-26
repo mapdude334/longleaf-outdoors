@@ -4,6 +4,7 @@ import mlcontour from 'maplibre-contour';
 import { addProtocol } from 'maplibre-gl';
 import { ARCGIS, GLYPHS, RADAR_TILES, RASTER_BASEMAPS, SPRITE, TERRAIN_URL, USGS_HYDRO_TILES, arcgisExport } from './config';
 import type { Resolved } from './pmtiles';
+import { SYMBOL_COLORS } from './symbols';
 
 export const demSource = new mlcontour.DemSource({
   url: TERRAIN_URL,
@@ -38,17 +39,9 @@ const MANAGER_COLOR: ExpressionSpecification = [
   '#888888',
 ];
 
-export const ACCESS_COLORS: Record<string, string> = {
-  boat_ramp: '#1565c0',
-  paddle_launch: '#00897b',
-  fishing: '#6d4c41',
-  marina: '#3949ab',
-  campground: '#2e7d32',
-  trailhead: '#8d6e63',
-  parking: '#607d8b',
-  other: '#757575',
-};
-const ACCESS_COLOR_EXPR = ['match', ['get', 'kind'], ...Object.entries(ACCESS_COLORS).flat(), '#757575'] as unknown as ExpressionSpecification;
+export const ACCESS_COLORS = Object.fromEntries(['boat_ramp', 'paddle_launch', 'fishing', 'marina', 'campground', 'trailhead', 'parking', 'other'].map((kind) => [kind, SYMBOL_COLORS[kind]]));
+
+const badge = (id: string, source: string, kind: string): LayerSpecification => ({ id, source, type: 'symbol', layout: { 'icon-image': 'll-' + kind, 'icon-size': ['interpolate', ['linear'], ['zoom'], 7, 0.65, 12, 0.9, 15, 1], 'icon-padding': 3 } });
 
 export function buildStyle(av: Availability): StyleSpecification {
   for (const k of Object.keys(groups)) delete groups[k];
@@ -142,43 +135,34 @@ export function buildStyle(av: Availability): StyleSpecification {
   // ---------- access points ----------
   if (av.overlays) {
     add('access', accessLayer('access-pts', 'overlays', 'access'), L);
-    add('access', accessLabel('access-lbl', 'overlays', 'access'), L);
-    add('dams_osm', { id: 'osm-dam', type: 'circle', source: 'overlays', 'source-layer': 'osm_dams', minzoom: 11, paint: { 'circle-radius': 3, 'circle-color': '#37474f' } }, L);
+    add('dams_osm', { ...badge('osm-dam', 'overlays', 'dam'), 'source-layer': 'osm_dams', minzoom: 11 } as LayerSpecification, L);
   } else {
     sources['access-live'] = { ...EMPTY };
     add('access', accessLayer('access-pts', 'access-live'), L);
-    add('access', accessLabel('access-lbl', 'access-live'), L);
   }
 
   // ---------- live + curated GeoJSON ----------
   sources.waters = { ...EMPTY };
-  add('waters', { id: 'waters-pt', type: 'circle', source: 'waters', paint: { 'circle-radius': 6, 'circle-color': '#0d47a1', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } }, L);
+  add('waters', badge('waters-pt', 'waters', 'water'), L);
   add('waters', {
     id: 'waters-lbl', type: 'symbol', source: 'waters',
-    layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 11, 12, 15], 'text-font': ['Noto Sans Medium'], 'text-max-width': 8, 'text-offset': [0, 0.8], 'text-anchor': 'top' },
+    layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 11, 12, 15], 'text-font': ['Noto Sans Medium'], 'text-ignore-placement': true, 'text-allow-overlap': true, 'text-max-width': 8, 'text-offset': [0, 1.25], 'text-anchor': 'top' },
     paint: { 'text-color': '#0d47a1', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
   }, L);
 
   sources.dams = { ...EMPTY };
-  add('dams', { id: 'dams-pt', type: 'circle', source: 'dams', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 5, 13, 9], 'circle-color': '#263238', 'circle-stroke-color': '#ffca28', 'circle-stroke-width': 2.5 } }, L);
-  add('dams', { id: 'dams-lbl', type: 'symbol', source: 'dams', minzoom: 9, layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.3], 'text-anchor': 'top', 'text-font': ['Noto Sans Medium'] }, paint: { 'text-color': '#263238', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
+  add('dams', badge('dams-pt', 'dams', 'dam'), L);
+  add('dams', { id: 'dams-lbl', type: 'symbol', source: 'dams', minzoom: 9, layout: { 'text-ignore-placement': true, 'text-allow-overlap': true, 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.3], 'text-anchor': 'top', 'text-font': ['Noto Sans Medium'] }, paint: { 'text-color': '#263238', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
 
   sources.gauges = { ...EMPTY };
-  add('gauges', {
-    id: 'gauges-pt', type: 'circle', source: 'gauges',
-    paint: {
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 4, 13, 8],
-      'circle-color': ['case', ['get', 'stale'], '#9e9e9e', ['has', 'q'], '#0288d1', '#26a69a'],
-      'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5,
-    },
-  }, L);
-  add('gauges', { id: 'gauges-lbl', type: 'symbol', source: 'gauges', minzoom: 10, layout: { 'text-field': ['get', 'summary'], 'text-size': 10, 'text-offset': [0, 1.2], 'text-anchor': 'top', 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': '#01579b', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
+  add('gauges', { id: 'gauges-pt', type: 'symbol', source: 'gauges', layout: { 'icon-image': ['case', ['get', 'stale'], 'll-stale', 'll-gauge'], 'icon-size': 0.85, 'icon-padding': 3 } }, L);
+  add('gauges', { id: 'gauges-lbl', type: 'symbol', source: 'gauges', minzoom: 10, layout: { 'text-ignore-placement': true, 'text-allow-overlap': true, 'text-field': ['get', 'summary'], 'text-size': 10, 'text-offset': [0, 1.6], 'text-anchor': 'top', 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': '#704700', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
 
   sources.track = { ...EMPTY };
   add('mine', { id: 'track-line', type: 'line', source: 'track', paint: { 'line-color': '#d81b60', 'line-width': 3, 'line-opacity': 0.85 } }, L);
   sources.waypoints = { ...EMPTY };
-  add('mine', { id: 'wpt-pt', type: 'circle', source: 'waypoints', paint: { 'circle-radius': 7, 'circle-color': ['get', 'color'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } }, L);
-  add('mine', { id: 'wpt-lbl', type: 'symbol', source: 'waypoints', layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.2], 'text-anchor': 'top', 'text-font': ['Noto Sans Medium'] }, paint: { 'text-color': '#880e4f', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
+  add('mine', { id: 'wpt-pt', type: 'symbol', source: 'waypoints', layout: { 'icon-image': ['match', ['get', 'type'], 'fish', 'll-spot', 'ramp', 'll-boat_ramp', 'camp', 'll-campground', 'hazard', 'll-hazard', 'parking', 'll-parking', 'll-other'], 'icon-size': 0.95, 'icon-allow-overlap': true } }, L);
+  add('mine', { id: 'wpt-lbl', type: 'symbol', source: 'waypoints', layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.6], 'text-anchor': 'top', 'text-font': ['Noto Sans Medium'] }, paint: { 'text-color': '#880e4f', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
 
   return {
     version: 8,
@@ -191,20 +175,13 @@ export function buildStyle(av: Availability): StyleSpecification {
 
 function accessLayer(id: string, source: string, sourceLayer?: string): LayerSpecification {
   return {
-    id, type: 'circle', source, ...(sourceLayer ? { 'source-layer': sourceLayer } : {}),
-    filter: ['!=', ['get', 'kind'], 'parking'],
-    paint: {
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 3, 12, 6, 15, 8],
-      'circle-color': ACCESS_COLOR_EXPR,
-      'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5,
+    id, type: 'symbol', source, ...(sourceLayer ? { 'source-layer': sourceLayer } : {}), minzoom: 9,
+    layout: {
+      'icon-image': ['match', ['get', 'kind'], ...Object.keys(ACCESS_COLORS).flatMap((kind) => [kind, 'll-' + kind]), 'll-other'] as unknown as ExpressionSpecification,
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.7, 13, 0.9, 15, 1],
+      'icon-padding': 3,
+      'text-field': ['step', ['zoom'], '', 12, ['coalesce', ['get', 'name'], '']], 'text-size': 11, 'text-font': ['Noto Sans Regular'], 'text-optional': true, 'text-offset': [0, 1.5], 'text-anchor': 'top',
     },
-  } as LayerSpecification;
-}
-function accessLabel(id: string, source: string, sourceLayer?: string): LayerSpecification {
-  return {
-    id, type: 'symbol', source, ...(sourceLayer ? { 'source-layer': sourceLayer } : {}), minzoom: 12,
-    filter: ['all', ['has', 'name'], ['!=', ['get', 'kind'], 'parking']],
-    layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-font': ['Noto Sans Regular'], 'text-optional': true },
-    paint: { 'text-color': '#0d3c61', 'text-halo-color': '#fff', 'text-halo-width': 1.5 },
+    paint: { 'text-color': '#344747', 'text-halo-color': '#fff', 'text-halo-width': 1.5 },
   } as LayerSpecification;
 }

@@ -221,3 +221,7 @@ details summary { cursor: pointer; padding: 4px 0; }
 .fish-back { min-height: 44px; }
 @media (prefers-color-scheme: dark) { .fish-profile a, .fish-photo a, .fish-back { color: #83d2b4; } }
 @media (max-width: 800px) { .sheet .tabs button { flex: 1 0 30%; } }
+
+/* Shared locally bundled map badges in cards and legend. */
+.map-key-icon { display:inline-block; vertical-align:middle; flex-shrink:0; margin:0 7px 0 0; width:28px; height:28px; }
+.legend > div { margin:5px 0; }

@@ -4,7 +4,7 @@
 import type { GeoJSONSource, Map } from 'maplibre-gl';
 import type { Feature, Point } from 'geojson';
 import { AOI, OVERPASS } from '../config';
-import { ACCESS_COLORS } from '../style';
+import { symbolHtml } from '../symbols';
 import { cachedLive, esc, haversineKm, fetchJSON, store } from '../util';
 import { waters } from './waters';
 import { dams } from './dams';
@@ -85,7 +85,7 @@ export function accessHtml(p: Record<string, any>, coords: [number, number]): st
   const rows = KEEP.filter((key) => key !== 'name' && p[key]).map((key) => `<tr><th>${esc(key.replace('_', ' '))}</th><td>${esc(p[key])}</td></tr>`).join('');
   const nav = `https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}`;
   return `<h3>${esc(p.name ?? ACCESS_LABELS[k])}</h3>
-  <p><span class="dot" style="background:${ACCESS_COLORS[k]}"></span>${esc(ACCESS_LABELS[k])}</p>
+  <p>${symbolHtml(k)}${esc(ACCESS_LABELS[k])}</p>
   <p>${esc(accessLocation(p, coords))}</p>
   <p class="muted small">${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}</p>
   ${['boat_ramp', 'paddle_launch'].includes(k) ? `<button class="btn primary" data-use-launch data-launch-id="${esc(p.osm ?? coords.join(','))}" data-launch-name="${esc(p.name || ACCESS_LABELS[k])}" data-launch-lng="${coords[0]}" data-launch-lat="${coords[1]}">Use as my launch</button>` : ''}

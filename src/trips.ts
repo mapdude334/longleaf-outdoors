@@ -1,4 +1,5 @@
 import type { Map, MapMouseEvent } from 'maplibre-gl';
+import { symbolHtml, highlightLocation } from './symbols';
 import { waters } from './layers/waters';
 import { getWpts } from './waypoints';
 import { loadAccessLive, accessLocation } from './layers/access';
@@ -37,7 +38,7 @@ export function showTripPlan(map: Map, preview?: Trip) {
   if (!map.isStyleLoaded()) return;
   if (!map.getSource('trip-plan')) {
     map.addSource('trip-plan', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-    map.addLayer({ id: 'trip-plan-points', type: 'circle', source: 'trip-plan', paint: { 'circle-radius': 8, 'circle-color': ['match', ['get', 'kind'], 'Launch', '#1565c0', '#d81b60'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 } });
+    map.addLayer({ id: 'trip-plan-points', type: 'symbol', source: 'trip-plan', layout: { 'icon-image': ['match', ['get', 'kind'], 'Launch', 'll-boat_ramp', 'll-spot'], 'icon-size': 1.1, 'icon-allow-overlap': true } });
     map.addLayer({ id: 'trip-plan-labels', type: 'symbol', source: 'trip-plan', layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Medium'], 'text-size': 12, 'text-offset': [0, 1.2], 'text-anchor': 'top' }, paint: { 'text-color': '#173f36', 'text-halo-color': '#fff', 'text-halo-width': 2 } });
   }
   const trip = preview ?? activeTrip();
@@ -104,10 +105,10 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       <label class="field">Trip name<input id="trip-name" maxlength="120" value="${esc(trip.name)}" placeholder="Saturday on the lake"></label>
       <label class="field">Trip date<input id="trip-date" type="date" value="${esc(trip.date ?? '')}"></label>
       <label class="field">Destination<select id="trip-destination">${waters.some((w) => w.id === trip.destination) ? '' : `<option value="${esc(trip.destination)}" selected>Choose a specific lake (previous group retired)</option>`}${waters.map((w) => `<option value="${esc(w.id)}" ${w.id === trip.destination ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label>
-      <label class="field">Boat ramp / launch<select id="trip-ramp"><option value="">Choose a launch later</option>${ramps.map((r) => `<option value="${esc(r.id)}" ${trip.ramp?.id === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>
+      <label class="field">${symbolHtml('boat_ramp')}Boat ramp / launch<select id="trip-ramp"><option value="">Choose a launch later</option>${ramps.map((r) => `<option value="${esc(r.id)}" ${trip.ramp?.id === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>
       <p class="muted small">Launches within 25 miles of the destination’s mapped center, plus your saved launches. Confirm access before traveling.</p>
       <button class="btn" data-refresh-launches>Refresh nearby launches</button>
-      <h4>Fishing spots</h4>${[...spots.values()].map((s) => `<div class="trip-spot"><label class="row"><input type="checkbox" data-trip-spot="${esc(s.id)}" ${trip.spots.some((p) => p.id === s.id) ? 'checked' : ''}>Include this spot</label><label class="field">Spot name<input data-spot-name="${esc(s.id)}" maxlength="120" value="${esc(s.name)}"></label><span class="muted small">${s.coords[1].toFixed(5)}, ${s.coords[0].toFixed(5)}</span> <button class="link" data-remove-spot="${esc(s.id)}">Remove from trip</button></div>`).join('') || '<p class="muted small">Choose saved fishing waypoints from My Spots, or drop a pin anywhere on the map.</p>'}
+      <h4>${symbolHtml('spot')}Fishing spots</h4>${[...spots.values()].map((s) => `<div class="trip-spot"><label class="row"><input type="checkbox" data-trip-spot="${esc(s.id)}" ${trip.spots.some((p) => p.id === s.id) ? 'checked' : ''}>Include this spot</label><label class="field">Spot name<input data-spot-name="${esc(s.id)}" maxlength="120" value="${esc(s.name)}"></label><span class="muted small">${s.coords[1].toFixed(5)}, ${s.coords[0].toFixed(5)}</span> <button class="link" data-remove-spot="${esc(s.id)}">Remove from trip</button></div>`).join('') || '<p class="muted small">Choose saved fishing waypoints from My Spots, or drop a pin anywhere on the map.</p>'}
       <label class="field">New fishing spot name<input id="trip-spot-name" maxlength="120" placeholder="Point, cove or brush pile"></label><button class="btn" data-add-spot>Drop a fishing pin</button><button class="btn" data-cancel-pin hidden>Cancel pin</button>
       <label class="field">Trip notes<textarea id="trip-notes" rows="5" maxlength="10000" placeholder="Meet-up time, tackle, plan for the day…">${esc(trip.notes)}</textarea></label>
       <p class="muted small" data-trip-status aria-live="polite">${draft()?.id === trip.id ? 'Autosaved draft recovered. Save trip when your plan is ready.' : saved().some((t) => t.id === trip.id) ? 'Previously saved. Edits will autosave as a draft.' : 'Your draft will autosave as you edit.'}</p>
@@ -127,6 +128,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     input<HTMLSelectElement>('#trip-ramp').onchange = () => {
       autosave(); showTripPlan(map, trip);
       if (!trip.ramp) return;
+      highlightLocation(map, trip.ramp.coords);
       if (innerWidth <= 800) document.getElementById('sheet')?.classList.remove('open');
       map.flyTo({ center: trip.ramp.coords, zoom: Math.max(map.getZoom(), 14), padding: { left: innerWidth > 800 ? 410 : 20, right: 55, top: 60, bottom: innerWidth > 800 ? 40 : 160 } });
       toast(`Selected ${trip.ramp.name}`);
