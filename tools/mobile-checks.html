@@ -1,0 +1,16 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Mobile layout checks</title>
+<style>body{font:15px system-ui;background:#e5e9e5;margin:16px}button{padding:12px;margin:0 8px 12px 0}iframe{display:block;border:1px solid #777;background:white}pre{white-space:pre-wrap}</style>
+<h1>Mobile layout checks</h1><nav><button data-size="320,568">Small phone</button><button data-size="390,844">Portrait phone</button><button data-size="844,390">Landscape phone</button><button id="check">Check layout</button></nav>
+<pre id="result">Choose a phone size, then check the layout.</pre><iframe title="Phone preview" width="390" height="844" src="/#map=11/33/-85.16"></iframe>
+<script>
+const frame=document.querySelector('iframe');
+document.querySelectorAll('[data-size]').forEach(b=>b.onclick=()=>{const [w,h]=b.dataset.size.split(',');frame.width=w;frame.height=h;document.querySelector('#result').textContent=`Testing ${w} × ${h}`;});
+document.querySelector('#check').onclick=()=>{
+  const doc=frame.contentDocument, win=frame.contentWindow;
+  const buttons=[...doc.querySelectorAll('.tabs button')];
+  const overflow=doc.documentElement.scrollWidth>win.innerWidth;
+  const clipped=buttons.some(b=>{const r=b.getBoundingClientRect();return r.left<0||r.right>win.innerWidth||r.top<0||r.bottom>win.innerHeight;});
+  const touch=buttons.every(b=>b.getBoundingClientRect().height>=44);
+  document.querySelector('#result').textContent=`${win.innerWidth} × ${win.innerHeight}\n${overflow?'FAIL':'PASS'}: no horizontal page overflow\n${clipped?'FAIL':'PASS'}: every navigation button is in the viewport\n${touch?'PASS':'FAIL'}: phone navigation has 44px touch targets`;
+};
+</script></html>

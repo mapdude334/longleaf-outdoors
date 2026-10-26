@@ -7,7 +7,7 @@ export const APP_NAME = 'Longleaf Outdoors';
 export const AOI: [number, number, number, number] = [-86.35, 31.55, -84.35, 33.85];
 export const START_VIEW = { center: [-85.25, 32.7] as [number, number], zoom: 8.3 };
 
-const base = (import.meta.env.VITE_TILE_BASE as string | undefined) ?? `${import.meta.env.BASE_URL}tiles/`;
+const base = (import.meta.env.VITE_TILE_BASE as string | undefined)?.trim() || `${import.meta.env.BASE_URL}tiles/`;
 export const TILE_BASE = base.endsWith('/') ? base : base + '/';
 
 /** PMTiles archives produced by /pipeline. Each is optional — the app falls back to live services. */

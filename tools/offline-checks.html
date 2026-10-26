@@ -1,0 +1,79 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Offline regression checks</title><h1>Offline regression checks</h1><pre id="results">Running…</pre><script type="module">
+import { planArea, saveArea } from '/src/offline.ts';
+import { cachedLive, store, fmtCoord } from '/src/util.ts';
+import { saveToDevice, localFile, validateArchive } from '/src/pmtiles.ts';
+const log = [], assert = (value, msg) => { if (!value) throw Error(msg); log.push('PASS: ' + msg); };
+const originalFetch = window.fetch, originalGet = store.get, originalSet = store.set;
+const directoryMethod = navigator.storage.getDirectory;
+const onlineDescriptor = Object.getOwnPropertyDescriptor(navigator, 'onLine');
+const key = 'parcels'; // Preserve any existing user archive and restore after the test.
+let dir, prior, cache, cachedPrior;
+function fixture() {
+  // Tiny PMTiles v3 with one z0 tile and uncompressed JSON metadata.
+  const bytes = new Uint8Array(135), h = new DataView(bytes.buffer);
+  bytes.set(new TextEncoder().encode('PMTiles')); bytes[7] = 3;
+  const u64 = (offset, value) => h.setBigUint64(offset, BigInt(value), true);
+  u64(8,127); u64(16,5); u64(24,132); u64(32,2); u64(40,134); u64(48,0); u64(56,134); u64(64,1);
+  u64(72,1); u64(80,1); u64(88,1);
+  bytes[96]=1; bytes[97]=1; bytes[98]=1; bytes[99]=1;
+  h.setInt32(102,-1800000000,true); h.setInt32(106,-850000000,true); h.setInt32(110,1800000000,true); h.setInt32(114,850000000,true);
+  bytes.set([1,0,1,1,1],127); bytes.set([123,125],132); bytes[134]=0;
+  return bytes;
+}
+try {
+  const map = { getZoom: () => 17, getBounds: () => ({getWest:()=>-85.1601,getEast:()=>-85.1599,getSouth:()=>32.9999,getNorth:()=>33.0001}) };
+  const terrain = planArea(map,['terrain'],16);
+  assert(terrain.length >= 13 && terrain.some(u=>u.includes('/12/')), 'High zoom view still plans terrain through zoom 12');
+  assert(terrain.some(u=>u.includes('/0/0/0')), 'Saved area includes overview zooms');
+  const huge = { getBounds:()=>({getWest:()=>-180,getEast:()=>180,getSouth:()=>-80,getNorth:()=>80}) };
+  assert(planArea(huge,['topo'],16).length === 15001, 'Oversized requests stop planning at the safety limit');
+  const ctl = new AbortController(); ctl.abort();
+  window.fetch = async () => { throw Error('Network unavailable'); };
+  const cancelled = await saveArea(['https://test.invalid/cancel'],()=>{},ctl.signal);
+  assert(cancelled.cancelled && cancelled.done === 0, 'Cancelled download reports cancellation without network work');
+  const failed = await saveArea(['https://test.invalid/missing-tile'],()=>{},new AbortController().signal);
+  assert(failed.failed === 1 && failed.missingAssets > 0, 'Failed tiles and missing labels are reported as incomplete');
+  store.get = () => ({ t: 1, v: { forecast: 'last known' } });
+  const fallback = await cachedLive('test',0,async()=>{throw Error('Offline');});
+  assert(fallback.offline && fallback.t === 1 && fallback.v.forecast === 'last known', 'Failed live request preserves cache timestamp and marks offline');
+  Object.defineProperty(navigator,'onLine',{configurable:true,value:false});
+  store.get = () => ({t:Date.now(),v:'cached'});
+  const recent = await cachedLive('test',60000,async()=>{throw Error('Must not fetch');});
+  assert(recent.offline, 'Recent cached values are marked offline when the device is offline');
+  if (onlineDescriptor) Object.defineProperty(navigator,'onLine',onlineDescriptor); else delete navigator.onLine;
+  assert(!fmtCoord(-85.16,32.99999999999999,'dm').includes('60.000'), 'Coordinate rounding carries into the next degree');
+  store.get = originalGet;
+  dir = await navigator.storage.getDirectory();
+  try { prior = new Blob([await (await (await dir.getFileHandle('parcels.pmtiles')).getFile()).arrayBuffer()]); } catch {}
+  cache = await caches.open('vw-pmtiles'); cachedPrior = await cache.match('parcels.pmtiles');
+  const bytes = fixture(); await validateArchive(new File([bytes],'fixture.pmtiles'));
+  window.fetch = async () => new Response(bytes, {headers:{'Content-Length':String(bytes.length)}});
+  await saveToDevice(key,()=>{});
+  const saved = await localFile(key);
+  assert(saved?.size === bytes.length, 'Valid archive downloads through OPFS and can be reopened');
+  window.fetch = async () => { throw Error('Network unavailable'); };
+  assert((await localFile(key))?.size === bytes.length, 'Saved archive stays readable with network requests failing');
+  window.fetch = async () => new Response('<html>bad map</html>');
+  let rejected = false; try { await saveToDevice(key,()=>{}); } catch { rejected = true; }
+  assert(rejected && (await localFile(key))?.size === bytes.length, 'Invalid replacement preserves existing valid offline map');
+  window.fetch = async () => new Response(bytes.slice(0,130),{headers:{'Content-Length':String(bytes.length)}});
+  rejected = false; try { await saveToDevice(key,()=>{}); } catch { rejected = true; }
+  assert(rejected && (await localFile(key))?.size === bytes.length, 'Truncated replacement preserves existing offline map');
+  navigator.storage.getDirectory = async()=>{throw Error('OPFS unavailable');};
+  window.fetch = async () => new Response(bytes);
+  await saveToDevice(key,()=>{});
+  assert((await localFile(key))?.size === bytes.length, 'Cache Storage fallback works when OPFS is unavailable');
+  document.querySelector('#results').textContent = log.join('\n') + '\nALL CHECKS PASSED';
+} catch(e) { document.querySelector('#results').textContent = log.join('\n') + '\nFAIL: ' + e.stack; }
+finally {
+  window.fetch = originalFetch; store.get = originalGet; store.set = originalSet;
+  navigator.storage.getDirectory = directoryMethod;
+  if (onlineDescriptor) Object.defineProperty(navigator,'onLine',onlineDescriptor); else delete navigator.onLine;
+  if (dir) {
+    if (prior) { const writer = await (await dir.getFileHandle('parcels.pmtiles',{create:true})).createWritable(); await prior.stream().pipeTo(writer); }
+    else await dir.removeEntry('parcels.pmtiles').catch(()=>{});
+  }
+  if (cache) { if (cachedPrior) await cache.put('parcels.pmtiles',cachedPrior); else await cache.delete('parcels.pmtiles'); }
+}
+</script></html>
+

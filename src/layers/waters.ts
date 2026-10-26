@@ -31,7 +31,7 @@ export function waterHtml(w: Water, nhd?: Record<string, unknown>): string {
   return `<h3>${esc(w.name)}</h3>
   <p class="muted">${acres}${esc(w.river ? w.river + ' basin · ' : '')}${esc(w.state)}${w.manager ? ' · ' + esc(w.manager) : ''}</p>
   <h4>Species</h4>
-  <div class="chips">${w.species.map((s) => `<span class="chip">${esc(s.name)}</span>`).join('')}</div>
+  <div class="chips">${w.species.map((s) => `<button class="chip species-chip" data-species="${esc(s.name)}" aria-label="Learn about ${esc(s.name)}">${esc(s.name)} ↗</button>`).join('')}</div>
   ${w.notes ? `<p>${esc(w.notes)}</p>` : ''}
   ${w.links.length ? `<ul class="links">${w.links.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul>` : ''}
   ${nhd?.areasqkm ? `<p class="muted small">NHD feature: ${esc(nhd.gnis_name ?? '')} · ${(Number(nhd.areasqkm) * 247.105).toFixed(0)} acres mapped</p>` : ''}

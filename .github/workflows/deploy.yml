@@ -21,9 +21,12 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
@@ -40,7 +43,7 @@ jobs:
           tag=$(gh release list --limit 20 --json tagName -q '[.[] | select(.tagName|startswith("tiles-"))][0].tagName')
           mkdir -p dist/tiles && gh release download "$tag" --pattern '*.pmtiles' --dir dist/tiles
           ls -lh dist/tiles
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with: { path: dist }
   deploy:
     needs: build

@@ -5,3 +5,8 @@ pipeline/cache/
 *.pmtiles
 *.mbtiles
 .env
+/longleaf-outdoors.zip
+/*-preview.png
+/tools/species-originals/
+/tools/species-contact.jpg
+/.publishing/

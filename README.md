@@ -1,5 +1,9 @@
 # Longleaf Outdoors
 
+**Public preview:** [Open Longleaf Outdoors](https://mapdude334.github.io/longleaf-outdoors/).
+
+This is an actively developed recreation-planning preview. Live map services, species field guides, saved spots and area downloads are available; full-region offline packs are not published yet. Downloaded areas cover only the selected extent and zoom levels. Physical-phone airplane-mode and background GPS behavior still need field verification. See [mobile and offline test results](docs/MOBILE_OFFLINE_QA.md).
+
 **An offline-first outdoor map for the Southeast, for fishing, hunting, paddling and public-land access.** The first region is East Alabama and West Georgia, covering the Tallapoosa and Middle Chattahoochee basins from Lake Wedowee and West Point Lake down to Lake Eufaula. Coverage is set in `pipeline/sources.json` and is built to grow region by region. It's an installable web app (PWA) that runs on phones, tablets and desktops. You can host it for free on GitHub Pages, and it keeps working with no cell signal once you've downloaded your region.
 
 | | |

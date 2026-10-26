@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Longleaf reliability checks</title><h1>Reliability checks</h1><pre id="results">Running…</pre><script type="module">
+import { store } from '/src/util.ts';
+import { validateArchive } from '/src/pmtiles.ts';
+const results = [];
+const assert = (condition, message) => { if (!condition) throw new Error(message); results.push('PASS: ' + message); };
+const original = { get: store.get, set: store.set, del: store.del };
+const memory = new Map();
+memory.set('recording', { id: 'draft', name: 'Interrupted outing', pts: [[-85.1,33,1],[-85.11,33.01,2]], time: 1 });
+store.get = (key) => memory.has(key) ? { t: Date.now(), v: memory.get(key) } : null;
+store.set = (key, value) => { memory.set(key, structuredClone(value)); return true; };
+store.del = (key) => memory.delete(key);
+try {
+  const w = await import('/src/waypoints.ts');
+  w.initWaypoints({ getSource: () => undefined });
+  assert(w.getTracks().length === 1 && w.getTracks()[0].name.includes('recovered'), 'Interrupted track recovered without restarting GPS');
+  w.initWaypoints({ getSource: () => undefined });
+  assert(w.getTracks().length === 1 && !memory.has('recording'), 'Recovery does not duplicate the track');
+  const file = (xml) => new File([xml], 'test.gpx');
+  await w.importGpx(file('<gpx><wpt lat="33" lon="-85"/><wpt lat="91" lon="0"/><wpt lon="0"/><trk><trkseg><trkpt lat="33" lon="-85"/><trkpt lat="33.1" lon="-85.1"/></trkseg><trkseg><trkpt lat="34" lon="-86"/><trkpt lat="34.1" lon="-86.1"/></trkseg></trk></gpx>'));
+  assert(w.getWpts().length === 1, 'Missing and out-of-range waypoint coordinates rejected');
+  assert(w.getTracks().length === 3, 'Separate GPX segments stay separate');
+  await w.importGpx(file('<gpx><trk><trkseg><trkpt lat="33" lon="-85"/><trkpt lat="33.1" lon="-85.1"/><trkpt lat="oops" lon="-85"/><trkpt lat="34" lon="-86"/><trkpt lat="34.1" lon="-86.1"/></trkseg></trk></gpx>'));
+  assert(w.getTracks().length === 5, 'Invalid track point creates a gap instead of a false connecting line');
+  await w.importGpx(file('<gpx><broken>'));
+  assert(w.getTracks().length === 5, 'Malformed XML leaves existing tracks unchanged');
+  store.set = () => false;
+  assert(w.updateWpt(w.getWpts()[0].id, { name: 'Unsaved' }) === false, 'Failed storage is reported to the waypoint editor');
+  let rejected = false;
+  try { await validateArchive(new File(['<html>not a map</html>'], 'bad.pmtiles')); } catch { rejected = true; }
+  assert(rejected, 'Webpage masquerading as a map archive rejected');
+  document.querySelector('#results').textContent = results.join('\n') + '\nALL CHECKS PASSED';
+} catch (e) {
+  document.querySelector('#results').textContent = results.join('\n') + '\nFAIL: ' + e.stack;
+} finally { Object.assign(store, original); }
+</script></html>

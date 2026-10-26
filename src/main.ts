@@ -1,3 +1,5 @@
+import { renderDestination } from './destination';
+import { speciesForLabel, speciesHtml, speciesChoiceHtml } from './species';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
@@ -17,7 +19,7 @@ import { renderOffline } from './offline';
 import { $, ago, esc, fmtCoord, store, toast } from './util';
 
 setWorkerUrl(workerUrl);
-registerSW({ immediate: true, onOfflineReady: () => toast('App ready to work offline') });
+registerSW({ immediate: true, onOfflineReady: () => toast('App installed offline. Download map packs before your trip.') });
 
 // ---------------- state ----------------
 type UiState = { basemap: BasemapId; on: Record<string, boolean>; terrain3d: boolean; coordFmt: 'dd' | 'dm' };
@@ -51,12 +53,12 @@ async function refreshAvailability() {
   av = { basemap, overlays, parcels };
   if (ui.basemap === 'vector' && !basemap) ui.basemap = 'topo';
   if (basemap && !store.get('ui')) ui.basemap = 'vector';
-  map.setStyle(buildStyle(av), { diff: false });
-  map.once('styledata', async () => {
+  map.once('style.load', async () => {
     applyVisibility();
     renderLayers();
     await Promise.allSettled([reloadData(), initWaypoints(map)]);
   });
+  map.setStyle(buildStyle(av), { diff: false });
 }
 
 function applyVisibility() {
@@ -73,24 +75,29 @@ let dataStatus = '';
 async function reloadData() {
   const parts: string[] = [];
   await Promise.allSettled([
-    loadWaters(map),
-    loadDams(map),
+    loadWaters(map).then(() => { renderWaters(); if (currentTab === 'destination') void destination(); }),
+    loadDams(map).then(() => { if (currentTab === 'destination') void destination(); }),
     loadGauges(map).then((r) => parts.push(`${r.count} gauges · ${r.source}${r.offline ? ' (cached ' + ago(r.t) + ')' : ''}`)).catch(() => parts.push('Gauges unavailable')),
     av.overlays ? Promise.resolve() : loadAccessLive(map).then((r) => parts.push(`${r.count} access points (OSM live${r.offline ? ', cached' : ''})`)).catch(() => parts.push('Access points unavailable')),
   ]);
   dataStatus = parts.join(' · ');
   renderLayers();
   renderWaters();
+  if (currentTab === 'destination') void destination();
 }
 
 // ---------------- sheet / tabs ----------------
 const sheet = $('#sheet');
-let currentTab = 'layers';
+let currentTab = 'destination';
+let navigationRevision = 0;
+function destination() { return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt }); }
 function showTab(name: string) {
+  navigationRevision++;
   currentTab = name;
   document.querySelectorAll<HTMLElement>('.tab').forEach((t) => (t.hidden = t.id !== 'tab-' + name));
   document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   sheet.classList.add('open');
+  if (name === 'destination') void destination();
   if (name === 'weather') renderWeather();
   if (name === 'offline') renderOffline($('#tab-offline'), map, refreshAvailability);
   if (name === 'mine') renderMine();
@@ -99,12 +106,18 @@ document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((b) => (b.o
 $('#grab').onclick = () => sheet.classList.toggle('open');
 // Keep the map's visual center clear of the side panel on desktop.
 let padOpen: boolean | null = null;
-new MutationObserver(() => {
+const updatePadding = () => {
   const open = sheet.classList.contains('open') && innerWidth > 800;
   if (open === padOpen) return;
   padOpen = open;
   map.easeTo({ padding: { left: open ? 400 : 0, top: 0, right: 0, bottom: 0 }, duration: 250 });
-}).observe(sheet, { attributes: true, attributeFilter: ['class'] });
+};
+new MutationObserver(updatePadding).observe(sheet, { attributes: true, attributeFilter: ['class'] });
+addEventListener('resize', updatePadding);
+new ResizeObserver(() => {
+  const peek = $('#grab').offsetHeight + $('.tabs').offsetHeight + parseFloat(getComputedStyle(sheet).paddingBottom);
+  document.documentElement.style.setProperty('--sheet-peek', `${peek}px`);
+}).observe($('.tabs'));
 
 function showInfo(html: string, after?: (root: HTMLElement) => void) {
   const el = $('#tab-info');
@@ -113,6 +126,25 @@ function showInfo(html: string, after?: (root: HTMLElement) => void) {
   showTab('info');
   el.scrollTop = 0;
   after?.(el);
+  el.querySelectorAll<HTMLButtonElement>('[data-species]').forEach((button) => {
+    button.onclick = () => openSpecies(button.dataset.species!, () => showInfo(html, after));
+  });
+}
+
+function openSpecies(label: string, back: () => void) {
+  const matches = speciesForLabel(label);
+  if (!matches.length) return;
+  const choice = matches.length > 1;
+  showInfo(`<button class="link fish-back">← Back</button>${choice ? speciesChoiceHtml(label) : speciesHtml(matches[0].id)}`, (root) => {
+    root.querySelector<HTMLButtonElement>('.fish-back')!.onclick = back;
+    root.querySelectorAll<HTMLButtonElement>('[data-fish-id]').forEach((button) => {
+      button.onclick = () => {
+        showInfo(`<button class="link fish-back">← Back to crappie</button>${speciesHtml(button.dataset.fishId!)}`, (detail) => {
+          detail.querySelector<HTMLButtonElement>('.fish-back')!.onclick = () => openSpecies(label, back);
+        });
+      };
+    });
+  });
 }
 
 // ---------------- Layers tab ----------------
@@ -173,7 +205,7 @@ function renderWaters(filter = '') {
   el.querySelectorAll<HTMLElement>('li[data-id]').forEach((li) => (li.onclick = () => {
     const w = waterById(li.dataset.id!)!;
     if (w.center) map.flyTo({ center: w.center, zoom: 11 });
-    showInfo(waterHtml(w));
+    if (w.id === 'west-point') showTab('destination'); else showInfo(waterHtml(w));
   }));
 }
 
@@ -207,7 +239,7 @@ function renderMine() {
   el.querySelector<HTMLButtonElement>('#add-center')!.onclick = () => { const c = map.getCenter(); editWpt(addWpt(c.lng, c.lat).id); };
   el.querySelector<HTMLButtonElement>('#rec')!.onclick = () => { toggleRecording(); renderMine(); };
   el.querySelector<HTMLButtonElement>('#gpx-out')!.onclick = downloadGpx;
-  el.querySelector<HTMLInputElement>('#gpx-in')!.onchange = (e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) importGpx(f); };
+  el.querySelector<HTMLInputElement>('#gpx-in')!.onchange = (e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) importGpx(f).catch(() => toast('Could not read the GPX file.'));  };
   el.querySelectorAll<HTMLElement>('li[data-id]').forEach((li) => (li.onclick = () => { const p = w.find((x) => x.id === li.dataset.id)!; map.flyTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), 14) }); editWpt(p.id); }));
   el.querySelectorAll<HTMLElement>('li[data-track] .del-track').forEach((b) => (b.onclick = () => { deleteTrack(b.closest<HTMLElement>('li')!.dataset.track!); }));
 }
@@ -222,7 +254,7 @@ function editWpt(id: string) {
     <label class="field">Notes <textarea id="w-notes" rows="3" placeholder="Depth, lure, structure, date…">${esc(p.notes ?? '')}</textarea></label>
     <p class="muted small">${fmtCoord(p.lng, p.lat, 'dd')} · ${fmtCoord(p.lng, p.lat, 'dm')}<br>Saved ${new Date(p.time).toLocaleString()}</p>
     <div class="row-btns"><button class="btn primary" id="w-save">Save</button><button class="btn" id="w-nav">Directions</button><button class="btn danger" id="w-del">Delete</button></div>`, (root) => {
-    root.querySelector<HTMLButtonElement>('#w-save')!.onclick = () => { updateWpt(id, { name: (root.querySelector('#w-name') as HTMLInputElement).value, type: (root.querySelector('#w-type') as HTMLSelectElement).value, notes: (root.querySelector('#w-notes') as HTMLTextAreaElement).value }); toast('Saved'); showTab('mine'); };
+    root.querySelector<HTMLButtonElement>('#w-save')!.onclick = () => { const saved = updateWpt(id, { name: (root.querySelector('#w-name') as HTMLInputElement).value, type: (root.querySelector('#w-type') as HTMLSelectElement).value, notes: (root.querySelector('#w-notes') as HTMLTextAreaElement).value }); if (saved) toast('Saved'); showTab('mine'); };
     root.querySelector<HTMLButtonElement>('#w-del')!.onclick = () => { deleteWpt(id); showTab('mine'); };
     root.querySelector<HTMLButtonElement>('#w-nav')!.onclick = () => window.open(`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`, '_blank');
   });
@@ -230,7 +262,9 @@ function editWpt(id: string) {
 
 // ---------------- map clicks ----------------
 const CLICK_LAYERS = ['wpt-pt', 'gauges-pt', 'dams-pt', 'access-pts', 'waters-lbl', 'osm-dam', 'wb-fill', 'stream-line', 'pl-fill', 'parcel-hit'];
+let identifyRequest = 0;
 map.on('click', async (e) => {
+  const request = ++identifyRequest;
   $('#ctx').hidden = true;
   const r = 8;
   const box: [[number, number], [number, number]] = [[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]];
@@ -284,7 +318,9 @@ map.on('click', async (e) => {
   if (sections.length) render([]);
   if (pending.length) {
     if (!sections.length) showInfo('<p class="muted">Looking up…</p>');
+    const revision = navigationRevision;
     const extra = (await Promise.all(pending)).filter(Boolean) as string[];
+    if (request !== identifyRequest || revision !== navigationRevision) return;
     if (extra.length || sections.length) render(extra);
     else showTab('layers');
   }
@@ -338,7 +374,7 @@ q.oninput = () => {
     if (Math.abs(a) > 60) [a, b] = [b, a]; // accept lon,lat too
     hits.push({ label: `Go to ${a}, ${b}`, sub: 'Coordinates', center: [b, a], zoom: 14 });
   }
-  for (const w of waters) if (w.name.toLowerCase().includes(s) || w.species.some((x) => x.name.toLowerCase().includes(s))) hits.push({ label: w.name, sub: 'Water · ' + w.species.slice(0, 3).map((x) => x.name).join(', '), center: w.center ?? map.getCenter().toArray() as [number, number], zoom: 11, open: () => showInfo(waterHtml(w)) });
+  for (const w of waters) if (w.name.toLowerCase().includes(s) || w.species.some((x) => x.name.toLowerCase().includes(s))) hits.push({ label: w.name, sub: 'Water · ' + w.species.slice(0, 3).map((x) => x.name).join(', '), center: w.center ?? map.getCenter().toArray() as [number, number], zoom: 11, open: () => w.id === 'west-point' ? showTab('destination') : showInfo(waterHtml(w)) });
   for (const d of dams) if (d.name.toLowerCase().includes(s)) hits.push({ label: d.name, sub: 'Dam · ' + d.operator, center: d.coords, zoom: 13, open: () => showInfo(damHtml(d), (r) => fillCwms(r, d)) });
   for (const g of gauges) if (g.name.toLowerCase().includes(s) || g.id.includes(s)) hits.push({ label: g.name, sub: 'USGS gauge ' + g.id, center: g.coords, zoom: 13, open: () => showInfo(gaugeHtml(g), (r) => fillTrend(r, g)) });
   for (const p of getWpts()) if (p.name.toLowerCase().includes(s)) hits.push({ label: p.name, sub: 'My waypoint', center: [p.lng, p.lat], zoom: 15, open: () => editWpt(p.id) });
@@ -370,8 +406,9 @@ updateNet();
 setInterval(() => { if (navigator.onLine && document.visibilityState === 'visible') loadGauges(map).catch(() => {}); }, 15 * 60_000);
 
 // ---------------- boot ----------------
-map.on('load', () => {
+map.once('style.load', () => {
   showCoords();
+  showTab(currentTab);
   applyVisibility();
   renderLayers();
   reloadData();

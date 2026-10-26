@@ -12,6 +12,19 @@ const CODES = Object.keys(PARAMS);
 const keyQS = USGS_API_KEY ? `&api_key=${encodeURIComponent(USGS_API_KEY)}` : '';
 export let gauges: Gauge[] = [];
 
+// Verified against USGS monitoring-location metadata; keep station IDs in the expanded record.
+const LOCAL_NAMES: Record<string, string> = {
+  '02339400': 'West Point Lake · near West Point',
+  '02339402': 'Chattahoochee River · below West Point Dam',
+};
+export function gaugeName(g: Pick<Gauge, 'id' | 'name'>) {
+  if (LOCAL_NAMES[g.id]) return LOCAL_NAMES[g.id];
+  if (!g.name || /^\d+$/.test(g.name)) return 'Water monitoring station';
+  return g.name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\bNr\b/g, 'near').replace(/\bAbv\b/g, 'above').replace(/\bBlw\b/g, 'below')
+    .replace(/\b(Ga|Al|Usgs)\b/g, (s) => s.toUpperCase());
+}
+
 async function fromOgc(): Promise<Gauge[]> {
   const bbox = AOI.join(',');
   const byId: Record<string, Gauge> = {};
@@ -32,7 +45,7 @@ async function fromOgc(): Promise<Gauge[]> {
   if (!ids.length) throw new Error('OGC: no gauges');
   // Names
   try {
-    const ml = await fetchJSON<any>(`${USGS_OGC}/collections/monitoring-locations/items?f=json&bbox=${bbox}&limit=10000&site_type_code=ST,LK,ST-CA,ST-DCH${keyQS}`, { timeout: 25000 });
+    const ml = await fetchJSON<any>(`${USGS_OGC}/collections/monitoring-locations/items?f=json&bbox=${bbox}&limit=10000&agency_code=USGS${keyQS}`, { timeout: 25000 });
     for (const f of ml.features ?? []) {
       const id = String(f.properties?.monitoring_location_number ?? f.id ?? '').replace(/^USGS-/, '');
       if (byId[id] && f.properties?.monitoring_location_name) byId[id].name = f.properties.monitoring_location_name;
@@ -81,7 +94,7 @@ function summary(g: Gauge) {
 
 export async function loadGauges(map: Map): Promise<{ count: number; t: number; offline: boolean; source: string }> {
   let source = 'USGS Water Data API';
-  const res = await cachedLive('gauges', 10 * 60_000, async () => {
+  const res = await cachedLive('gauges-v2', 10 * 60_000, async () => {
     try {
       return await fromOgc();
     } catch (e) {
@@ -90,7 +103,7 @@ export async function loadGauges(map: Map): Promise<{ count: number; t: number; 
       return await fromLegacy();
     }
   });
-  gauges = res.v;
+  gauges = res.v.map((g) => ({ ...g, name: gaugeName(g) }));
   const now = Date.now();
   (map.getSource('gauges') as GeoJSONSource).setData({
     type: 'FeatureCollection',

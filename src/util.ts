@@ -30,8 +30,11 @@ export const store = {
   set<T>(k: string, v: T) {
     try {
       localStorage.setItem('vw:' + k, JSON.stringify({ t: Date.now(), v }));
+      return true;
     } catch (e) {
       console.warn('storage full?', e);
+      toast('Device storage failed. Changes are only in memory — export GPX before closing.', 10000);
+      return false;
     }
   },
   del(k: string) {
@@ -42,7 +45,7 @@ export const store = {
 /** Live fetch with fallback to the last cached copy. */
 export async function cachedLive<T>(key: string, maxAgeMs: number, fn: () => Promise<T>): Promise<{ v: T; t: number; offline: boolean }> {
   const c = store.get<T>(key);
-  if (c && Date.now() - c.t < maxAgeMs) return { v: c.v, t: c.t, offline: false };
+  if (c && (!navigator.onLine || Date.now() - c.t < maxAgeMs)) return { v: c.v, t: c.t, offline: !navigator.onLine };
   try {
     const v = await fn();
     store.set(key, v);
@@ -67,8 +70,9 @@ export function fmtCoord(lng: number, lat: number, mode: 'dd' | 'dm' = 'dd') {
   if (mode === 'dd') return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   const f = (v: number, p: string, n: string) => {
     const a = Math.abs(v);
-    const d = Math.floor(a);
-    return `${d}°${((a - d) * 60).toFixed(3)}′${v >= 0 ? p : n}`;
+    const totalMinutes = Math.round(a * 60 * 1000) / 1000;
+    const d = Math.floor(totalMinutes / 60);
+    return `${d}°${(totalMinutes - d * 60).toFixed(3)}′${v >= 0 ? p : n}`;
   };
   return `${f(lat, 'N', 'S')} ${f(lng, 'E', 'W')}`;
 }

@@ -1,8 +1,8 @@
 // Offline manager: whole-region PMTiles downloads + "save this area" raster/terrain tile caching.
 // Cache names must match the service worker runtime caches in vite.config.ts.
 import type { Map } from 'maplibre-gl';
-import { GLYPHS, PMTILES, RASTER_BASEMAPS, TERRAIN_URL, USGS_HYDRO_TILES, type PmKey } from './config';
-import { localFile, remoteSize, removeFromDevice, saveToDevice } from './pmtiles';
+import { GLYPHS, SPRITE, PMTILES, RASTER_BASEMAPS, TERRAIN_URL, USGS_HYDRO_TILES, type PmKey } from './config';
+import { localFile, packStatus, remoteSize, removeFromDevice, saveToDevice } from './pmtiles';
 import { esc, toast } from './util';
 
 export const RASTER_CACHE = 'vw-raster';
@@ -13,13 +13,11 @@ const RANGES = ['0-255', '256-511', '8192-8447'];
 let moveHandler: (() => void) | null = null;
 const mb = (n: number) => (n / 1048576).toFixed(n > 100 * 1048576 ? 0 : 1) + ' MB';
 
-function tilesFor(bounds: [number, number, number, number], z: number) {
+function* tilesFor(bounds: [number, number, number, number], z: number): Generator<[number, number, number]> {
   const n = 2 ** z;
   const x = (lon: number) => Math.max(0, Math.min(n - 1, Math.floor(((lon + 180) / 360) * n)));
   const y = (lat: number) => Math.max(0, Math.min(n - 1, Math.floor(((1 - Math.asinh(Math.tan((lat * Math.PI) / 180)) / Math.PI) / 2) * n)));
-  const out: [number, number, number][] = [];
-  for (let i = x(bounds[0]); i <= x(bounds[2]); i++) for (let j = y(bounds[3]); j <= y(bounds[1]); j++) out.push([z, i, j]);
-  return out;
+  for (let i = x(bounds[0]); i <= x(bounds[2]); i++) for (let j = y(bounds[3]); j <= y(bounds[1]); j++) yield [z, i, j];
 }
 const fill = (tpl: string, [z, x, y]: [number, number, number]) => tpl.replace('{z}', String(z)).replace('{x}', String(x)).replace('{y}', String(y));
 
@@ -27,11 +25,15 @@ export function planArea(map: Map, layers: string[], maxZoom: number) {
   const b = map.getBounds();
   const bounds: [number, number, number, number] = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
   const urls: string[] = [];
-  const minZ = Math.max(0, Math.floor(map.getZoom()) - 3);
+  // Include overview zooms so a saved area still works when zooming out.
+  const minZ = 0;
   for (const id of layers) {
     const tpl = id === 'terrain' ? TERRAIN_URL : id === 'hydro' ? USGS_HYDRO_TILES : RASTER_BASEMAPS[id as keyof typeof RASTER_BASEMAPS].url;
     const top = id === 'terrain' ? Math.min(12, maxZoom) : maxZoom;
-    for (let z = minZ; z <= top; z++) for (const t of tilesFor(bounds, z)) urls.push(fill(tpl, t));
+    for (let z = minZ; z <= top; z++) for (const t of tilesFor(bounds, z)) {
+      urls.push(fill(tpl, t));
+      if (urls.length > 15000) return urls; // Bound planning memory before the UI rejects a large area.
+    }
   }
   return urls;
 }
@@ -45,8 +47,8 @@ export async function saveArea(urls: string[], onProgress: (done: number, failed
       const u = urls[i++];
       try {
         if (!(await cache.match(u))) {
-          const r = await fetch(u, { signal });
-          if (r.ok) await cache.put(u, r); else failed++;
+          const r = await fetch(u, { signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]) });
+          if (r.ok && !(r.headers.get('content-type') ?? '').includes('text/html')) await cache.put(u, r); else failed++;
         }
       } catch { failed++; }
       done++;
@@ -54,16 +56,26 @@ export async function saveArea(urls: string[], onProgress: (done: number, failed
     }
   };
   await Promise.all(Array.from({ length: 8 }, worker));
-  await cacheGlyphs();
-  return { done, failed };
+  const missingAssets = signal.aborted ? 0 : await cacheGlyphs(signal);
+  onProgress(done, failed);
+  return { done, failed, cancelled: signal.aborted, missingAssets };
 }
 
-export async function cacheGlyphs() {
+export async function cacheGlyphs(signal?: AbortSignal) {
   const cache = await caches.open(STATIC_CACHE);
-  await Promise.all(FONTS.flatMap((f) => RANGES.map(async (r) => {
-    const u = GLYPHS.replace('{fontstack}', encodeURIComponent(f)).replace('{range}', r);
-    try { if (!(await cache.match(u))) { const res = await fetch(u); if (res.ok) await cache.put(u, res); } } catch { /* offline */ }
-  })));
+  const urls = FONTS.flatMap((f) => RANGES.map((r) => GLYPHS.replace('{fontstack}', encodeURIComponent(f)).replace('{range}', r)));
+  urls.push(...['.json', '.png', '@2x.json', '@2x.png'].map((suffix) => SPRITE + suffix));
+  let failed = 0;
+  await Promise.all(urls.map(async (u) => {
+    try {
+      if (!(await cache.match(u))) {
+        const res = await fetch(u, { signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(15000)]) });
+        if (!res.ok) throw new Error('Asset unavailable');
+        await cache.put(u, res);
+      }
+    } catch { failed++; }
+  }));
+  return failed;
 }
 
 export async function clearAreaCache() {
@@ -90,7 +102,7 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
   root.innerHTML = `
     <h3>Offline maps</h3>
     <p class="muted small">Download before you lose signal. Files are stored in this browser on this device.
-      Used ${mb(s.used)} of ${mb(s.quota)}${s.persisted ? ' · storage is persistent' : ' · <b>not yet persistent</b> (granted on first download)'}.</p>
+      Used ${mb(s.used)} of ${mb(s.quota)}${s.persisted ? ' · storage is persistent' : ' · <b>storage may be cleared by the browser</b> (persistence will be requested)'}.</p>
     <h4>Region packs</h4>
     <div class="packs">${(Object.keys(PMTILES) as PmKey[]).map((k) => `
       <div class="pack" data-k="${k}"><div><b>${esc(PM_LABELS[k])}</b><br><span class="muted small status">checking…</span></div>
@@ -108,14 +120,15 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
       <progress class="area-prog" hidden max="1" value="0"></progress>
     </div>`;
 
-  for (const el of root.querySelectorAll<HTMLElement>('.pack')) {
+  void Promise.all([...root.querySelectorAll<HTMLElement>('.pack')].map(async (el) => {
     const k = el.dataset.k as PmKey;
     const status = el.querySelector<HTMLElement>('.status')!;
     const actions = el.querySelector<HTMLElement>('.pack-actions')!;
     const prog = el.querySelector<HTMLProgressElement>('progress')!;
-    const [local, size] = await Promise.all([localFile(k), remoteSize(k)]);
+    const local = await localFile(k);
+    const size = local ? null : await remoteSize(k);
     if (local) {
-      status.textContent = `Saved on device · ${mb(local.size)}`;
+      status.textContent = `${await packStatus(k)} · ${mb(local.size)}`;
       actions.innerHTML = `<button class="btn">Remove</button>`;
       actions.querySelector('button')!.onclick = async () => { await removeFromDevice(k); toast('Removed'); onChanged(); renderOffline(root, map, onChanged); };
     } else if (size) {
@@ -128,7 +141,8 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
         prog.hidden = false;
         try {
           await saveToDevice(k, (d, t) => { prog.value = t ? d / t : 0; status.textContent = `${mb(d)}${t ? ' / ' + mb(t) : ''}`; }, ctl.signal);
-          toast('Saved for offline use');
+          const missing = await cacheGlyphs(ctl.signal);
+          toast(missing ? 'Map saved. Some labels or icons could not be saved; reconnect and retry.' : 'Map and label assets saved for offline use');
           onChanged();
         } catch (e) {
           toast(ctl.signal.aborted ? 'Download cancelled' : 'Download failed: ' + (e as Error).message);
@@ -136,16 +150,17 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
         renderOffline(root, map, onChanged);
       };
     } else {
-      status.textContent = navigator.onLine ? 'Not published yet — run the data pipeline (see README)' : 'Offline';
+      status.textContent = navigator.onLine ? 'Download unavailable. Try again when connected; this pack may not be published yet.' : 'Not downloaded · connect to download';
     }
-  }
+  })).catch(() => toast('Could not check map packs. Area download controls are still available.'));
 
   const est = root.querySelector<HTMLElement>('.est')!;
   const layersSel = () => [...root.querySelectorAll<HTMLInputElement>('.area input:checked')].map((i) => i.value);
   const maxz = root.querySelector<HTMLSelectElement>('.maxz')!;
   const update = () => {
     const n = planArea(map, layersSel(), Number(maxz.value)).length;
-    est.textContent = `${n.toLocaleString()} tiles ≈ ${mb(n * 25_000)}${n > 15000 ? ' — too many; zoom in or lower max zoom' : ''}`;
+    est.textContent = n > 15000 ? 'More than 15,000 tiles — zoom in or lower max zoom' : `${n.toLocaleString()} tiles ≈ ${mb(n * 25_000)}`;
+    root.querySelector<HTMLButtonElement>('.save-area')!.disabled = n === 0 || n > 15000;
   };
   root.querySelectorAll('.area input, .maxz').forEach((el) => el.addEventListener('change', update));
   if (moveHandler) map.off('moveend', moveHandler);
@@ -156,15 +171,21 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
   root.querySelector<HTMLButtonElement>('.save-area')!.onclick = async (ev) => {
     const urls = planArea(map, layersSel(), Number(maxz.value));
     if (urls.length > 15000) return toast('Area too large — zoom in or lower max zoom');
+    if (!urls.length) return toast('Select at least one map layer');
     const btn = ev.currentTarget as HTMLButtonElement;
     const prog = root.querySelector<HTMLProgressElement>('.area-prog')!;
     const ctl = new AbortController();
     btn.textContent = 'Cancel';
     btn.onclick = () => ctl.abort();
     prog.hidden = false;
-    const r = await saveArea(urls, (d, f) => { prog.value = d / urls.length; est.textContent = `${d.toLocaleString()} / ${urls.length.toLocaleString()} tiles${f ? ` (${f} failed)` : ''}`; }, ctl.signal);
-    toast(`Saved ${(r.done - r.failed).toLocaleString()} tiles`);
-    renderOffline(root, map, onChanged);
+    try {
+      const r = await saveArea(urls, (d, f) => { prog.value = d / urls.length; est.textContent = `${d.toLocaleString()} / ${urls.length.toLocaleString()} tiles${f ? ` (${f} failed)` : ''}`; }, ctl.signal);
+      toast(`${r.cancelled ? 'Cancelled. Kept' : r.failed || r.missingAssets ? 'Incomplete download. Saved' : 'Saved'} ${(r.done - r.failed).toLocaleString()} of ${urls.length.toLocaleString()} tiles${r.missingAssets ? '; some labels or icons unavailable' : ''}`, 7000);
+    } catch (e) {
+      toast('Area download failed: ' + (e as Error).message, 7000);
+    } finally {
+      void renderOffline(root, map, onChanged);
+    }
   };
   root.querySelector<HTMLButtonElement>('.clear-area')!.onclick = async () => { await clearAreaCache(); toast('Cleared'); renderOffline(root, map, onChanged); };
 }

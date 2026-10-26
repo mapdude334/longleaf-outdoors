@@ -67,8 +67,9 @@ export async function resolvePm(k: PmKey): Promise<Resolved | null> {
 }
 
 export async function remoteSize(k: PmKey): Promise<number | null> {
+  if (!navigator.onLine) return null;
   try {
-    const r = await fetch(remoteUrl(k), { method: 'HEAD' });
+    const r = await fetch(remoteUrl(k), { method: 'HEAD', signal: AbortSignal.timeout(8000) });
     if (!r.ok || (r.headers.get('content-type') ?? '').includes('text/html')) return null; // SPA fallback page
     const n = Number(r.headers.get('content-length'));
     return Number.isFinite(n) && n > 0 ? n : null;
@@ -77,11 +78,32 @@ export async function remoteSize(k: PmKey): Promise<number | null> {
   }
 }
 
+export async function validateArchive(file: File) {
+  const p = new PMTiles(new FileSource(file));
+  const h = await p.getHeader();
+  if (h.rootDirectoryLength <= 0 || !h.tileDataLength) throw new Error('Map archive contains no tiles');
+  for (const [offset, length] of [[h.rootDirectoryOffset, h.rootDirectoryLength], [h.jsonMetadataOffset, h.jsonMetadataLength], [h.leafDirectoryOffset, h.leafDirectoryLength], [h.tileDataOffset, h.tileDataLength]]) {
+    if (offset === undefined || length === undefined || offset < 0 || length < 0 || offset + length > file.size) throw new Error('Incomplete map archive');
+  }
+  await p.getMetadata();
+  // Traverse the directory as well as the header; metadata alone can be intact in a damaged archive.
+  await p.getZxy(h.minZoom, 0, 0);
+  return h;
+}
+
+export async function packStatus(k: PmKey) {
+  const file = await localFile(k);
+  if (!file) return 'Not downloaded';
+  try { await validateArchive(file); return 'Verified on device'; }
+  catch { return 'Unreadable — remove and download again'; }
+}
+
 /** Download a whole archive to the device with progress. Requests persistent storage first. */
 export async function saveToDevice(k: PmKey, onProgress: (done: number, total: number | null) => void, signal?: AbortSignal) {
   try { await navigator.storage?.persist?.(); } catch { /* optional */ }
   const res = await fetch(remoteUrl(k), { signal, cache: 'no-store' });
   if (!res.ok || !res.body) throw new Error(`Download failed (${res.status})`);
+  if ((res.headers.get('content-type') ?? '').includes('text/html')) throw new Error('Server returned a webpage instead of a map');
   const total = Number(res.headers.get('content-length')) || null;
   let done = 0;
   const counted = res.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
@@ -90,13 +112,22 @@ export async function saveToDevice(k: PmKey, onProgress: (done: number, total: n
   const dir = await opfsDir();
   if (dir) {
     try {
-      const fh = await dir.getFileHandle(PMTILES[k], { create: true });
+      const pending = PMTILES[k] + '.pending';
+      const fh = await dir.getFileHandle(pending, { create: true });
       const w = await (fh as FileSystemFileHandle & { createWritable(): Promise<FileSystemWritableFileStream> }).createWritable();
       try {
-        await counted.pipeTo(w); // closes the writable on success → atomic swap-in
+        await counted.pipeTo(w);
+        const file = await fh.getFile();
+        if (total && file.size !== total) throw new Error('Download size mismatch');
+        await validateArchive(file);
+        signal?.throwIfAborted();
+        const target = await dir.getFileHandle(PMTILES[k], { create: true });
+        const out = await target.createWritable();
+        await file.stream().pipeTo(out);
       } catch (e) {
-        await dir.removeEntry(PMTILES[k]).catch(() => {});
         throw e;
+      } finally {
+        await dir.removeEntry(pending).catch(() => {});
       }
       return;
     } catch (e) {
@@ -106,6 +137,9 @@ export async function saveToDevice(k: PmKey, onProgress: (done: number, total: n
   }
   // Fallback (older Safari): buffer through Cache Storage
   const blob = await new Response(counted).blob();
+  if (total && blob.size !== total) throw new Error('Download size mismatch');
+  await validateArchive(new File([blob], PMTILES[k]));
+  signal?.throwIfAborted();
   await (await caches.open(CACHE_NAME)).put(PMTILES[k], new Response(blob));
 }
 

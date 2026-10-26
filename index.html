@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1e3a2b" />
     <meta name="description" content="Offline outdoor map for the Southeast — starting with East Alabama and West Georgia: public lands, boat ramps, lakes & species, live river gauges, dam releases and weather." />
-    <link rel="icon" href="/icons/favicon-64.png" type="image/png" />
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="icon" href="/icons/pine-fishing-favicon-64.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/pine-fishing-touch-180.png" />
     <title>Longleaf Outdoors</title>
   </head>
   <body>
     <header id="top">
-      <div class="brand"><img src="/icons/icon-192.png" alt="" width="30" height="30" /><span>Longleaf Outdoors</span></div>
+      <div class="brand"><img src="/icons/pine-fishing-192.png" alt="Longleaf pine with a fishing rod and tackle box" width="40" height="40" /><span>Longleaf Outdoors</span></div>
       <div class="search">
         <input id="q" type="search" placeholder="Search lakes, ramps, dams, gauges, lat,lon…" autocomplete="off" aria-label="Search" />
         <ul id="results" hidden></ul>
@@ -24,14 +24,14 @@
     <aside id="sheet" class="sheet" aria-label="Panel">
       <button id="grab" class="grab" aria-label="Expand or collapse panel"><span></span></button>
       <nav class="tabs" role="tablist">
-        <button data-tab="layers" class="active">Layers</button>
+        <button data-tab="destination" class="active">Destination</button><button data-tab="layers">Layers</button>
         <button data-tab="waters">Waters</button>
         <button data-tab="weather">Weather</button>
         <button data-tab="mine">My Spots</button>
         <button data-tab="offline">Offline</button>
       </nav>
       <section id="tab-info" class="tab" hidden></section>
-      <section id="tab-layers" class="tab"></section>
+      <section id="tab-destination" class="tab"></section><section id="tab-layers" class="tab" hidden></section>
       <section id="tab-waters" class="tab" hidden></section>
       <section id="tab-weather" class="tab" hidden></section>
       <section id="tab-mine" class="tab" hidden></section>
