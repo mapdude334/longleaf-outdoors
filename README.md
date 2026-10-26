@@ -1,6 +1,6 @@
-# Valley Waters
+# Longleaf Outdoors
 
-**An offline-first fishing & outdoor map for East Alabama and West Georgia.** It covers the Tallapoosa and Middle Chattahoochee basins, from Lake Wedowee and West Point Lake down to Lake Eufaula. It's an installable web app (PWA) that runs on phones, tablets and desktops. You can host it for free on GitHub Pages, and it keeps working with no cell signal once you've downloaded your region.
+**An offline-first outdoor map for the Southeast, for fishing, hunting, paddling and public-land access.** The first region is East Alabama and West Georgia, covering the Tallapoosa and Middle Chattahoochee basins from Lake Wedowee and West Point Lake down to Lake Eufaula. Coverage is set in `pipeline/sources.json` and is built to grow region by region. It's an installable web app (PWA) that runs on phones, tablets and desktops. You can host it for free on GitHub Pages, and it keeps working with no cell signal once you've downloaded your region.
 
 | | |
 |---|---|
@@ -62,7 +62,7 @@ pipeline/ (Python + GDAL + tippecanoe + pmtiles)        app/ (Vite + TypeScript 
 - **PMTiles** packs each tileset into one static file. It can be read over HTTP range requests or from a file on the device, so you don't need a tile server, and the files work on GitHub Pages or any bucket.
 - **MapLibre GL JS** is the open-source standard for vector maps. It handles hillshade, 3D terrain and custom protocols, and through `maplibre-contour` it can draw contours client-side from the same DEM, so there's no extra download for contours.
 - **Protomaps / OpenStreetMap** gives a free, ODbL-licensed global basemap, and a daily build can be clipped to the region in minutes.
-- **QGIS** serves as the QA and styling bench. Run `qgis/load_valley_waters.py` in the QGIS Python console to load every output next to the live sources. You don't need a separate desktop GIS such as GeoLibre or RustGIS: the pipeline is scriptable and runs headless in CI.
+- **QGIS** serves as the QA and styling bench. Run `qgis/load_longleaf_outdoors.py` in the QGIS Python console to load every output next to the live sources. You don't need a separate desktop GIS such as GeoLibre or RustGIS: the pipeline is scriptable and runs headless in CI.
 
 ## Editing content
 

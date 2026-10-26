@@ -1,7 +1,7 @@
 // Central configuration. Override tile hosting at build time with VITE_TILE_BASE
-// (e.g. https://tiles.example.com/valley-waters/) — see docs/HOSTING.md.
+// (e.g. https://tiles.example.com/longleaf-outdoors/) — see docs/HOSTING.md.
 
-export const APP_NAME = 'Valley Waters';
+export const APP_NAME = 'Longleaf Outdoors';
 
 /** AOI: East Alabama / West Georgia (Tallapoosa + Middle Chattahoochee basins). [w, s, e, n] */
 export const AOI: [number, number, number, number] = [-86.35, 31.55, -84.35, 33.85];

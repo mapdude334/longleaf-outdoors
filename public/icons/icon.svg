@@ -1,8 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="104" fill="#0f3d3e"/>
-  <path d="M40 300 L170 170 L250 250 L330 150 L472 300 Z" fill="#3f8f4f"/>
-  <path d="M330 150 L372 202 L350 214 L330 190 L306 214 L292 196 Z" fill="#e8f1ee" opacity=".85"/>
-  <path d="M40 300 Q120 268 200 300 T360 300 T472 300 V420 Q472 472 420 472 H92 Q40 472 40 420 Z" fill="#5aa9e6"/>
-  <path d="M70 360 Q130 336 190 360 T310 360 T440 360" fill="none" stroke="#e8f1ee" stroke-width="14" stroke-linecap="round"/>
-  <path d="M110 412 Q160 394 210 412 T310 412 T400 412" fill="none" stroke="#e8f1ee" stroke-width="10" stroke-linecap="round" opacity=".7"/>
+  <rect width="512" height="512" rx="104" fill="#1e3a2b"/>
+  <circle cx="256" cy="256" r="196" fill="#24493a"/>
+  <!-- water -->
+  <path d="M60 372 Q130 346 200 372 T340 372 T452 372 V412 Q380 444 256 452 Q132 444 60 412 Z" fill="#4f9fd6"/>
+  <path d="M110 398 Q160 382 210 398 T310 398 T402 398" fill="none" stroke="#e8f1ee" stroke-width="9" stroke-linecap="round" opacity=".8"/>
+  <!-- longleaf pine: tall bare trunk, tufted crown -->
+  <rect x="246" y="150" width="20" height="230" rx="8" fill="#8a5a36"/>
+  <g stroke="#7cc47f" stroke-width="10" stroke-linecap="round" fill="none">
+    <path d="M256 156 L190 108"/><path d="M256 156 L322 108"/><path d="M256 150 L214 78"/><path d="M256 150 L298 78"/><path d="M256 146 L256 64"/>
+    <path d="M256 200 L178 176"/><path d="M256 200 L334 176"/><path d="M256 196 L196 140"/><path d="M256 196 L316 140"/>
+    <path d="M258 246 L206 236"/><path d="M258 246 L310 228"/><path d="M258 242 L224 202"/><path d="M258 240 L294 200"/>
+  </g>
+  <g stroke="#4f9a57" stroke-width="7" stroke-linecap="round" fill="none" opacity=".9">
+    <path d="M256 170 L170 150"/><path d="M256 170 L342 150"/><path d="M256 220 L190 214"/><path d="M256 220 L322 210"/>
+  </g>
 </svg>

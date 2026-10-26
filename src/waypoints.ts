@@ -110,14 +110,14 @@ export function exportGpx(): string {
   const x = (s: string) => esc(s);
   const w = wpts.map((p) => `<wpt lat="${p.lat}" lon="${p.lng}"><time>${new Date(p.time).toISOString()}</time><name>${x(p.name)}</name>${p.notes ? `<desc>${x(p.notes)}</desc>` : ''}<type>${x(p.type)}</type></wpt>`).join('\n');
   const t = tracks.map((tr) => `<trk><name>${x(tr.name)}</name><trkseg>${tr.pts.map((p) => `<trkpt lat="${p[1]}" lon="${p[0]}"><time>${new Date(p[2]).toISOString()}</time></trkpt>`).join('')}</trkseg></trk>`).join('\n');
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Valley Waters" xmlns="http://www.topografix.com/GPX/1/1">\n${w}\n${t}\n</gpx>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Longleaf Outdoors" xmlns="http://www.topografix.com/GPX/1/1">\n${w}\n${t}\n</gpx>`;
 }
 
 export function downloadGpx() {
   const blob = new Blob([exportGpx()], { type: 'application/gpx+xml' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `valley-waters-${new Date().toISOString().slice(0, 10)}.gpx`;
+  a.download = `longleaf-outdoors-${new Date().toISOString().slice(0, 10)}.gpx`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }

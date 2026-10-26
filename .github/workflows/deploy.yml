@@ -1,7 +1,7 @@
 # Build the PWA and publish to GitHub Pages.
 # Settings → Pages → Source: "GitHub Actions".
 # Optional repo variables (Settings → Secrets and variables → Actions → Variables):
-#   VITE_TILE_BASE    URL where *.pmtiles live (e.g. https://tiles.example.com/valley-waters/). Default: ./tiles/ on Pages.
+#   VITE_TILE_BASE    URL where *.pmtiles live (e.g. https://tiles.example.com/longleaf-outdoors/). Default: ./tiles/ on Pages.
 #   PAGES_HOST_TILES  "true" to copy PMTiles from the latest "tiles-*" release into the Pages site (keep total < ~1 GB).
 #   VITE_USGS_API_KEY optional api.waterdata.usgs.gov key (raises rate limits; it is public in the bundle).
 name: Deploy app

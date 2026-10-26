@@ -52,7 +52,7 @@ jobs:
           AWS_DEFAULT_REGION: auto
         run: |
           for f in pipeline/out/*.pmtiles; do
-            aws s3 cp "$f" "s3://$R2_BUCKET/valley-waters/$(basename "$f")" \
+            aws s3 cp "$f" "s3://$R2_BUCKET/longleaf-outdoors/$(basename "$f")" \
               --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
               --content-type application/octet-stream
           done

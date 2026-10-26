@@ -9,7 +9,7 @@ layer() { [ -s "$2" ] && echo "-L" "{\"layer\":\"$1\",\"file\":\"$2\"}" || true;
 
 # shellcheck disable=SC2046
 tippecanoe -o overlays.pmtiles --force \
-  --name="Valley Waters overlays" \
+  --name="Longleaf Outdoors overlays" \
   --attribution="USGS PAD-US 4.1; USGS NHD; © OpenStreetMap contributors (ODbL)" \
   -Z6 -z14 --drop-densest-as-needed --detect-shared-borders --simplify-only-low-zooms -r1 \
   $(layer public_lands public_lands.geojson) \

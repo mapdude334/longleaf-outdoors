@@ -22,8 +22,8 @@ The app is static files, which GitHub Pages serves. The map data consists of thr
    [{"AllowedOrigins":["https://<you>.github.io"],"AllowedMethods":["GET","HEAD"],
      "AllowedHeaders":["Range","If-Match"],"ExposeHeaders":["Content-Length","Content-Range","ETag"],"MaxAgeSeconds":86400}]
    ```
-3. Add these repo secrets: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. The data workflow uploads to `valley-waters/` in the bucket.
-4. Set the repo variable `VITE_TILE_BASE=https://tiles.example.com/valley-waters/` and redeploy.
+3. Add these repo secrets: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. The data workflow uploads to `longleaf-outdoors/` in the bucket.
+4. Set the repo variable `VITE_TILE_BASE=https://tiles.example.com/longleaf-outdoors/` and redeploy.
 
 The free tier covers 10 GB of storage with no egress fees. Any S3, Azure Blob or city web server with range and CORS support works the same way.
 
