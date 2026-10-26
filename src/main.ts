@@ -1,4 +1,5 @@
 import { renderDestination, selectDestination } from './destination';
+import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick } from './trips';
 import { speciesForLabel, speciesHtml, speciesChoiceHtml } from './species';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
@@ -150,8 +151,10 @@ async function reloadData() {
 const sheet = $('#sheet');
 let currentTab = 'destination';
 let navigationRevision = 0;
-function destination() { return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt }); }
+function destination() { showTripPlan(map); return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips') }); }
+map.on('style.load', () => showTripPlan(map));
 function showTab(name: string) {
+  cancelTripPick();
   navigationRevision++;
   currentTab = name;
   document.querySelectorAll<HTMLElement>('.tab').forEach((t) => (t.hidden = t.id !== 'tab-' + name));
@@ -161,6 +164,7 @@ function showTab(name: string) {
   if (name === 'weather') renderWeather();
   if (name === 'offline') renderOffline($('#tab-offline'), map, refreshAvailability);
   if (name === 'mine') renderMine();
+  if (name === 'trips') renderTrips($('#tab-trips'), map, (id) => { selectDestination(id); showTab('destination'); $('#tab-destination').scrollTop = 0; if (innerWidth <= 800) sheet.classList.remove('open'); });
 }
 document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((b) => (b.onclick = () => (currentTab === b.dataset.tab && sheet.classList.contains('open') ? sheet.classList.remove('open') : showTab(b.dataset.tab!))));
 $('#grab').onclick = () => sheet.classList.toggle('open');
@@ -300,6 +304,7 @@ function renderMine() {
   const w = getWpts();
   const t = getTracks();
   el.innerHTML = `
+    <button class="btn primary" id="my-trips">My saved trips</button>
     <div class="row-btns">
       <button class="btn primary" id="add-center">+ Waypoint at center</button>
       <button class="btn ${isRecording() ? 'danger' : ''}" id="rec">${isRecording() ? '■ Stop track' : '● Record track'}</button>
@@ -310,6 +315,7 @@ function renderMine() {
     <ul class="list">${t.map((tr) => `<li data-track="${tr.id}"><b>${esc(tr.name)}</b> <span class="muted small">${(trackKm(tr) * 0.621).toFixed(2)} mi</span> <button class="link del-track">delete</button></li>`).join('') || '<li class="muted">No tracks yet.</li>'}</ul>
     <div class="row-btns"><button class="btn" id="gpx-out">Export GPX</button><label class="btn">Import GPX<input type="file" accept=".gpx,application/gpx+xml" hidden id="gpx-in"></label></div>
     <p class="muted small">Stored only on this device. Export GPX to back up or move to your fish finder / GPS.</p>`;
+  el.querySelector<HTMLButtonElement>('#my-trips')!.onclick = () => showTab('trips');
   el.querySelector<HTMLButtonElement>('#add-center')!.onclick = () => { const c = map.getCenter(); editWpt(addWpt(c.lng, c.lat).id); };
   el.querySelector<HTMLButtonElement>('#rec')!.onclick = () => { toggleRecording(); renderMine(); };
   el.querySelector<HTMLButtonElement>('#gpx-out')!.onclick = downloadGpx;
@@ -338,6 +344,7 @@ function editWpt(id: string) {
 const CLICK_LAYERS = ['wpt-pt', 'gauges-pt', 'dams-pt', 'access-pts', 'waters-lbl', 'osm-dam', 'wb-fill', 'stream-line', 'pl-fill', 'parcel-hit'];
 let identifyRequest = 0;
 map.on('click', async (e) => {
+  if (pickingTripSpot()) return;
   const request = ++identifyRequest;
   $('#ctx').hidden = true;
   const r = 8;
@@ -400,6 +407,7 @@ map.on('click', async (e) => {
   }
 });
 map.on('mousemove', (e) => {
+  if (pickingTripSpot()) return;
   const layers = CLICK_LAYERS.filter((id) => map.getLayer(id) && id !== 'wb-fill' && id !== 'pl-fill' && id !== 'parcel-hit');
   map.getCanvas().style.cursor = map.queryRenderedFeatures(e.point, { layers }).length ? 'pointer' : '';
 });

@@ -5,6 +5,7 @@ import { dams, damHtml, fillCwms } from './layers/dams';
 import { ACCESS_LABELS, accessHtml, accessLocation } from './layers/access';
 import { getWpts } from './waypoints';
 import { packStatus } from './pmtiles';
+import { activeTrip } from './trips';
 import { esc, haversineKm, store } from './util';
 
 const BOUNDS: [[number, number], [number, number]] = [[-85.32, 32.86], [-85.02, 33.22]];
@@ -15,6 +16,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   offline: () => void;
   info: (html: string, after?: (root: HTMLElement) => void) => void;
   spot: (id: string) => void;
+  trips: () => void;
 }) {
   const selected = store.get<string>('destination')?.v ?? 'west-point';
   const water = waters.find((w) => w.id === selected) ?? waters.find((w) => w.id === 'west-point');
@@ -27,6 +29,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   const near = gauges.filter((g) => inside(g.coords)).sort((a, b) => haversineKm(a.coords, CENTER) - haversineKm(b.coords, CENTER));
   const dam = dams.find((d) => d.lake === water?.id);
   const spots = getWpts().filter((p) => inside([p.lng, p.lat]));
+  const trip = activeTrip();
   const seen = new Set<string>();
   const access = map.queryRenderedFeatures(undefined, { layers: ['access-pts'].filter((id) => !!map.getLayer(id)) })
     .filter((f) => {
@@ -44,6 +47,8 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
     </div>
     <div class="destination-body">
       <div class="destination-meta">${esc(water?.river ? water.river + ' basin' : water?.state ?? '')}<span>${esc(water?.manager ?? '')}</span></div>
+      <button class="btn primary" data-action="trips">Plan / saved trips</button>
+      ${trip && trip.destination === water?.id ? `<div class="destination-card"><b>${esc(trip.name)}</b><p>Launch: ${esc(trip.ramp?.name ?? 'Not selected')}</p><p>Fishing spots: ${esc(trip.spots.map((s) => s.name).join(', ') || 'None selected')}</p><p style="white-space:pre-wrap">${esc(trip.notes)}</p><span class="muted small">Saved trip · launch is blue, fishing spots are pink on the map.</span></div>` : ''}
       ${water ? `<p class="muted small">${water.acres ? water.acres.toLocaleString() + ' acres · ' : ''}${esc(water.state)} · ${esc(water.type)}</p><p>${esc(water.notes ?? '')}</p><button class="btn" data-action="overview">Species, lake notes & official links ↗</button>` : ''}
       <div class="destination-actions"><button class="btn primary" data-action="weather" ${water?.center ? '' : 'disabled'}>Check weather</button><button class="btn" data-action="offline">Prepare offline</button></div>
       <h4>01 / Before you launch</h4>
@@ -71,6 +76,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
     root.querySelector<HTMLSelectElement>('#destination-select')?.focus({ preventScroll: true });
   };
   const overview = root.querySelector<HTMLButtonElement>('[data-action="overview"]');
+  root.querySelector<HTMLButtonElement>('[data-action="trips"]')!.onclick = actions.trips;
   if (overview) overview.onclick = () => actions.info(waterHtml(water!));
   root.querySelector<HTMLButtonElement>('.destination-explore')!.onclick = () => {
     if (innerWidth <= 800) document.querySelector('#sheet')?.classList.remove('open');
