@@ -19,7 +19,7 @@ Tested October 26, 2026 in the desktop app's Chromium browser. These results do 
 
 - Production TypeScript and Vite/PWA build: passed.
 - Original reliability checks: 8 passed (`tools/reliability.html`).
-- Additional offline checks: 13 passed (`tools/offline-checks.html`).
+- Additional offline checks: 14 passed (`tools/offline-checks.html`).
 - Responsive app viewports: 320 × 568, 390 × 844, and 844 × 390 passed checks for page overflow, navigation visibility, and 44px navigation touch targets. A same-origin iframe provides repeatable viewport testing in `tools/mobile-checks.html`.
 - On a 390px phone view, downloaded a small West Point Lake area with topo and terrain through zoom 13. The raster cache increased from 6 to 33 tiles. No browser errors were reported during this check.
 - Stopped the local production server, verified it was unreachable, then reloaded the installed application. The app shell loaded and the temporary saved waypoint remained available. Removed the test waypoint afterward. External services were still reachable in this test: this was a server-unavailable reload, not a device airplane-mode test.
@@ -41,7 +41,8 @@ Tested October 26, 2026 in the desktop app's Chromium browser. These results do 
 
 ## Remaining verification
 
-- No regional PMTiles packs are published in this checkout. Archive tests used a small valid synthetic PMTiles archive, not the full regional build. Area download tests used real map services.
+- Regional release tiles-20261026-3 is published. On the live GitHub Pages app, the real 99.2 MB basemap and 28.6 MB overlay archives downloaded and passed archive validation. Both remained verified after reopening. The download regression also covers compressed HTTP transfers; archive sizes are checked against the canonical manifest rather than compressed transfer headers. Parcel coverage remains Lee County, AL and Muscogee County, GA; core regional bounds are [-86.35, 31.55, -84.35, 33.85].
 - Test the installed app in airplane mode on a physical phone, including panning across saved-area edges and label rendering at different zooms.
 - Physical GPS, background/screen-lock behavior, OS keyboard behavior, storage eviction, and Safari-specific behavior remain unverified. GPS recording still requires keeping the app open.
 - Browser storage may be cleared unless persistence is granted. Archive verification does not establish source-data completeness, freshness, or legal access.
+

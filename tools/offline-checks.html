@@ -31,7 +31,12 @@ try {
   window.fetch = async () => { throw Error('Network unavailable'); };
   const cancelled = await saveArea(['https://test.invalid/cancel'],()=>{},ctl.signal);
   assert(cancelled.cancelled && cancelled.done === 0, 'Cancelled download reports cancellation without network work');
-  const failed = await saveArea(['https://test.invalid/missing-tile'],()=>{},new AbortController().signal);
+  const originalMatch = Cache.prototype.match;
+  let failed;
+  try {
+    Cache.prototype.match = async () => undefined; // Isolate failure reporting from previously cached labels.
+    failed = await saveArea(['https://test.invalid/missing-tile'],()=>{},new AbortController().signal);
+  } finally { Cache.prototype.match = originalMatch; }
   assert(failed.failed === 1 && failed.missingAssets > 0, 'Failed tiles and missing labels are reported as incomplete');
   store.get = () => ({ t: 1, v: { forecast: 'last known' } });
   const fallback = await cachedLive('test',0,async()=>{throw Error('Offline');});
@@ -79,4 +84,5 @@ finally {
   if (cache) { if (cachedPrior) await cache.put('parcels.pmtiles',cachedPrior); else await cache.delete('parcels.pmtiles'); }
 }
 </script></html>
+
 
