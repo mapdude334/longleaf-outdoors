@@ -81,7 +81,9 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   root.querySelector<HTMLButtonElement>('.destination-explore')!.onclick = () => {
     if (innerWidth <= 800) document.querySelector('#sheet')?.classList.remove('open');
     const bottom = innerWidth <= 800 ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) + 20 : 45;
-    map.fitBounds(bounds, { padding: { top: 45, left: 45, right: 45, bottom }, duration: 900 });
+    const exploreBounds: [[number, number], [number, number]] = water?.acres && water.acres < 1000
+      ? [[CENTER[0] - 0.015, CENTER[1] - 0.012], [CENTER[0] + 0.015, CENTER[1] + 0.012]] : bounds;
+    map.fitBounds(exploreBounds, { padding: { top: 45, left: 45, right: 45, bottom }, duration: 900 });
   };
   root.querySelector<HTMLButtonElement>('[data-action="weather"]')!.onclick = () => actions.weather(CENTER);
   root.querySelector<HTMLButtonElement>('[data-action="offline"]')!.onclick = actions.offline;

@@ -52,7 +52,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     for (const spot of trip.spots) spots.set(spot.id, spot);
     root.innerHTML = `<button class="link" data-back>← My trips</button><h3>Plan your trip</h3>
       <label class="field">Trip name<input id="trip-name" maxlength="120" value="${esc(trip.name)}" placeholder="Saturday on the lake"></label>
-      <label class="field">Destination<select id="trip-destination">${waters.map((w) => `<option value="${esc(w.id)}" ${w.id === trip.destination ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label>
+      <label class="field">Destination<select id="trip-destination">${waters.some((w) => w.id === trip.destination) ? '' : `<option value="${esc(trip.destination)}" selected>Choose a specific lake (previous group retired)</option>`}${waters.map((w) => `<option value="${esc(w.id)}" ${w.id === trip.destination ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label>
       <label class="field">Boat ramp / launch<select id="trip-ramp"><option value="">Choose a launch later</option>${ramps.map((r) => `<option value="${esc(r.id)}" ${trip.ramp?.id === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>
       <p class="muted small">Launches within 25 miles of the destination’s mapped center, plus your saved launches. Confirm access before traveling.</p>
       <button class="btn" data-refresh-launches>Refresh nearby launches</button>
@@ -70,6 +70,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     };
     const save = () => {
       collect();
+      if (!waters.some((w) => w.id === trip.destination)) { input('#trip-destination').focus(); toast('Choose a specific lake for this trip.'); return false; }
       if (!trip.name) { input('#trip-name').focus(); toast('Give your trip a name.'); return false; }
       trip.updated = Date.now(); trip.view = { center: map.getCenter().toArray() as [number, number], zoom: map.getZoom() };
       const trips = saved(); const index = trips.findIndex((t) => t.id === trip.id);

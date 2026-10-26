@@ -1,6 +1,6 @@
 {
   "_about": "Curated fishery notes for major waters. Species lists are general and compiled from state agency lake/river profiles; verify current regs, limits and advisories with ADCNR (outdooralabama.com) and GA DNR WRD (georgiawildlife.com). 'center' is an approximate label point; null means 'shown only when tapping the NHD water feature'. Edit freely — the pipeline joins these onto NHD by gnis_names.",
-  "updated": "2026-10-23",
+  "updated": "2026-10-26",
   "waters": [
     {
       "id": "west-point",
@@ -224,28 +224,161 @@
       "links": [{"label": "Chewacla State Park", "url": "https://www.alapark.com/parks/chewacla-state-park"}]
     },
     {
-      "id": "al-pfl",
-      "name": "Alabama State Public Fishing Lakes (Lee, Chambers, Barbour, Coosa Co.)",
-      "gnis_names": ["Lee County Public Fishing Lake", "Chambers County Public Fishing Lake", "Barbour County Public Fishing Lake", "Coosa County Public Fishing Lake"],
+      "id": "lee-county-lake",
+      "name": "Lee County Lake",
+      "gnis_names": [
+        "Lee County Lake",
+        "Lee County Public Fishing Lake"
+      ],
       "state": "AL",
       "type": "lake",
+      "acres": 130,
       "manager": "ADCNR Wildlife & Freshwater Fisheries",
-      "center": null,
-      "species": [{"name": "Largemouth bass"}, {"name": "Bluegill"}, {"name": "Redear sunfish"}, {"name": "Channel catfish"}, {"name": "Crappie"}],
-      "notes": "Managed, stocked lakes with daily permits, posted hours and limits. Great for kids and bank fishing.",
-      "links": [{"label": "ADCNR Public Fishing Lakes", "url": "https://www.outdooralabama.com/where-fish-alabama/state-public-fishing-lakes"}]
+      "center": [
+        -85.313556,
+        32.551975
+      ],
+      "location_note": "Approximate map reference from the official lake location link.",
+      "species": [
+        {
+          "name": "Largemouth bass"
+        },
+        {
+          "name": "Bluegill"
+        },
+        {
+          "name": "Redear sunfish"
+        },
+        {
+          "name": "Channel catfish"
+        },
+        {
+          "name": "Crappie"
+        }
+      ],
+      "notes": "321 Lee Road 808, Opelika, Alabama. Lake southeast of Auburn with bank fishing, a boat ramp, fishing pier, restrooms and concessions. Check the official lake page for current hours, permits and access.",
+      "links": [
+        {
+          "label": "Lee County Lake — official lake information",
+          "url": "https://www.outdooralabama.com/public-fishing-lakes/lee-county-pfl"
+        }
+      ]
     },
     {
-      "id": "ga-pfa",
-      "name": "Georgia Public Fishing Areas (e.g., Big Lazer Creek PFA)",
-      "gnis_names": ["Big Lazer Creek Lake"],
+      "id": "chambers-county-lake",
+      "name": "Chambers County Lake",
+      "gnis_names": [
+        "Chambers County Lake",
+        "Chambers County Public Fishing Lake"
+      ],
+      "state": "AL",
+      "type": "lake",
+      "acres": 183,
+      "manager": "ADCNR Wildlife & Freshwater Fisheries",
+      "center": [
+        -85.3514002,
+        32.8320782
+      ],
+      "location_note": "Approximate map reference from the official lake location link.",
+      "species": [
+        {
+          "name": "Largemouth bass"
+        },
+        {
+          "name": "Bluegill"
+        },
+        {
+          "name": "Redear sunfish"
+        },
+        {
+          "name": "Channel catfish"
+        },
+        {
+          "name": "Crappie"
+        }
+      ],
+      "notes": "1145 County Road 292, LaFayette, Alabama. Lake southeast of LaFayette with a boat ramp, accessible fishing pier and pavilion, restrooms and concessions. Check the official lake page for current hours, permits and access.",
+      "links": [
+        {
+          "label": "Chambers County Lake — official lake information",
+          "url": "https://www.outdooralabama.com/public-fishing-lakes/chambers-county-pfl"
+        }
+      ]
+    },
+    {
+      "id": "barbour-county-lake",
+      "name": "Barbour County Lake",
+      "gnis_names": [
+        "Barbour County Lake",
+        "Barbour County Public Fishing Lake"
+      ],
+      "state": "AL",
+      "type": "lake",
+      "acres": 75,
+      "manager": "ADCNR Wildlife & Freshwater Fisheries",
+      "center": [
+        -85.4408008,
+        31.9734836
+      ],
+      "location_note": "Approximate map reference from the official lake location link.",
+      "species": [
+        {
+          "name": "Largemouth bass"
+        },
+        {
+          "name": "Bluegill"
+        },
+        {
+          "name": "Redear sunfish"
+        },
+        {
+          "name": "Channel catfish"
+        }
+      ],
+      "notes": "30 State Lake Road, Midway, Alabama. TEMPORARILY CLOSED: ADCNR lists this lake as closed for renovation/restocking; checked October 26, 2026. A map listing does not indicate that fishing or launching is available. Confirm reopening with ADCNR. Check the official lake page for current hours, permits and access.",
+      "links": [
+        {
+          "label": "Barbour County Lake — official lake information",
+          "url": "https://www.outdooralabama.com/public-fishing-lakes/barbour-county-pfl"
+        }
+      ]
+    },
+    {
+      "id": "big-lazer-creek",
+      "name": "Big Lazer Creek Public Fishing Area",
+      "gnis_names": [
+        "Big Lazer Creek Lake"
+      ],
       "state": "GA",
       "type": "lake",
+      "acres": 195,
       "manager": "Georgia DNR Wildlife Resources Division",
-      "center": null,
-      "species": [{"name": "Largemouth bass"}, {"name": "Bluegill"}, {"name": "Redear sunfish"}, {"name": "Channel catfish"}, {"name": "Crappie"}],
-      "notes": "GA Lands Pass or license requirements apply; see PFA page for current rules.",
-      "links": [{"label": "GA Public Fishing Areas", "url": "https://georgiawildlife.com/fishing/pfa"}]
+      "center": [
+        -84.4045,
+        32.77419
+      ],
+      "location_note": "Approximate map reference published by Georgia DNR.",
+      "species": [
+        {
+          "name": "Largemouth bass"
+        },
+        {
+          "name": "Bluegill"
+        },
+        {
+          "name": "Channel catfish"
+        },
+        {
+          "name": "Crappie"
+        }
+      ],
+      "notes": "195-acre fishing lake on Big Lazer Creek Wildlife Management Area near Talbotton. Boat ramp, canoe access, fishing dock, fish-cleaning station, picnic tables, primitive campsites and restrooms. See the official page for current hours, licenses and site rules.",
+      "links": [
+        {
+          "label": "Big Lazer Creek PFA — official information",
+          "url": "https://georgiawildlife.com/big-lazer-creek-pfa"
+        }
+      ]
     }
   ],
   "regulations": [
