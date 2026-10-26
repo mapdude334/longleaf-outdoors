@@ -155,12 +155,15 @@ async function reloadData() {
 // ---------------- sheet / tabs ----------------
 const sheet = $('#sheet');
 let currentTab = 'destination';
+let cancelWaypointPick: (() => void) | undefined;
+let placeWaypoint: ((lng: number, lat: number) => void) | undefined;
 let navigationRevision = 0;
 function destination() { showTripPlan(map); return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips'), downloadsChanged: refreshAvailability, gaugeState }); }
 map.on('style.load', () => showTripPlan(map));
 map.on('moveend', () => { if (currentTab === 'destination') void destination(); });
 function showTab(name: string) {
   cancelTripPick();
+  cancelWaypointPick?.();
   navigationRevision++;
   currentTab = name;
   document.querySelectorAll<HTMLElement>('.tab').forEach((t) => (t.hidden = t.id !== 'tab-' + name));
@@ -318,7 +321,7 @@ function renderMine() {
   el.innerHTML = `
     <button class="btn primary" id="my-trips">My saved trips</button>
     <div class="row-btns">
-      <button class="btn primary" id="add-center">+ Waypoint at center</button>
+      <button class="btn primary" id="drop-waypoint">+ Drop a pin</button>
       <button class="btn ${isRecording() ? 'danger' : ''}" id="rec">${isRecording() ? '■ Stop track' : '● Record track'}</button>
     </div>
     <h4>Waypoints (${w.length})</h4>
@@ -328,7 +331,25 @@ function renderMine() {
     <div class="row-btns"><button class="btn" id="gpx-out">Export GPX</button><label class="btn">Import GPX<input type="file" accept=".gpx,application/gpx+xml" hidden id="gpx-in"></label></div>
     <p class="muted small">Stored only on this device. Export GPX to back up or move to your fish finder / GPS.</p>`;
   el.querySelector<HTMLButtonElement>('#my-trips')!.onclick = () => showTab('trips');
-  el.querySelector<HTMLButtonElement>('#add-center')!.onclick = () => { const c = map.getCenter(); editWpt(addWpt(c.lng, c.lat).id); };
+  el.querySelector<HTMLButtonElement>('#drop-waypoint')!.onclick = () => {
+    cancelTripPick(); cancelWaypointPick?.();
+    const wasOpen = sheet.classList.contains('open');
+    if (innerWidth <= 800) sheet.classList.remove('open');
+    const banner = document.createElement('div');
+    banner.className = 'trip-pin-banner';
+    banner.innerHTML = '<span>Tap or click the map to drop your pin</span><button class="btn">Cancel</button>';
+    document.body.append(banner);
+    map.getCanvas().style.cursor = 'crosshair';
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') cancelWaypointPick?.(); };
+    cancelWaypointPick = () => {
+      banner.remove(); window.removeEventListener('keydown', escape);
+      map.getCanvas().style.cursor = ''; placeWaypoint = undefined; cancelWaypointPick = undefined;
+      if (wasOpen) sheet.classList.add('open');
+    };
+    banner.querySelector('button')!.onclick = () => cancelWaypointPick?.();
+    placeWaypoint = (lng, lat) => { cancelWaypointPick?.(); editWpt(addWpt(lng, lat).id); };
+    window.addEventListener('keydown', escape);
+  };
   el.querySelector<HTMLButtonElement>('#rec')!.onclick = () => { toggleRecording(); renderMine(); };
   el.querySelector<HTMLButtonElement>('#gpx-out')!.onclick = downloadGpx;
   el.querySelector<HTMLInputElement>('#gpx-in')!.onchange = (e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) importGpx(f).catch(() => toast('Could not read the GPX file.'));  };
@@ -356,6 +377,7 @@ function editWpt(id: string) {
 const CLICK_LAYERS = ['wpt-pt', 'gauges-pt', 'dams-pt', 'access-pts', 'waters-pt', 'waters-lbl', 'osm-dam', 'wb-fill', 'stream-line', 'pl-fill', 'parcel-hit'];
 let identifyRequest = 0;
 map.on('click', async (e) => {
+  if (placeWaypoint) { placeWaypoint(e.lngLat.lng, e.lngLat.lat); return; }
   if (pickingTripSpot()) return;
   const request = ++identifyRequest;
   $('#ctx').hidden = true;
@@ -421,7 +443,7 @@ map.on('click', async (e) => {
   }
 });
 map.on('mousemove', (e) => {
-  if (pickingTripSpot()) return;
+  if (pickingTripSpot() || placeWaypoint) return;
   const layers = CLICK_LAYERS.filter((id) => map.getLayer(id) && id !== 'wb-fill' && id !== 'pl-fill' && id !== 'parcel-hit');
   map.getCanvas().style.cursor = map.queryRenderedFeatures(e.point, { layers }).length ? 'pointer' : '';
 });
