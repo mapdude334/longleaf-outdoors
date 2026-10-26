@@ -2,7 +2,7 @@ import type { Map } from 'maplibre-gl';
 import { waters, waterHtml } from './layers/waters';
 import { gauges, gaugeHtml, fillTrend } from './layers/gauges';
 import { dams, damHtml, fillCwms } from './layers/dams';
-import { ACCESS_LABELS, accessHtml, accessLocation } from './layers/access';
+import { ACCESS_LABELS, accessHtml, accessLocation, accessFeatures } from './layers/access';
 import { getWpts } from './waypoints';
 import { packStatus } from './pmtiles';
 import { activeTrip } from './trips';
@@ -31,13 +31,19 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   const spots = getWpts().filter((p) => inside([p.lng, p.lat]));
   const trip = activeTrip();
   const seen = new Set<string>();
-  const access = map.queryRenderedFeatures(undefined, { layers: ['access-pts'].filter((id) => !!map.getLayer(id)) })
+  const catalog = accessFeatures();
+  const nearbyCatalog = catalog.filter((f) => inside(f.geometry.coordinates)).sort((a, b) => haversineKm(a.geometry.coordinates as [number, number], CENTER) - haversineKm(b.geometry.coordinates as [number, number], CENTER));
+  const visibleCatalog = nearbyCatalog.filter((f) => map.getBounds().contains(f.geometry.coordinates as [number, number]));
+  const showingNearby = catalog.length > 0 && visibleCatalog.length === 0 && nearbyCatalog.length > 0;
+  const candidates = catalog.length ? (showingNearby ? nearbyCatalog : visibleCatalog) : map.queryRenderedFeatures(undefined, { layers: ['access-pts'].filter((id) => !!map.getLayer(id)) });
+  const access = candidates
     .filter((f) => {
       if (f.geometry.type !== 'Point' || !inside(f.geometry.coordinates)) return false;
       const key = f.properties.osm ?? `${f.properties.name}:${f.geometry.coordinates.join(',')}`;
       if (seen.has(key)) return false; seen.add(key); return true;
     });
   const accessCache = store.get('access-osm');
+  const accessEdition = store.get<string>('access-edition')?.v;
   root.innerHTML = `<div class="destination-hero">
       <span class="destination-eyebrow">YOUR NEXT DAY OUT · ALABAMA / GEORGIA</span>
       <label class="destination-picker">Choose your destination<select id="destination-select">${[...waters].sort((a, b) => a.name.localeCompare(b.name)).map((w) => `<option value="${esc(w.id)}" ${w.id === water?.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label>
@@ -56,10 +62,11 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       ${near.length ? near.slice(0, 2).map((g) => `<details class="destination-card"><summary>${esc(g.name)}</summary>${gaugeHtml(g)}</details>`).join('') : '<div class="destination-card">No nearby gauge readings loaded.<p class="muted small">A missing reading does not establish current conditions.</p></div>'}
       ${dam ? '<button class="btn" data-action="dam">Dam & release information ↗</button>' : ''}
       <h4>02 / Find your way to the water</h4>
-      <p class="muted small">${water?.center ? 'Access points currently drawn near this destination. Explore the water, then refresh to see more.' : 'Nearby access cannot be matched until a map location is available.'} Community locations do not confirm an open launch.</p>
+      <p class="muted small">${water?.center ? 'Access locations in the visible map area near this destination. Explore the water, then refresh to see more.' : 'Nearby access cannot be matched until a map location is available.'} Community locations do not confirm an open launch.</p>
       <button class="link" data-action="refresh">Refresh visible access</button>
-      <ul class="list">${access.slice(0, 8).map((f, i) => `<li><button class="destination-row" data-access="${i}"><b>${esc(f.properties.name || ACCESS_LABELS[f.properties.kind] || 'Access point')}</b>${f.properties.description ? `<span>${esc(f.properties.description)}</span>` : ''}<span>${esc(accessLocation(f.properties, f.geometry.type === 'Point' ? f.geometry.coordinates as [number, number] : CENTER))}</span><span>${esc(ACCESS_LABELS[f.properties.kind] ?? 'Access')} · View details ↗</span></button></li>`).join('') || '<li class="muted">No access points drawn yet. Explore the lake or enable the access layer.</li>'}</ul>
-      ${accessCache ? `<p class="muted small">Live-service access cache saved ${esc(new Date(accessCache.t).toLocaleString())}. Downloaded overlays may have a different date.</p>` : ''}
+      ${showingNearby ? '<p class="muted small">No access locations in this map view. Showing nearby places outside the view; check each location before choosing a launch.</p>' : ''}
+      <ul class="list">${access.slice(0, 8).map((f, i) => `<li><button class="destination-row" data-access="${i}"><b>${esc(f.properties.name || ACCESS_LABELS[f.properties.kind] || 'Access point')}</b>${f.properties.description ? `<span>${esc(f.properties.description)}</span>` : ''}<span>${esc(accessLocation(f.properties, f.geometry.type === 'Point' ? f.geometry.coordinates as [number, number] : CENTER))}</span><span>${esc(ACCESS_LABELS[f.properties.kind] ?? 'Access')} · View details ↗</span></button></li>`).join('') || '<li class="muted">No access locations in this view. Explore this water or zoom out to see nearby places.</li>'}</ul>
+      ${accessCache ? `<p class="muted small">${accessEdition ? 'Published OpenStreetMap catalog dated ' + esc(new Date(accessEdition).toLocaleDateString()) : 'Live-service access cache saved ' + esc(new Date(accessCache.t).toLocaleString())}. Downloaded overlays may have a different date.</p>` : ''}
       <h4>03 / Make it your lake</h4>
       <ul class="list">${spots.map((p) => `<li><button class="destination-row" data-spot="${esc(p.id)}"><b>${esc(p.name)}</b><span>My saved spot ↗</span></button></li>`).join('') || '<li class="muted">Your lake spots will appear here. Long-press the map to save your first one.</li>'}</ul>
       <button class="btn" data-action="fish">Species & lake notes</button>

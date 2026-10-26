@@ -1,4 +1,4 @@
-import type { LayerSpecification, SourceSpecification, StyleSpecification, ExpressionSpecification } from 'maplibre-gl';
+import type { LayerSpecification, SourceSpecification, StyleSpecification, ExpressionSpecification, GeoJSONSourceSpecification } from 'maplibre-gl';
 import { layers as pmLayers, namedFlavor } from '@protomaps/basemaps';
 import mlcontour from 'maplibre-contour';
 import { addProtocol } from 'maplibre-gl';
@@ -23,7 +23,7 @@ const add = (g: string, l: LayerSpecification, out: LayerSpecification[]) => {
   out.push(l);
 };
 
-const EMPTY = { type: 'geojson', data: { type: 'FeatureCollection', features: [] } } as const;
+const EMPTY: GeoJSONSourceSpecification = { type: 'geojson', data: { type: 'FeatureCollection', features: [] } };
 
 // PAD-US manager type colors
 const MANAGER_COLOR: ExpressionSpecification = [

@@ -139,7 +139,7 @@ async function reloadData() {
     loadWaters(map).then(() => { renderWaters(); if (currentTab === 'destination') void destination(); }),
     loadDams(map).then(() => { if (currentTab === 'destination') void destination(); }),
     loadGauges(map).then((r) => parts.push(`${r.count} gauges · ${r.source}${r.offline ? ' (cached ' + ago(r.t) + ')' : ''}`)).catch(() => parts.push('Gauges unavailable')),
-    av.overlays ? Promise.resolve() : loadAccessLive(map).then((r) => parts.push(`${r.count} access points (OSM live${r.offline ? ', cached' : ''})`)).catch(() => parts.push('Access points unavailable')),
+    loadAccessLive(map).then((r) => { parts.push(`${r.count} access points (${r.source}${r.offline ? ', cached' : ''})`); if (currentTab === 'destination') void destination(); }).catch(() => parts.push('Access points unavailable')),
   ]);
   dataStatus = parts.join(' · ');
   renderLayers();
@@ -153,6 +153,7 @@ let currentTab = 'destination';
 let navigationRevision = 0;
 function destination() { showTripPlan(map); return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips') }); }
 map.on('style.load', () => showTripPlan(map));
+map.on('moveend', () => { if (currentTab === 'destination') void destination(); });
 function showTab(name: string) {
   cancelTripPick();
   navigationRevision++;

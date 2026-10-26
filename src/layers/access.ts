@@ -2,9 +2,10 @@
 // With overlays.pmtiles installed these come from the tiles; otherwise we pull them live from
 // OpenStreetMap (Overpass) once for the whole region and keep the result for offline use.
 import type { GeoJSONSource, Map } from 'maplibre-gl';
+import type { Feature, Point } from 'geojson';
 import { AOI, OVERPASS } from '../config';
 import { ACCESS_COLORS } from '../style';
-import { cachedLive, esc, haversineKm } from '../util';
+import { cachedLive, esc, haversineKm, fetchJSON, store } from '../util';
 import { waters } from './waters';
 import { dams } from './dams';
 
@@ -12,6 +13,8 @@ export const ACCESS_LABELS: Record<string, string> = {
   boat_ramp: 'Boat ramp', paddle_launch: 'Kayak / canoe launch', fishing: 'Fishing pier / spot',
   marina: 'Marina', campground: 'Campground', trailhead: 'Trailhead', parking: 'Parking', other: 'Access',
 };
+type AccessFeature = Feature<Point, Record<string, any>>;
+export const accessFeatures = () => store.get<AccessFeature[]>('access-osm')?.v ?? [];
 
 function kind(t: Record<string, string>) {
   if (t.leisure === 'slipway' || t.amenity === 'boat_ramp') return 'boat_ramp';
@@ -24,14 +27,24 @@ function kind(t: Record<string, string>) {
 }
 
 export async function loadAccessLive(map: Map) {
+  // Ship a same-origin catalog with the app so first-time visitors do not depend
+  // on an Overpass POST succeeding in their browser. It is also precached offline.
+  try {
+    const snapshot = await fetchJSON<{ type: string; updated: string; features: AccessFeature[] }>(`${import.meta.env.BASE_URL}data/access.json`, { timeout: 8000 });
+    if (snapshot.type !== 'FeatureCollection' || !snapshot.features?.length || !snapshot.features.every((f) => f.geometry?.type === 'Point' && f.geometry.coordinates.length >= 2 && f.geometry.coordinates.every(Number.isFinite))) throw new Error('Invalid access catalog');
+    store.set('access-osm', snapshot.features);
+    store.set('access-edition', snapshot.updated);
+    (map.getSource('access-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: snapshot.features });
+    return { count: snapshot.features.length, offline: !navigator.onLine, source: 'published OSM catalog' };
+  } catch { /* Older offline installations can still use their cached/live data. */ }
   const [w, s, e, n] = AOI;
   const bb = `(${s},${w},${n},${e})`;
   const q = `[out:json][timeout:90];(nwr["leisure"="slipway"]${bb};nwr["amenity"="boat_ramp"]${bb};nwr["leisure"="fishing"]${bb};nwr["man_made"="pier"]${bb};nwr["canoe"="put_in"]${bb};nwr["leisure"="marina"]${bb};nwr["tourism"="camp_site"]${bb};);out center tags;`;
   const res = await cachedLive('access-osm', 7 * 24 * 3600_000, async () => {
-    const r = await fetch(OVERPASS, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-    if (!r.ok) throw new Error('Overpass ' + r.status);
-    const j = await r.json();
-    return (j.elements ?? []).flatMap((el: any) => {
+    const j = await fetchJSON(OVERPASS, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 });
+    if (j.remark || !j.elements?.length) throw new Error('Access query incomplete or empty');
+    store.del('access-edition');
+    return j.elements.flatMap((el: any) => {
       const lon = el.lon ?? el.center?.lon;
       const lat = el.lat ?? el.center?.lat;
       if (lon == null) return [];
@@ -40,7 +53,7 @@ export async function loadAccessLive(map: Map) {
     });
   });
   (map.getSource('access-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: res.v });
-  return { count: res.v.length, offline: res.offline };
+  return { count: res.v.length, offline: res.offline, source: 'OSM live' };
 }
 
 const KEEP = ['name', 'operator', 'access', 'fee', 'opening_hours', 'surface', 'lanes', 'website', 'phone', 'description', 'parking', 'toilets', 'fishing', 'lit', 'addr:street', 'addr:city'];

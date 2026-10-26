@@ -1,0 +1,34 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Access catalog checks</title><h1>Access catalog checks</h1><pre id="results">Running…</pre><script type="module">
+import { loadAccessLive, accessFeatures } from '/src/layers/access.ts';
+const output = [], check = (ok, label) => { if (!ok) throw Error(label); output.push('PASS: ' + label); };
+const keys = ['vw:access-osm', 'vw:access-edition'];
+const previous = keys.map(k => localStorage.getItem(k));
+const fetchOriginal = window.fetch;
+const onlineOriginal = Object.getOwnPropertyDescriptor(navigator, 'onLine');
+let externalRequests = 0, drawn = [];
+const map = { getSource: () => ({ setData: value => drawn = value.features }) };
+try {
+  keys.forEach(k => localStorage.removeItem(k));
+  window.fetch = (url, ...args) => {
+    if (String(url).startsWith('http')) { externalRequests++; throw Error('External services blocked for test'); }
+    return fetchOriginal(url, ...args);
+  };
+  const first = await loadAccessLive(map);
+  check(first.count > 500 && first.source === 'published OSM catalog', 'First visit loads the bundled regional catalog');
+  check(externalRequests === 0, 'No Overpass request is needed');
+  check(drawn.length === first.count, 'Map receives all access points');
+  const goatRock = accessFeatures().filter(f => Math.abs(f.geometry.coordinates[0] + 85.075) < 0.09 && Math.abs(f.geometry.coordinates[1] - 32.63) < 0.075);
+  check(goatRock.length > 0, 'Goat Rock area has access listings');
+  check(accessFeatures().some(f => f.properties.kind === 'boat_ramp'), 'Launch selector has boat ramps');
+  window.fetch = () => { throw Error('No network'); };
+  Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
+  const offline = await loadAccessLive(map);
+  check(offline.offline && offline.count === first.count, 'Offline revisit restores the catalog from device storage');
+} catch (e) { output.push('FAIL: ' + e.message); }
+finally {
+  window.fetch = fetchOriginal;
+  if (onlineOriginal) Object.defineProperty(navigator, 'onLine', onlineOriginal); else delete navigator.onLine;
+  keys.forEach((k, i) => previous[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, previous[i]));
+  document.querySelector('#results').textContent = output.join('\n');
+}
+</script></html>
