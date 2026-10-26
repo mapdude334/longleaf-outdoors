@@ -153,7 +153,7 @@ async function reloadData() {
 const sheet = $('#sheet');
 let currentTab = 'destination';
 let navigationRevision = 0;
-function destination() { showTripPlan(map); return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips') }); }
+function destination() { showTripPlan(map); return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips'), downloadsChanged: refreshAvailability }); }
 map.on('style.load', () => showTripPlan(map));
 map.on('moveend', () => { if (currentTab === 'destination') void destination(); });
 function showTab(name: string) {

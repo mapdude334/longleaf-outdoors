@@ -4,7 +4,7 @@ import { gauges, gaugeHtml, fillTrend } from './layers/gauges';
 import { dams, damHtml, fillCwms } from './layers/dams';
 import { ACCESS_LABELS, accessHtml, accessLocation, accessFeatures } from './layers/access';
 import { getWpts } from './waypoints';
-import { packStatus } from './pmtiles';
+import { renderDestinationDownloads, destinationDownloadBusy } from './destination-downloads';
 import { activeTrip } from './trips';
 import { esc, haversineKm, store } from './util';
 
@@ -17,7 +17,9 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   info: (html: string, after?: (root: HTMLElement) => void) => void;
   spot: (id: string) => void;
   trips: () => void;
+  downloadsChanged: () => void;
 }) {
+  if (destinationDownloadBusy()) return;
   const selected = store.get<string>('destination')?.v ?? 'west-point';
   const water = waters.find((w) => w.id === selected) ?? waters.find((w) => w.id === 'west-point');
   const CENTER = water?.center ?? [-85.16, 33.0] as [number, number];
@@ -112,6 +114,5 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
     });
   });
   const target = root.querySelector('#destination-packs')!;
-  const statuses = await Promise.all((['basemap', 'overlays', 'parcels'] as const).map(async (key) => `<div><b>${key === 'basemap' ? 'Base map' : key === 'overlays' ? 'Land, water & access' : 'Parcels (optional)'}</b><span>${esc(await packStatus(key))}</span></div>`));
-  if (target.isConnected) target.innerHTML = statuses.join('');
+  if (target.isConnected) renderDestinationDownloads(target as HTMLElement, map, actions.downloadsChanged);
 }
