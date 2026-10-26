@@ -10,4 +10,4 @@ mkdir -p out
 echo "Extracting Protomaps build $BUILD bbox=$BBOX maxzoom=$MAXZ"
 pmtiles extract "https://build.protomaps.com/${BUILD}.pmtiles" out/basemap.pmtiles \
   --bbox="$BBOX" --maxzoom="$MAXZ" --download-threads=8
-pmtiles show out/basemap.pmtiles | head -20
+pmtiles show out/basemap.pmtiles

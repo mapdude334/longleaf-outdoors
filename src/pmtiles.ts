@@ -3,12 +3,25 @@
 import { addProtocol } from 'maplibre-gl';
 import { FileSource, PMTiles, Protocol } from 'pmtiles';
 import { PMTILES, TILE_BASE, type PmKey } from './config';
+import { fetchJSON, store } from './util';
 
 export const protocol = new Protocol({ metadata: true });
 addProtocol('pmtiles', protocol.tile);
 
 const CACHE_NAME = 'vw-pmtiles';
 export const remoteUrl = (k: PmKey) => new URL(TILE_BASE + PMTILES[k], location.href).href;
+export type PackManifest = { schema: number; region: string; builtAt: string; parcelCoverage: string[]; packs: Record<PmKey, { bytes: number; maxZoom: number; sha256: string }> };
+export async function loadPackManifest(): Promise<PackManifest | null> {
+  if (navigator.onLine) {
+    try {
+      const manifest = await fetchJSON<PackManifest>(new URL(TILE_BASE + 'manifest.json', location.href).href, { timeout: 8000, cache: 'no-store' });
+      if (manifest.schema !== 1 || !manifest.region || !manifest.packs?.basemap?.bytes) throw new Error('Invalid pack manifest');
+      store.set('pack-manifest', manifest);
+      return manifest;
+    } catch { /* Keep the last published coverage summary available offline. */ }
+  }
+  return store.get<PackManifest>('pack-manifest')?.v ?? null;
+}
 
 async function opfsDir(): Promise<FileSystemDirectoryHandle | null> {
   try {

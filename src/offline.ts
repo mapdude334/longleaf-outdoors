@@ -2,7 +2,7 @@
 // Cache names must match the service worker runtime caches in vite.config.ts.
 import type { Map } from 'maplibre-gl';
 import { GLYPHS, SPRITE, PMTILES, RASTER_BASEMAPS, TERRAIN_URL, USGS_HYDRO_TILES, type PmKey } from './config';
-import { localFile, packStatus, remoteSize, removeFromDevice, saveToDevice } from './pmtiles';
+import { localFile, loadPackManifest, packStatus, remoteSize, removeFromDevice, saveToDevice } from './pmtiles';
 import { esc, toast } from './util';
 
 export const RASTER_CACHE = 'vw-raster';
@@ -104,6 +104,8 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
     <p class="muted small">Download before you lose signal. Files are stored in this browser on this device.
       Used ${mb(s.used)} of ${mb(s.quota)}${s.persisted ? ' · storage is persistent' : ' · <b>storage may be cleared by the browser</b> (persistence will be requested)'}.</p>
     <h4>Region packs</h4>
+    <p class="muted small region-summary" aria-live="polite">East Alabama / West Georgia · checking published map edition…</p>
+    <p class="muted small">These packs contain vector maps and overlays. Save imagery, terrain and contours separately using “Save this area” below. Weather and river readings need a connection to update.</p>
     <div class="packs">${(Object.keys(PMTILES) as PmKey[]).map((k) => `
       <div class="pack" data-k="${k}"><div><b>${esc(PM_LABELS[k])}</b><br><span class="muted small status">checking…</span></div>
       <div class="pack-actions"></div><progress hidden max="1" value="0"></progress></div>`).join('')}
@@ -119,6 +121,14 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
       <button class="btn primary save-area">Save visible area</button> <button class="btn clear-area">Clear saved areas (${s.rasterCount.toLocaleString()} tiles)</button>
       <progress class="area-prog" hidden max="1" value="0"></progress>
     </div>`;
+
+  void loadPackManifest().then((manifest) => {
+    const summary = root.querySelector('.region-summary');
+    if (!summary) return;
+    summary.textContent = manifest
+      ? `${manifest.region} · built ${new Date(manifest.builtAt).toLocaleDateString()} · parcels: ${manifest.parcelCoverage.join('; ')} only.`
+      : 'East Alabama / West Georgia · map edition unavailable. Check each pack below.';
+  });
 
   void Promise.all([...root.querySelectorAll<HTMLElement>('.pack')].map(async (el) => {
     const k = el.dataset.k as PmKey;
