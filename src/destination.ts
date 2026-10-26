@@ -106,7 +106,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   if (mapsStatus && trip) void Promise.all([packStatus('basemap'), packStatus('overlays'), loadPackManifest()]).then(([base, overlays, manifest]) => {
     if (!mapsStatus.isConnected) return;
     const locations = [...(water?.center ? [water.center] : []), ...(trip.ramp ? [trip.ramp.coords] : []), ...trip.spots.map((p) => p.coords)];
-    const bounds = (manifest as { bounds?: number[] } | null)?.bounds;
+    const bounds = manifest?.bounds;
     const covered = !!bounds && locations.length > 0 && locations.every(([x, y]) => x >= bounds[0] && x <= bounds[2] && y >= bounds[1] && y <= bounds[3]);
     mapsStatus.textContent = base === 'Verified on device' && overlays === 'Verified on device'
       ? covered ? 'Regional packs verified on device; trip points are within coverage.' : 'Regional packs are on device. Coverage for every trip point is not verified.'

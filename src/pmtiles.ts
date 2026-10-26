@@ -10,8 +10,14 @@ addProtocol('pmtiles', protocol.tile);
 
 const CACHE_NAME = 'vw-pmtiles';
 export const remoteUrl = (k: PmKey) => new URL(TILE_BASE + PMTILES[k], location.href).href;
-export type PackManifest = { schema: number; region: string; builtAt: string; parcelCoverage: string[]; packs: Record<PmKey, { bytes: number; maxZoom: number; sha256: string }> };
-export async function loadPackManifest(): Promise<PackManifest | null> {
+export type PackManifest = { schema: number; region: string; bounds: [number, number, number, number]; builtAt: string; parcelCoverage: string[]; packs: Record<PmKey, { bytes: number; maxZoom: number; sha256: string }> };
+let manifestRequest: Promise<PackManifest | null> | undefined;
+let manifestExpires = 0;
+export function loadPackManifest(): Promise<PackManifest | null> {
+  if (!manifestRequest || Date.now() >= manifestExpires) { manifestExpires = Date.now() + 60_000; manifestRequest = fetchPackManifest(); }
+  return manifestRequest;
+}
+async function fetchPackManifest(): Promise<PackManifest | null> {
   if (navigator.onLine) {
     try {
       const manifest = await fetchJSON<PackManifest>(new URL(TILE_BASE + 'manifest.json', location.href).href, { timeout: 8000, cache: 'no-store' });
@@ -84,7 +90,8 @@ export async function remoteSize(k: PmKey): Promise<number | null> {
   try {
     const r = await fetch(remoteUrl(k), { method: 'HEAD', signal: AbortSignal.timeout(8000) });
     if (!r.ok || (r.headers.get('content-type') ?? '').includes('text/html')) return null; // SPA fallback page
-    const n = Number(r.headers.get('content-length'));
+    const manifest = await loadPackManifest();
+    const n = manifest?.packs[k]?.bytes ?? Number(r.headers.get('content-length'));
     return Number.isFinite(n) && n > 0 ? n : null;
   } catch {
     return null;
@@ -114,10 +121,16 @@ export async function packStatus(k: PmKey) {
 /** Download a whole archive to the device with progress. Requests persistent storage first. */
 export async function saveToDevice(k: PmKey, onProgress: (done: number, total: number | null) => void, signal?: AbortSignal) {
   try { await navigator.storage?.persist?.(); } catch { /* optional */ }
-  const res = await fetch(remoteUrl(k), { signal, cache: 'no-store' });
+  const manifest = await loadPackManifest();
+  const download = new URL(remoteUrl(k));
+  if (manifest?.packs[k]?.sha256) download.searchParams.set('edition', manifest.packs[k].sha256);
+  const res = await fetch(download.href, { signal, cache: 'no-store' });
   if (!res.ok || !res.body) throw new Error(`Download failed (${res.status})`);
   if ((res.headers.get('content-type') ?? '').includes('text/html')) throw new Error('Server returned a webpage instead of a map');
-  const total = Number(res.headers.get('content-length')) || null;
+  // Fetch yields decoded bytes. A gzip/br Content-Length describes transferred
+  // bytes, so compare against the canonical archive size from the manifest.
+  const encoded = res.headers.get('content-encoding');
+  const total = manifest?.packs[k]?.bytes ?? ((!encoded || encoded === 'identity') ? Number(res.headers.get('content-length')) || null : null);
   let done = 0;
   const counted = res.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, ctl) { done += chunk.byteLength; onProgress(done, total); ctl.enqueue(chunk); },

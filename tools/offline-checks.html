@@ -51,6 +51,9 @@ try {
   await saveToDevice(key,()=>{});
   const saved = await localFile(key);
   assert(saved?.size === bytes.length, 'Valid archive downloads through OPFS and can be reopened');
+  window.fetch = async () => new Response(bytes, {headers:{'Content-Encoding':'gzip','Content-Length':'13'}});
+  await saveToDevice(key,()=>{});
+  assert((await localFile(key))?.size === bytes.length, 'Compressed transfer length does not reject a valid decoded archive');
   window.fetch = async () => { throw Error('Network unavailable'); };
   assert((await localFile(key))?.size === bytes.length, 'Saved archive stays readable with network requests failing');
   window.fetch = async () => new Response('<html>bad map</html>');
