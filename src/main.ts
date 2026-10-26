@@ -243,6 +243,7 @@ function renderLayers() {
       ${[['FED', '#d9a441'], ['STAT', '#3f8f4f'], ['LOC', '#8e7cc3'], ['NGO', '#2a9d8f'], ['PVT', '#c0607a']].map(([k, c]) => `<div><span class="sw" style="background:${c}"></span>${MANAGER_TYPES[k]}</div>`).join('')}
       <div class="muted small">Dashed outline = restricted / closed access</div>
       <div class="muted small" style="margin-top:.5rem">Access</div>
+      <div><span class="dot" style="background:#0d47a1;border:2px solid #fff"></span>Water destination · select for lake information</div>
       ${Object.entries(ACCESS_COLORS).filter(([k]) => k !== 'other' && k !== 'parking').map(([k, c]) => `<div><span class="dot" style="background:${c}"></span>${ACCESS_LABELS[k]}</div>`).join('')}
       <div><span class="dot" style="background:#0288d1"></span>Stream gauge · <span class="dot" style="background:#26a69a"></span>Lake/stage gauge · <span class="dot" style="background:#9e9e9e"></span>No recent data</div>
       <div><span class="dot" style="background:#263238;border:2px solid #ffca28"></span>Dam / release information</div>
@@ -342,7 +343,7 @@ function editWpt(id: string) {
 }
 
 // ---------------- map clicks ----------------
-const CLICK_LAYERS = ['wpt-pt', 'gauges-pt', 'dams-pt', 'access-pts', 'waters-lbl', 'osm-dam', 'wb-fill', 'stream-line', 'pl-fill', 'parcel-hit'];
+const CLICK_LAYERS = ['wpt-pt', 'gauges-pt', 'dams-pt', 'access-pts', 'waters-pt', 'waters-lbl', 'osm-dam', 'wb-fill', 'stream-line', 'pl-fill', 'parcel-hit'];
 let identifyRequest = 0;
 map.on('click', async (e) => {
   if (pickingTripSpot()) return;
@@ -373,10 +374,10 @@ map.on('click', async (e) => {
   const od = by('osm-dam');
   if (!sections.length && od) sections.push(`<h3>${esc(od.properties.name ?? 'Dam')}</h3><p class="muted">OpenStreetMap ${esc(od.properties.waterway ?? od.properties.power ?? '')}</p>`);
 
-  const wl = by('waters-lbl');
+  const wl = by('waters-lbl') ?? by('waters-pt');
   const wf: MapGeoJSONFeature | undefined = by('wb-fill') ?? by('stream-line');
   const water = wl ? waterById(String(wl.properties.id)) : wf ? (wf.properties.water_id ? waterById(String(wf.properties.water_id)) : waterByName(wf.properties.gnis_name)) : undefined;
-  if (water) sections.push(waterHtml(water, wf?.properties));
+  if (water) sections.push(waterHtml(water, wf?.properties) + '<button class="btn primary" data-map-destination>Make it your destination</button>');
   else if (wf?.properties.gnis_name && !sections.length) sections.push(`<h3>${esc(wf.properties.gnis_name)}</h3><p class="muted">NHD ${wf.layer.id === 'wb-fill' ? 'water body' : 'stream'}${wf.properties.areasqkm ? ` · ${(wf.properties.areasqkm * 247.105).toFixed(0)} acres` : ''}</p>`);
 
   const pl = by('pl-fill');
@@ -394,6 +395,8 @@ map.on('click', async (e) => {
   const coord = `<p class="muted small coord-line">${fmtCoord(lng, lat, ui.coordFmt)} · <button class="link" id="drop-here">Drop waypoint</button> · <button class="link" id="wx-here2">Weather here</button></p>`;
   const render = (extra: string[]) => showInfo(sections.concat(extra).join('<hr>') + coord, (root) => {
     after?.(root);
+    const choose = root.querySelector<HTMLButtonElement>('[data-map-destination]');
+    if (choose && water) choose.onclick = () => { selectDestination(water.id); showTab('destination'); $('#tab-destination').scrollTop = 0; };
     root.querySelector<HTMLButtonElement>('#drop-here')!.onclick = () => editWpt(addWpt(lng, lat).id);
     root.querySelector<HTMLButtonElement>('#wx-here2')!.onclick = () => { showTab('weather'); renderWeather([lng, lat]); };
   });

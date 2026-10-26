@@ -379,6 +379,370 @@
           "url": "https://georgiawildlife.com/big-lazer-creek-pfa"
         }
       ]
+    },
+    {
+      "id": "jordan",
+      "name": "Lake Jordan",
+      "gnis_names": [
+        "Lake Jordan",
+        "Jordan Lake",
+        "Jordan Reservoir"
+      ],
+      "state": "AL",
+      "river": "Coosa",
+      "type": "reservoir",
+      "acres": 6800,
+      "manager": "Alabama Power",
+      "center": [
+        -86.29725,
+        32.64215
+      ],
+      "location_note": "Approximate reservoir reference point from ADCNR’s official reservoir map. Fishery profile checked October 26, 2026.",
+      "species": [
+        {
+          "name": "Alabama bass"
+        },
+        {
+          "name": "Largemouth bass"
+        },
+        {
+          "name": "Hybrid striped bass"
+        },
+        {
+          "name": "Bluegill"
+        },
+        {
+          "name": "Redear sunfish"
+        },
+        {
+          "name": "Black & white crappie"
+        },
+        {
+          "name": "Channel catfish"
+        },
+        {
+          "name": "Blue catfish"
+        },
+        {
+          "name": "Flathead catfish"
+        }
+      ],
+      "notes": "Coosa River reservoir north of Montgomery, near Wetumpka. Bonner’s Point and Rotary Landing are public access areas; the Mitchell Dam tailwater is another established fishing area. Check operator information before visiting tailwaters.",
+      "links": [
+        {
+          "label": "ADCNR — Lake Jordan fishery profile",
+          "url": "https://www.outdooralabama.com/reservoirs/lake-jordan"
+        },
+        {
+          "label": "Official reservoir map and directory",
+          "url": "https://www.outdooralabama.com/where-freshwater-fish/reservoirs"
+        }
+      ]
+    },
+    {
+      "id": "mitchell",
+      "name": "Lake Mitchell",
+      "gnis_names": [
+        "Lake Mitchell",
+        "Mitchell Lake",
+        "Mitchell Reservoir"
+      ],
+      "state": "AL",
+      "river": "Coosa",
+      "type": "reservoir",
+      "acres": 5850,
+      "manager": "Alabama Power",
+      "center": [
+        -86.44743,
+        32.85132
+      ],
+      "location_note": "Approximate reservoir reference point from ADCNR’s official reservoir map. Fishery profile checked October 26, 2026.",
+      "species": [
+        {
+          "name": "Alabama bass"
+        },
+        {
+          "name": "Largemouth bass"
+        },
+        {
+          "name": "Bluegill"
+        },
+        {
+          "name": "Redear sunfish"
+        },
+        {
+          "name": "Black & white crappie"
+        },
+        {
+          "name": "Channel catfish"
+        },
+        {
+          "name": "Blue catfish"
+        },
+        {
+          "name": "Flathead catfish"
+        },
+        {
+          "name": "Hybrid striped bass"
+        }
+      ],
+      "notes": "Coosa River reservoir east of Clanton, between Lay and Jordan. Higgins Ferry is a public access area. Creeks and shoreline cover offer largemouth habitat; points, ledges and rocky structure are useful places to explore for Alabama bass.",
+      "links": [
+        {
+          "label": "ADCNR — Lake Mitchell fishery profile",
+          "url": "https://www.outdooralabama.com/reservoirs/lake-mitchell"
+        },
+        {
+          "label": "Official reservoir map and directory",
+          "url": "https://www.outdooralabama.com/where-freshwater-fish/reservoirs"
+        }
+      ]
+    },
+    {
+      "id": "lay",
+      "name": "Lay Lake",
+      "gnis_names": [
+        "Lay Lake",
+        "Lay Reservoir"
+      ],
+      "state": "AL",
+      "river": "Coosa",
+      "type": "reservoir",
+      "acres": 12000,
+      "manager": "Alabama Power",
+      "center": [
+        -86.50837,
+        33.06592
+      ],
+      "location_note": "Approximate reservoir reference point from ADCNR’s official reservoir map. Fishery profile checked October 26, 2026.",
+      "species": [
+        {
+          "name": "Alabama bass"
+        },
+        {
+          "name": "Largemouth bass"
+        },
+        {
+          "name": "Crappie"
+        },
+        {
+          "name": "Bluegill"
+        },
+        {
+          "name": "Hybrid striped bass"
+        },
+        {
+          "name": "Striped bass"
+        },
+        {
+          "name": "Channel catfish"
+        }
+      ],
+      "notes": "Coosa River reservoir south of Columbiana. Creeks and shallow sloughs offer largemouth, crappie and bream habitat; riverine sections and the Logan Martin tailwater provide other fishing opportunities. Generation affects tailwater current.",
+      "links": [
+        {
+          "label": "ADCNR — Lay Lake fishery profile",
+          "url": "https://www.outdooralabama.com/reservoirs/lay-lake"
+        },
+        {
+          "label": "Official reservoir map and directory",
+          "url": "https://www.outdooralabama.com/where-freshwater-fish/reservoirs"
+        }
+      ]
+    },
+    {
+      "id": "logan-martin",
+      "name": "Logan Martin Lake",
+      "gnis_names": [
+        "Logan Martin Lake",
+        "Logan Martin Reservoir",
+        "Lake Logan Martin"
+      ],
+      "state": "AL",
+      "river": "Coosa",
+      "type": "reservoir",
+      "acres": 15263,
+      "manager": "Alabama Power",
+      "center": [
+        -86.24391,
+        33.49498
+      ],
+      "location_note": "Approximate reservoir reference point from ADCNR’s official reservoir map. Fishery profile checked October 26, 2026.",
+      "species": [
+        {
+          "name": "Largemouth bass"
+        },
+        {
+          "name": "Alabama bass"
+        },
+        {
+          "name": "Crappie"
+        },
+        {
+          "name": "White bass"
+        },
+        {
+          "name": "Hybrid striped bass"
+        },
+        {
+          "name": "Striped bass"
+        }
+      ],
+      "notes": "Coosa River reservoir between Neely Henry and Logan Martin dams, bordering St. Clair and Talladega counties. Bass and crappie are established fisheries. Headwater current and creek mouths are useful starting points for planning a visit.",
+      "links": [
+        {
+          "label": "ADCNR — Logan Martin Lake fishery profile",
+          "url": "https://www.outdooralabama.com/reservoirs/logan-martin-lake"
+        },
+        {
+          "label": "Official reservoir map and directory",
+          "url": "https://www.outdooralabama.com/where-freshwater-fish/reservoirs"
+        }
+      ]
+    },
+    {
+      "id": "neely-henry",
+      "name": "Neely Henry Lake",
+      "gnis_names": [
+        "Neely Henry Lake",
+        "Neely Henry Reservoir",
+        "H. Neely Henry Lake"
+      ],
+      "state": "AL",
+      "river": "Coosa",
+      "type": "reservoir",
+      "acres": 11235,
+      "manager": "Alabama Power",
+      "center": [
+        -86.06893,
+        33.86724
+      ],
+      "location_note": "Approximate reservoir reference point from ADCNR’s official reservoir map. Fishery profile checked October 26, 2026.",
+      "species": [
+        {
+          "name": "Largemouth bass"
+        },
+        {
+          "name": "Alabama bass"
+        },
+        {
+          "name": "Crappie"
+        },
+        {
+          "name": "Striped bass"
+        }
+      ],
+      "notes": "Coosa River reservoir near Gadsden and Ohatchee. Much of the lake follows the river channel, opening into broader water toward the dam. Bass and crappie are established fisheries; generation influences headwater fishing.",
+      "links": [
+        {
+          "label": "ADCNR — Neely Henry Lake fishery profile",
+          "url": "https://www.outdooralabama.com/reservoirs/neely-henry-reservoir"
+        },
+        {
+          "label": "Official reservoir map and directory",
+          "url": "https://www.outdooralabama.com/where-freshwater-fish/reservoirs"
+        }
+      ]
+    },
+    {
+      "id": "weiss",
+      "name": "Weiss Lake",
+      "gnis_names": [
+        "Weiss Lake",
+        "Weiss Reservoir",
+        "Lake Weiss"
+      ],
+      "state": "AL/GA",
+      "river": "Coosa",
+      "type": "reservoir",
+      "acres": 30200,
+      "manager": "Alabama Power",
+      "center": [
+        -85.6304,
+        34.20378
+      ],
+      "location_note": "Approximate reservoir reference point from ADCNR’s official reservoir map. Fishery profile checked October 26, 2026.",
+      "species": [
+        {
+          "name": "Crappie"
+        },
+        {
+          "name": "Largemouth bass"
+        },
+        {
+          "name": "Striped bass"
+        }
+      ],
+      "notes": "Large Alabama Power reservoir on the Alabama–Georgia border near Centre. Known for crappie fishing, with largemouth and striped bass also present. Explore official public access information and verify local boating conditions before launching.",
+      "links": [
+        {
+          "label": "ADCNR — Weiss Lake fishery profile",
+          "url": "https://www.outdooralabama.com/reservoirs/weiss-lake"
+        },
+        {
+          "label": "Official reservoir map and directory",
+          "url": "https://www.outdooralabama.com/where-freshwater-fish/reservoirs"
+        }
+      ]
+    },
+    {
+      "id": "woodruff",
+      "name": "R. E. “Bob” Woodruff Lake (Jones Bluff)",
+      "gnis_names": [
+        "R. E. “Bob” Woodruff Lake (Jones Bluff)",
+        "Jones Bluff Reservoir",
+        "Jones Bluff Lake",
+        "R E Bob Woodruff Lake",
+        "Woodruff Lake",
+        "Robert F. Henry Lake"
+      ],
+      "state": "AL",
+      "river": "Alabama",
+      "type": "reservoir",
+      "acres": 12510,
+      "manager": "U.S. Army Corps of Engineers, Mobile District",
+      "center": [
+        -86.69167,
+        32.35633
+      ],
+      "location_note": "Approximate reservoir reference point from ADCNR’s official reservoir map. Fishery profile checked October 26, 2026.",
+      "species": [
+        {
+          "name": "Largemouth bass"
+        },
+        {
+          "name": "Alabama bass"
+        },
+        {
+          "name": "Crappie"
+        },
+        {
+          "name": "Hybrid striped bass"
+        },
+        {
+          "name": "White bass"
+        },
+        {
+          "name": "Channel catfish"
+        },
+        {
+          "name": "Blue catfish"
+        },
+        {
+          "name": "Flathead catfish"
+        }
+      ],
+      "notes": "Alabama River reservoir between Montgomery and Selma, formed by Robert F. Henry Lock and Dam. Backwaters and the main river offer different fishing conditions. Flow and generation strongly influence main-channel fishing.",
+      "links": [
+        {
+          "label": "ADCNR — R. E. “Bob” Woodruff Lake (Jones Bluff) fishery profile",
+          "url": "https://www.outdooralabama.com/reservoirs/jones-bluff-reservoir"
+        },
+        {
+          "label": "Official reservoir map and directory",
+          "url": "https://www.outdooralabama.com/where-freshwater-fish/reservoirs"
+        }
+      ]
     }
   ],
   "regulations": [

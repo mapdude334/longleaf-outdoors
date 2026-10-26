@@ -152,9 +152,10 @@ export function buildStyle(av: Availability): StyleSpecification {
 
   // ---------- live + curated GeoJSON ----------
   sources.waters = { ...EMPTY };
+  add('waters', { id: 'waters-pt', type: 'circle', source: 'waters', paint: { 'circle-radius': 6, 'circle-color': '#0d47a1', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } }, L);
   add('waters', {
     id: 'waters-lbl', type: 'symbol', source: 'waters',
-    layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 11, 12, 15], 'text-font': ['Noto Sans Medium'], 'text-max-width': 8 },
+    layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 11, 12, 15], 'text-font': ['Noto Sans Medium'], 'text-max-width': 8, 'text-offset': [0, 0.8], 'text-anchor': 'top' },
     paint: { 'text-color': '#0d47a1', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
   }, L);
 
