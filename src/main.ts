@@ -1,7 +1,7 @@
 import { renderDestination, selectDestination } from './destination';
 import { initWelcome } from './welcome';
 import { addShareControl } from './share';
-import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick } from './trips';
+import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick, useLaunchInTrip, useSpotInTrip } from './trips';
 import { speciesForLabel, speciesHtml, speciesChoiceHtml } from './species';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
@@ -137,12 +137,13 @@ function applyVisibility() {
 }
 
 let dataStatus = '';
+let gaugeState: 'loading' | 'ready' | 'unavailable' = 'loading';
 async function reloadData() {
   const parts: string[] = [];
   await Promise.allSettled([
     loadWaters(map).then(() => { renderWaters(); if (currentTab === 'destination') void destination(); }),
     loadDams(map).then(() => { if (currentTab === 'destination') void destination(); }),
-    loadGauges(map).then((r) => parts.push(`${r.count} gauges · ${r.source}${r.offline ? ' (cached ' + ago(r.t) + ')' : ''}`)).catch(() => parts.push('Gauges unavailable')),
+    loadGauges(map).then((r) => { gaugeState = 'ready'; parts.push(`${r.count} gauges · ${r.source}${r.offline ? ' (cached ' + ago(r.t) + ')' : ''}`); if (currentTab === 'destination') void destination(); }).catch(() => { gaugeState = 'unavailable'; parts.push('Gauges unavailable'); if (currentTab === 'destination') void destination(); }),
     loadAccessLive(map).then((r) => { parts.push(`${r.count} access points (${r.source}${r.offline ? ', cached' : ''})`); if (currentTab === 'destination') void destination(); }).catch(() => parts.push('Access points unavailable')),
   ]);
   dataStatus = parts.join(' · ');
@@ -155,7 +156,7 @@ async function reloadData() {
 const sheet = $('#sheet');
 let currentTab = 'destination';
 let navigationRevision = 0;
-function destination() { showTripPlan(map); return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips'), downloadsChanged: refreshAvailability }); }
+function destination() { showTripPlan(map); return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips'), downloadsChanged: refreshAvailability, gaugeState }); }
 map.on('style.load', () => showTripPlan(map));
 map.on('moveend', () => { if (currentTab === 'destination') void destination(); });
 function showTab(name: string) {
@@ -195,6 +196,11 @@ function showInfo(html: string, after?: (root: HTMLElement) => void) {
   showTab('info');
   el.scrollTop = 0;
   after?.(el);
+  el.querySelectorAll<HTMLButtonElement>('[data-use-launch], [data-use-spot]').forEach((button) => button.onclick = () => {
+    const coords: [number, number] = [Number(button.dataset.launchLng), Number(button.dataset.launchLat)];
+    const add = button.hasAttribute('data-use-spot') ? useSpotInTrip : useLaunchInTrip;
+    if (coords.every(Number.isFinite) && add({ id: button.dataset.launchId!, name: button.dataset.launchName!, coords })) { showTab('trips'); $('#tab-trips').querySelector<HTMLButtonElement>('[data-resume]')?.click(); toast('Location added to your autosaved trip draft.'); }
+  });
   el.querySelectorAll<HTMLButtonElement>('[data-species]').forEach((button) => {
     button.onclick = () => openSpecies(button.dataset.species!, () => showInfo(html, after));
   });

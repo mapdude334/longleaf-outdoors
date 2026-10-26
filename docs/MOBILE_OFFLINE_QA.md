@@ -1,5 +1,18 @@
 # Mobile and offline verification
 
+## Trip reliability refinement pass — October 26, 2026
+
+- Trip backup validation: seven browser checks passed (round-trip fields, schema, duplicate IDs, invalid coordinates, oversized notes, missing map view, unnamed trips).
+- A draft name, date and notes survived a browser reload and were restored through My Trips.
+- A ramp card's "Use as my launch" action populated that recovered draft without losing its notes.
+- A map-placed pin was renamed, saved and displayed in the trip readiness summary.
+- Navigation with My Trips passed overflow, visibility and 44px touch-target checks at 320 × 568, 390 × 844 and 844 × 390.
+- The production build passed. These are desktop Chromium and simulated viewport checks, not physical-device evidence.
+
+### Physical-device release checklist (still required)
+
+On both an iPhone/Safari and Android/Chrome: install the PWA; save a trip, launch and pin; download a small topo/terrain area; then enable airplane mode, close and reopen the app. Verify the saved trip, map tiles, labels and icons across the downloaded zoom levels. Confirm failed/incomplete downloads remain clearly labeled. Separately verify GPS recording with the screen locked and the app backgrounded before claiming background recording support.
+
 Tested October 26, 2026 in the desktop app's Chromium browser. These results do not establish physical iPhone or Android compatibility.
 
 ## Results

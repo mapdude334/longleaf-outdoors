@@ -1,0 +1,16 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Trip backup checks</title><h1>Trip backup checks</h1><pre id="results">Running…</pre><script type="module">
+import { validateTripBackup } from '/src/trips.ts';
+const log = [], check = (ok, text) => { if (!ok) throw Error(text); log.push('PASS: '+text); };
+const trip = {id:'sample',name:'Test trip',destination:'west-point',date:'2026-10-27',spots:[{id:'pin',name:'Cove',coords:[-85.16,33]}],notes:'Bring tackle',updated:Date.now(),view:{center:[-85.16,33],zoom:12}};
+const rejects = (value) => { try { validateTripBackup(value); return false; } catch { return true; } };
+try {
+  check(validateTripBackup({schema:1,trips:[trip]})[0].spots[0].coords[0]===-85.16,'Backup round trip preserves trip date, notes and pin coordinates');
+  check(rejects({schema:2,trips:[trip]}),'Reject unsupported schema');
+  check(rejects({schema:1,trips:[trip,trip]}),'Reject duplicate trip IDs');
+  check(rejects({schema:1,trips:[{...trip,spots:[{id:'bad',name:'Bad',coords:[999,33]}]}]}),'Reject invalid pin coordinates');
+  check(rejects({schema:1,trips:[{...trip,notes:'x'.repeat(10001)}]}),'Reject oversized notes');
+  check(rejects({schema:1,trips:[{...trip,view:null}]}),'Reject missing map view');
+  check(rejects({schema:1,trips:[{...trip,name:''}]}),'Reject unnamed saved trips');
+}catch(error){log.push('FAIL: '+error.message);}
+document.querySelector('#results').textContent=log.join('\n');
+</script></html>

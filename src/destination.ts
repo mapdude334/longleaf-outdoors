@@ -6,6 +6,7 @@ import { ACCESS_LABELS, accessHtml, accessLocation, accessFeatures } from './lay
 import { getWpts } from './waypoints';
 import { renderDestinationDownloads, destinationDownloadBusy } from './destination-downloads';
 import { activeTrip } from './trips';
+import { packStatus, loadPackManifest } from './pmtiles';
 import { esc, haversineKm, store } from './util';
 
 const BOUNDS: [[number, number], [number, number]] = [[-85.32, 32.86], [-85.02, 33.22]];
@@ -18,6 +19,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   spot: (id: string) => void;
   trips: () => void;
   downloadsChanged: () => void;
+  gaugeState: 'loading' | 'ready' | 'unavailable';
 }) {
   if (destinationDownloadBusy()) return;
   const selected = store.get<string>('destination')?.v ?? 'west-point';
@@ -46,6 +48,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
     });
   const accessCache = store.get('access-osm');
   const accessEdition = store.get<string>('access-edition')?.v;
+  const sectionOpen = new globalThis.Map([...root.querySelectorAll<HTMLDetailsElement>('details[data-section]')].map((section) => [section.dataset.section!, section.open]));
   root.innerHTML = `<div class="destination-hero">
       <span class="destination-eyebrow">YOUR NEXT DAY OUT · ALABAMA / GEORGIA</span>
       <label class="destination-picker">Choose your destination<select id="destination-select">${[...waters].sort((a, b) => a.name.localeCompare(b.name)).map((w) => `<option value="${esc(w.id)}" ${w.id === water?.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label>
@@ -56,15 +59,15 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
     <div class="destination-body">
       <div class="destination-meta">${esc(water?.river ? water.river + ' basin' : water?.state ?? '')}<span>${esc(water?.manager ?? '')}</span></div>
       <button class="btn primary" data-action="trips">Plan / saved trips</button>
-      ${trip && trip.destination === water?.id ? `<div class="destination-card"><b>${esc(trip.name)}</b><p>Launch: ${esc(trip.ramp?.name ?? 'Not selected')}</p><p>Fishing spots: ${esc(trip.spots.map((s) => s.name).join(', ') || 'None selected')}</p><p style="white-space:pre-wrap">${esc(trip.notes)}</p><span class="muted small">Saved trip · launch is blue, fishing spots are pink on the map.</span></div>` : ''}
+      ${trip && trip.destination === water?.id ? `<div class="destination-card"><h3>Ready to head out?</h3><b>${esc(trip.name)}</b><p>Date: ${esc(trip.date || 'Not set')}</p><p>Launch: ${esc(trip.ramp?.name ?? 'Not selected')}${trip.ramp ? ` · <a href="https://www.google.com/maps/dir/?api=1&destination=${trip.ramp.coords[1]},${trip.ramp.coords[0]}" target="_blank" rel="noopener">Directions ↗</a>` : ''}</p><p>Fishing spots: ${esc(trip.spots.map((s) => s.name).join(', ') || 'None selected')}</p><p style="white-space:pre-wrap">${esc(trip.notes)}</p><p data-trip-maps>Checking downloaded map packs…</p><button class="btn" data-trip-weather>Check trip weather</button><button class="btn" data-trip-maps>Review offline downloads</button><p class="muted small">Check the conditions below and official access rules before leaving. Launch is blue; fishing spots are pink.</p></div>` : ''}
       ${water ? `<p class="muted small">${water.acres ? water.acres.toLocaleString() + ' acres · ' : ''}${esc(water.state)} · ${esc(water.type)}</p><p>${esc(water.notes ?? '')}</p><button class="btn" data-action="overview">Species, lake notes & official links ↗</button>` : ''}
       <div class="destination-actions"><button class="btn primary" data-action="weather" ${water?.center ? '' : 'disabled'}>Check weather</button><button class="btn" data-action="offline">Prepare offline</button></div>
       <h4>01 / Before you launch</h4>
       <p class="muted small">Readings below come from nearby gauges; they may describe river conditions rather than the reservoir level. Check each station and observation time.</p>
-      ${near.length ? near.slice(0, 2).map((g) => `<details class="destination-card"><summary>${esc(g.name)}</summary>${gaugeHtml(g)}</details>`).join('') : '<div class="destination-card">No nearby gauge readings loaded.<p class="muted small">A missing reading does not establish current conditions.</p></div>'}
+      ${near.length ? near.slice(0, 2).map((g) => `<details class="destination-card"><summary>${esc(g.name)}</summary>${gaugeHtml(g)}</details>`).join('') : `<div class="destination-card">${actions.gaugeState === 'loading' ? 'Loading water readings…' : actions.gaugeState === 'unavailable' ? 'Water-reading service unavailable.' : 'No stations loaded near this destination.'}<p class="muted small">A missing reading does not establish current conditions.</p></div>`}
       ${dam ? '<button class="btn" data-action="dam">Dam & release information ↗</button>' : ''}
       <h4>02 / Find your way to the water</h4>
-      <p class="muted small">${water?.center ? 'Access locations in the visible map area near this destination. Explore the water, then refresh to see more.' : 'Nearby access cannot be matched until a map location is available.'} Community locations do not confirm an open launch.</p>
+      <p class="muted small">${water?.center ? 'Locations near this destination, selected by distance. They may serve a neighboring water body. Explore the water, then refresh to see more.' : 'Nearby access cannot be matched until a map location is available.'} Community locations do not confirm an open launch.</p>
       <button class="link" data-action="refresh">Refresh visible access</button>
       ${showingNearby ? '<p class="muted small">No access locations in this map view. Showing nearby places outside the view; check each location before choosing a launch.</p>' : ''}
       <ul class="list">${access.slice(0, 8).map((f, i) => `<li><button class="destination-row" data-access="${i}"><b>${esc(f.properties.name || ACCESS_LABELS[f.properties.kind] || 'Access point')}</b>${f.properties.description ? `<span>${esc(f.properties.description)}</span>` : ''}<span>${esc(accessLocation(f.properties, f.geometry.type === 'Point' ? f.geometry.coordinates as [number, number] : CENTER))}</span><span>${esc(ACCESS_LABELS[f.properties.kind] ?? 'Access')} · View details ↗</span></button></li>`).join('') || '<li class="muted">No access locations in this view. Explore this water or zoom out to see nearby places.</li>'}</ul>
@@ -75,6 +78,15 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       <h4>04 / Ready for no signal?</h4><div class="destination-card" id="destination-packs" aria-live="polite">Checking downloaded maps…</div>
       <p class="muted small">Map packs cover the configured region. Weather and release information need a connection for updates. Keep the app open while recording GPS.</p>
     </div>`;
+  const headings = [...root.querySelectorAll<HTMLElement>('.destination-body > h4')];
+  headings.forEach((heading, index) => {
+    const section = document.createElement('details');
+    section.className = 'destination-section'; section.dataset.section = String(index);
+    section.open = sectionOpen.get(String(index)) ?? index < 2;
+    const summary = document.createElement('summary'); summary.textContent = heading.textContent;
+    section.append(summary); heading.replaceWith(section);
+    while (section.nextSibling && !headings.includes(section.nextSibling as HTMLElement)) section.append(section.nextSibling);
+  });
   root.querySelector<HTMLSelectElement>('#destination-select')!.onchange = (event) => {
     const id = (event.target as HTMLSelectElement).value;
     selectDestination(id);
@@ -86,6 +98,20 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   };
   const overview = root.querySelector<HTMLButtonElement>('[data-action="overview"]');
   root.querySelector<HTMLButtonElement>('[data-action="trips"]')!.onclick = actions.trips;
+  const tripWeather = root.querySelector<HTMLButtonElement>('[data-trip-weather]');
+  if (tripWeather) tripWeather.onclick = () => actions.weather(trip?.ramp?.coords ?? CENTER);
+  const tripMaps = root.querySelector<HTMLButtonElement>('button[data-trip-maps]');
+  if (tripMaps) tripMaps.onclick = actions.offline;
+  const mapsStatus = root.querySelector<HTMLElement>('p[data-trip-maps]');
+  if (mapsStatus && trip) void Promise.all([packStatus('basemap'), packStatus('overlays'), loadPackManifest()]).then(([base, overlays, manifest]) => {
+    if (!mapsStatus.isConnected) return;
+    const locations = [...(water?.center ? [water.center] : []), ...(trip.ramp ? [trip.ramp.coords] : []), ...trip.spots.map((p) => p.coords)];
+    const bounds = (manifest as { bounds?: number[] } | null)?.bounds;
+    const covered = !!bounds && locations.length > 0 && locations.every(([x, y]) => x >= bounds[0] && x <= bounds[2] && y >= bounds[1] && y <= bounds[3]);
+    mapsStatus.textContent = base === 'Verified on device' && overlays === 'Verified on device'
+      ? covered ? 'Regional packs verified on device; trip points are within coverage.' : 'Regional packs are on device. Coverage for every trip point is not verified.'
+      : 'Regional packs are not ready on this device. Review saved area coverage in Offline and test before leaving.';
+  });
   if (overview) overview.onclick = () => actions.info(waterHtml(water!));
   root.querySelector<HTMLButtonElement>('.destination-explore')!.onclick = () => {
     if (innerWidth <= 800) document.querySelector('#sheet')?.classList.remove('open');

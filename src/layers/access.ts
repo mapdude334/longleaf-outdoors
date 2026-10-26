@@ -88,6 +88,8 @@ export function accessHtml(p: Record<string, any>, coords: [number, number]): st
   <p><span class="dot" style="background:${ACCESS_COLORS[k]}"></span>${esc(ACCESS_LABELS[k])}</p>
   <p>${esc(accessLocation(p, coords))}</p>
   <p class="muted small">${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}</p>
+  ${['boat_ramp', 'paddle_launch'].includes(k) ? `<button class="btn primary" data-use-launch data-launch-id="${esc(p.osm ?? coords.join(','))}" data-launch-name="${esc(p.name || ACCESS_LABELS[k])}" data-launch-lng="${coords[0]}" data-launch-lat="${coords[1]}">Use as my launch</button>` : ''}
+  ${k === 'fishing' ? `<button class="btn primary" data-use-spot data-launch-id="${esc(p.osm ?? coords.join(','))}" data-launch-name="${esc(p.name || ACCESS_LABELS[k])}" data-launch-lng="${coords[0]}" data-launch-lat="${coords[1]}">Add fishing spot to trip</button>` : ''}
   ${rows ? `<table class="props">${rows}</table>` : ''}
   <p><a href="${nav}" target="_blank" rel="noopener">Driving directions ↗</a>${p.osm ? ` · <a href="https://www.openstreetmap.org/${esc(p.osm)}" target="_blank" rel="noopener">Fix/add info on OSM ↗</a>` : ''}</p>
   <p class="muted small">Community data (OpenStreetMap). Confirm access rules on site.</p>`;
