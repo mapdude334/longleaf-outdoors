@@ -1,5 +1,6 @@
 import { renderDestination, selectDestination } from './destination';
 import { initWelcome } from './welcome';
+import { addShareControl } from './share';
 import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick } from './trips';
 import { speciesForLabel, speciesHtml, speciesChoiceHtml } from './species';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -107,6 +108,7 @@ map.addControl({
   },
   onRemove() {},
 }, 'top-right');
+addShareControl(map);
 map.addControl(new ScaleControl({ unit: 'imperial' }), 'bottom-right');
 map.addControl(new AttributionControl({ compact: true }), 'bottom-right');
 
