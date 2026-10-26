@@ -2,7 +2,7 @@ import type { Map } from 'maplibre-gl';
 import { waters, waterHtml } from './layers/waters';
 import { gauges, gaugeHtml, fillTrend } from './layers/gauges';
 import { dams, damHtml, fillCwms } from './layers/dams';
-import { ACCESS_LABELS, accessHtml } from './layers/access';
+import { ACCESS_LABELS, accessHtml, accessLocation } from './layers/access';
 import { getWpts } from './waypoints';
 import { packStatus } from './pmtiles';
 import { esc, haversineKm, store } from './util';
@@ -44,7 +44,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       <h4>02 / Find your way to the water</h4>
       <p class="muted small">Access points currently drawn in the lake area. Explore the lake, then refresh to see more. Community locations do not confirm an open launch.</p>
       <button class="link" data-action="refresh">Refresh visible access</button>
-      <ul class="list">${access.slice(0, 8).map((f, i) => `<li><button class="destination-row" data-access="${i}"><b>${esc(f.properties.name || ACCESS_LABELS[f.properties.kind] || 'Access point')}</b><span>${esc(ACCESS_LABELS[f.properties.kind] ?? 'Access')} ↗</span></button></li>`).join('') || '<li class="muted">No access points drawn yet. Explore the lake or enable the access layer.</li>'}</ul>
+      <ul class="list">${access.slice(0, 8).map((f, i) => `<li><button class="destination-row" data-access="${i}"><b>${esc(f.properties.name || ACCESS_LABELS[f.properties.kind] || 'Access point')}</b>${f.properties.description ? `<span>${esc(f.properties.description)}</span>` : ''}<span>${esc(accessLocation(f.properties, f.geometry.type === 'Point' ? f.geometry.coordinates as [number, number] : CENTER))}</span><span>${esc(ACCESS_LABELS[f.properties.kind] ?? 'Access')} · View details ↗</span></button></li>`).join('') || '<li class="muted">No access points drawn yet. Explore the lake or enable the access layer.</li>'}</ul>
       ${accessCache ? `<p class="muted small">Live-service access cache saved ${esc(new Date(accessCache.t).toLocaleString())}. Downloaded overlays may have a different date.</p>` : ''}
       <h4>03 / Make it your lake</h4>
       <ul class="list">${spots.map((p) => `<li><button class="destination-row" data-spot="${esc(p.id)}"><b>${esc(p.name)}</b><span>My saved spot ↗</span></button></li>`).join('') || '<li class="muted">Your lake spots will appear here. Long-press the map to save your first one.</li>'}</ul>
