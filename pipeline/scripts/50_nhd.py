@@ -6,6 +6,7 @@ Outputs out/water_bodies.geojson and out/streams.geojson.
 from __future__ import annotations
 
 import subprocess
+import json
 import zipfile
 
 from common import CACHE, OUT, bbox, http_get, sources
@@ -26,14 +27,12 @@ def ensure_gdb(huc: str, tmpl: str):
     return next(d.rglob("*.gdb"))
 
 
-def ogr(src, layer, dst, where, fields, append: bool):
+def ogr(src, layer, dst, where, fields):
     w, s, e, n = map(str, bbox())
     cmd = ["ogr2ogr", "-f", "GeoJSON", str(dst), str(src), layer,
            "-spat", w, s, e, n, "-spat_srs", "EPSG:4326", "-t_srs", "EPSG:4326",
            "-where", where, "-select", fields, "-lco", "COORDINATE_PRECISION=6",
            "-nlt", "PROMOTE_TO_MULTI", "-dim", "XY", "-makevalid"]
-    if append:
-        cmd[1:1] = ["-append"]
     print(" ", " ".join(cmd[:6]), "...")
     subprocess.run(cmd, check=True)
 
@@ -43,13 +42,30 @@ def main() -> None:
     wb, fl = OUT / "water_bodies.geojson", OUT / "streams.geojson"
     wb.unlink(missing_ok=True)
     fl.unlink(missing_ok=True)
-    for i, huc in enumerate(cfg["hucs"]):
+    collected = {"water_bodies": {}, "streams": {}}
+    for huc in cfg["hucs"]:
         gdb = ensure_gdb(huc, cfg["url_template"])
         # 390 Lake/Pond, 436 Reservoir. Drop tiny farm ponds (<1 ha) unless named.
-        ogr(gdb, "NHDWaterbody", wb, "ftype IN (390,436) AND (areasqkm >= 0.01 OR gnis_name IS NOT NULL)",
-            FIELDS_WB, append=i > 0)
+        water_part = OUT / f"water_bodies_{huc}.geojson"
+        stream_part = OUT / f"streams_{huc}.geojson"
+        water_part.unlink(missing_ok=True)
+        stream_part.unlink(missing_ok=True)
+        ogr(gdb, "NHDWaterbody", water_part, "ftype IN (390,436) AND (areasqkm >= 0.01 OR gnis_name IS NOT NULL)", FIELDS_WB)
         # 460 StreamRiver, 558 ArtificialPath (river centerline through lakes). Named only.
-        ogr(gdb, "NHDFlowline", fl, "ftype IN (460,558) AND gnis_name IS NOT NULL", FIELDS_FL, append=i > 0)
+        ogr(gdb, "NHDFlowline", stream_part, "ftype IN (460,558) AND gnis_name IS NOT NULL", FIELDS_FL)
+        # Convert each source separately: GDAL forbids combining -append with
+        # -select. Merge by permanent identifier to avoid watershed-edge duplicates.
+        for kind, part in (("water_bodies", water_part), ("streams", stream_part)):
+            for feature in json.loads(part.read_text())["features"]:
+                props = {k.lower(): v for k, v in feature["properties"].items()}
+                key = props.get("permanent_identifier") or json.dumps(feature, sort_keys=True)
+                collected[kind][key] = feature
+            part.unlink()
+    for kind, destination in (("water_bodies", wb), ("streams", fl)):
+        if not collected[kind]:
+            raise RuntimeError(f"No {kind} extracted; refusing to publish an empty archive")
+        destination.write_text(json.dumps({"type": "FeatureCollection", "features": list(collected[kind].values())}))
+        print(f"[nhd] {kind}: {len(collected[kind]):,} unique features")
 
 
 if __name__ == "__main__":
