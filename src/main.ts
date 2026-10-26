@@ -1,4 +1,4 @@
-import { renderDestination } from './destination';
+import { renderDestination, selectDestination } from './destination';
 import { speciesForLabel, speciesHtml, speciesChoiceHtml } from './species';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
@@ -268,7 +268,7 @@ function renderWaters(filter = '') {
   el.querySelectorAll<HTMLElement>('li[data-id]').forEach((li) => (li.onclick = () => {
     const w = waterById(li.dataset.id!)!;
     if (w.center) map.flyTo({ center: w.center, zoom: 11 });
-    if (w.id === 'west-point') showTab('destination'); else showInfo(waterHtml(w));
+    selectDestination(w.id); showTab('destination');
   }));
 }
 
@@ -437,7 +437,7 @@ q.oninput = () => {
     if (Math.abs(a) > 60) [a, b] = [b, a]; // accept lon,lat too
     hits.push({ label: `Go to ${a}, ${b}`, sub: 'Coordinates', center: [b, a], zoom: 14 });
   }
-  for (const w of waters) if (w.name.toLowerCase().includes(s) || w.species.some((x) => x.name.toLowerCase().includes(s))) hits.push({ label: w.name, sub: 'Water · ' + w.species.slice(0, 3).map((x) => x.name).join(', '), center: w.center ?? map.getCenter().toArray() as [number, number], zoom: 11, open: () => w.id === 'west-point' ? showTab('destination') : showInfo(waterHtml(w)) });
+  for (const w of waters) if (w.name.toLowerCase().includes(s) || w.species.some((x) => x.name.toLowerCase().includes(s))) hits.push({ label: w.name, sub: 'Water · ' + w.species.slice(0, 3).map((x) => x.name).join(', '), center: w.center ?? map.getCenter().toArray() as [number, number], zoom: 11, open: () => { selectDestination(w.id); showTab('destination'); } });
   for (const d of dams) if (d.name.toLowerCase().includes(s)) hits.push({ label: d.name, sub: 'Dam · ' + d.operator, center: d.coords, zoom: 13, open: () => showInfo(damHtml(d), (r) => fillCwms(r, d)) });
   for (const g of gauges) if (g.name.toLowerCase().includes(s) || g.id.includes(s)) hits.push({ label: g.name, sub: 'USGS gauge ' + g.id, center: g.coords, zoom: 13, open: () => showInfo(gaugeHtml(g), (r) => fillTrend(r, g)) });
   for (const p of getWpts()) if (p.name.toLowerCase().includes(s)) hits.push({ label: p.name, sub: 'My waypoint', center: [p.lng, p.lat], zoom: 15, open: () => editWpt(p.id) });
