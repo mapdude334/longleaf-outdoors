@@ -51,7 +51,7 @@ export function accessLocation(p: Record<string, any>, coords: [number, number])
   if (address) return address;
   const anchors = [
     ...dams.map((d) => ({ name: d.name, coords: d.coords })),
-    ...waters.flatMap((w) => w.center ? [{ name: w.name, coords: w.center }] : []),
+    ...waters.flatMap((w) => w.center ? [{ name: `${w.name} (mapped center)`, coords: w.center }] : []),
   ].map((a) => ({ ...a, distance: haversineKm(coords, a.coords) })).sort((a, b) => a.distance - b.distance);
   const anchor = anchors[0];
   if (!anchor) return `${coords[1].toFixed(4)}° N, ${Math.abs(coords[0]).toFixed(4)}° W`;
