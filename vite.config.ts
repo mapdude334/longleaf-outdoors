@@ -22,9 +22,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png', 'data/*.json', 'species/*.jpg'],
       manifest: {
-        name: 'Longleaf Outdoors',
-        short_name: 'Longleaf Outdoors',
-        description: 'Offline outdoor map for the Southeast: public lands, access, lakes & species, live river gauges, dam releases and weather.',
+        name: 'Longleaf Atlas',
+        short_name: 'Longleaf Atlas',
+        description: 'Spatially Driven Recreation. Outdoor maps, destinations, fishing information and trip planning for the Southeast.',
         theme_color: '#1e3a2b',
         background_color: '#1e3a2b',
         display: 'standalone',

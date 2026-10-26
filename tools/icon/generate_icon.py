@@ -1,4 +1,4 @@
-# Generates the Longleaf Outdoors app icon (procedural longleaf pine in a wiregrass savanna).
+# Generates the Longleaf Atlas app icon (procedural longleaf pine in a wiregrass savanna).
 # Usage: pip install cairosvg && python3 tools/icon/generate_icon.py  (writes icon4*.png / icon4.svg; copy into public/icons/)
 import math, random
 import cairosvg

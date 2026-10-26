@@ -7,7 +7,7 @@ foreach ($name in $names) {
   Start-Sleep -Seconds 10
   $query = [uri]::EscapeDataString('"' + $name + '" filetype:bitmap -drawing -illustration -map -distribution -Raver')
   $uri = 'https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrsearch=' + $query + '&gsrlimit=3&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=800'
-  $j = Invoke-RestMethod $uri -Headers @{'User-Agent'='LongleafOutdoors/0.1 educational species guide'}
+  $j = Invoke-RestMethod $uri -Headers @{'User-Agent'='LongleafAtlas/0.1 educational species guide'}
   $all[$name] = @($j.query.pages.PSObject.Properties.Value | Sort-Object index | ForEach-Object {
     $i=$_.imageinfo[0]; $m=$i.extmetadata
     @{ title=$_.title; url=$i.url; thumb=$i.thumburl; page=$i.descriptionurl; artist=$m.Artist.value; description=$m.ImageDescription.value; license=$m.LicenseShortName.value; licenseUrl=$m.LicenseUrl.value }

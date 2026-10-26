@@ -1,4 +1,4 @@
-"""Shared helpers for the Longleaf Outdoors data pipeline (stdlib only)."""
+"""Shared helpers for the Longleaf Atlas data pipeline (stdlib only)."""
 from __future__ import annotations
 
 import json
@@ -13,7 +13,7 @@ CACHE = ROOT / "cache"
 OUT.mkdir(exist_ok=True)
 CACHE.mkdir(exist_ok=True)
 
-UA = "LongleafOutdoors-pipeline/1.0 (+https://github.com/mapdude334/longleaf-outdoors; regional offline maps)"
+UA = "LongleafAtlas-pipeline/1.0 (+https://github.com/mapdude334/longleaf-outdoors; regional offline maps)"
 
 
 def sources() -> dict:

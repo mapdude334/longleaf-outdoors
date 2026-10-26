@@ -13,7 +13,7 @@ done
 
 # shellcheck disable=SC2046
 tippecanoe -o overlays.pmtiles --force \
-  --name="Longleaf Outdoors overlays" \
+  --name="Longleaf Atlas overlays" \
   --attribution="USGS PAD-US 4.1; USGS NHD; © OpenStreetMap contributors (ODbL)" \
   -Z6 -z14 --drop-densest-as-needed --detect-shared-borders --simplify-only-low-zooms -r1 \
   "${layers[@]}"

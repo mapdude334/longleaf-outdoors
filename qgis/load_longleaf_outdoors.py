@@ -51,4 +51,4 @@ add(QgsVectorLayer("crs='EPSG:4326' url='https://edits.nationalmap.gov/arcgis/re
 add(QgsVectorLayer("crs='EPSG:4326' url='https://explore.opelika-al.gov/server/rest/services/Lee_County_Parcels/MapServer/0'",
                    "Lee Co. parcels (live)", "arcgisfeatureserver"), "Live services")
 
-print("Loaded Longleaf Outdoors layers. Zoom to the AOI: -86.35, 31.55, -84.35, 33.85")
+print("Loaded Longleaf Atlas layers. Zoom to the AOI: -86.35, 31.55, -84.35, 33.85")
