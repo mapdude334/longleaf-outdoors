@@ -1,7 +1,7 @@
 import type { Map, MapMouseEvent } from 'maplibre-gl';
 import { waters } from './layers/waters';
 import { getWpts } from './waypoints';
-import { loadAccessLive } from './layers/access';
+import { loadAccessLive, accessLocation } from './layers/access';
 import { esc, haversineKm, store, toast } from './util';
 
 export type Place = { id: string; name: string; coords: [number, number] };
@@ -88,10 +88,14 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       const coords = f.geometry.coordinates.slice(0, 2) as [number, number];
       if (!water?.center || haversineKm(coords, water.center) > 40) continue;
       const id = String(f.properties.osm ?? coords.join(','));
-      candidates.set(id, { id, name: f.properties.name || `Launch · ${coords[1].toFixed(4)}, ${coords[0].toFixed(4)}`, coords });
+      const name = String(f.properties.name ?? '').trim();
+      candidates.set(id, { id, name: name && !/^(boat ramp|launch|paddle launch)$/i.test(name) ? name : `${f.properties.kind === 'paddle_launch' ? 'Paddle launch' : 'Boat ramp'} — ${accessLocation(f.properties, coords)}`, coords });
     }
     for (const w of getWpts().filter((w) => w.type === 'ramp')) candidates.set(w.id, { id: w.id, name: w.name, coords: [w.lng, w.lat] });
-    if (trip.ramp) candidates.set(trip.ramp.id, trip.ramp);
+    if (trip.ramp && !candidates.has(trip.ramp.id)) {
+      const ramp = trip.ramp;
+      candidates.set(ramp.id, { ...ramp, name: !ramp.name.trim() || /^(Launch ·|boat ramp$|launch$)/i.test(ramp.name) ? `Boat ramp — ${accessLocation({}, ramp.coords)}` : ramp.name });
+    }
     const ramps = [...candidates.values()].sort((a, b) => water?.center ? haversineKm(a.coords, water.center) - haversineKm(b.coords, water.center) : a.name.localeCompare(b.name));
     const spots = new globalThis.Map<string, Place>();
     for (const w of getWpts().filter((w) => w.type === 'fish')) spots.set(w.id, { id: w.id, name: w.name, coords: [w.lng, w.lat] });
@@ -120,6 +124,13 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     const autosave = () => { collect(); if (store.set('trip-draft', trip)) root.querySelector('[data-trip-status]')!.textContent = 'Draft autosaved on this device.'; };
     root.oninput = autosave;
     root.onchange = autosave;
+    input<HTMLSelectElement>('#trip-ramp').onchange = () => {
+      autosave(); showTripPlan(map, trip);
+      if (!trip.ramp) return;
+      if (innerWidth <= 800) document.getElementById('sheet')?.classList.remove('open');
+      map.flyTo({ center: trip.ramp.coords, zoom: Math.max(map.getZoom(), 14), padding: { left: innerWidth > 800 ? 410 : 20, right: 55, top: 60, bottom: innerWidth > 800 ? 40 : 160 } });
+      toast(`Selected ${trip.ramp.name}`);
+    };
     root.querySelectorAll<HTMLButtonElement>('[data-remove-spot]').forEach((button) => button.onclick = () => { collect(); trip.spots = trip.spots.filter((p) => p.id !== button.dataset.removeSpot); store.set('trip-draft', trip); edit(trip); showTripPlan(map, trip); });
     const save = () => {
       collect();
