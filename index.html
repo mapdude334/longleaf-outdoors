@@ -11,7 +11,7 @@
   </head>
   <body>
     <header id="top">
-      <div class="brand"><img src="/icons/pine-fishing-192.png" alt="Longleaf pine with a fishing rod and tackle box" width="40" height="40" /><span>Longleaf Outdoors</span></div>
+      <button class="brand" id="about-longleaf" type="button" title="About Longleaf Outdoors" aria-label="About Longleaf Outdoors"><img src="/icons/pine-fishing-192.png" alt="Longleaf pine with a fishing rod and tackle box" width="40" height="40" /><span>Longleaf Outdoors</span></button>
       <div class="search">
         <input id="q" type="search" placeholder="Search lakes, ramps, dams, gauges, lat,lon…" autocomplete="off" aria-label="Search" />
         <ul id="results" hidden></ul>
@@ -39,6 +39,30 @@
       <section id="tab-offline" class="tab" hidden></section>
     </aside>
     <div id="ctx" class="ctx" hidden></div>
+    <dialog id="welcome" class="welcome" aria-labelledby="welcome-title" aria-describedby="welcome-intro">
+      <div class="welcome-layout">
+        <div class="welcome-brand">
+          <img src="/icons/pine-fishing-512.png" alt="Pencil drawing of a longleaf pine, fishing rod and tackle box" width="180" height="180" />
+          <span>LONGLEAF OUTDOORS</span><p>Your next day out.</p>
+        </div>
+        <div class="welcome-content">
+          <p class="welcome-eyebrow">WELCOME TO THE WATER</p>
+          <h1 id="welcome-title">Explore with a little local knowledge.</h1>
+          <p id="welcome-intro">Find your water, plan your trip, and keep the outdoors yours to explore.</p>
+          <h2>Open data &amp; sources</h2>
+          <p>Longleaf combines public agency data, community contributions, and third-party map services. Sources include USGS, NOAA/NWS, USACE, state wildlife agencies, local governments, and <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors (ODbL)</a>. Source licenses and map attributions apply. No agency endorsement is implied.</p>
+          <h2>Use with care</h2>
+          <p>Information is provided “as is” for general recreation planning and may be incomplete, inaccurate, or outdated. Verify access, property boundaries, permits, fishing rules, weather, water levels, and dam releases with official sources before heading out. A mapped location does not grant permission to enter or confirm safe conditions.</p>
+          <p>Use this app and its data at your own risk. To the extent permitted by law, James Bush and Longleaf Outdoors disclaim warranties and liability for loss, damage, or injury arising from their use.</p>
+          <div class="welcome-credit"><span>APP DEVELOPMENT</span><strong>James Bush</strong><p>Longleaf Outdoors</p></div>
+          <div class="welcome-actions">
+            <label><input type="checkbox" id="welcome-remember" /> Remember my acknowledgment on this device</label>
+            <button class="btn primary" id="welcome-continue" type="button">Acknowledge &amp; explore</button>
+            <p>You can reopen this notice anytime by selecting the Longleaf logo.</p>
+          </div>
+        </div>
+      </div>
+    </dialog>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

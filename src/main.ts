@@ -1,4 +1,5 @@
 import { renderDestination, selectDestination } from './destination';
+import { initWelcome } from './welcome';
 import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick } from './trips';
 import { speciesForLabel, speciesHtml, speciesChoiceHtml } from './species';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -20,6 +21,7 @@ import { renderOffline } from './offline';
 import { $, ago, esc, fmtCoord, store, toast } from './util';
 
 setWorkerUrl(workerUrl);
+initWelcome();
 registerSW({ immediate: true, onOfflineReady: () => toast('App installed offline. Download map packs before your trip.') });
 
 // ---------------- state ----------------
