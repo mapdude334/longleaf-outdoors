@@ -261,14 +261,25 @@ function renderWaters(filter = '') {
   const f = filter.toLowerCase();
   const list = waters.filter((w) => !f || w.name.toLowerCase().includes(f) || w.species.some((s) => s.name.toLowerCase().includes(f)));
   el.innerHTML = `<input class="filter" placeholder="Filter by lake or species (e.g. shoal bass)" value="${esc(filter)}">
-    <ul class="list">${list.map((w) => `<li data-id="${w.id}"><b>${esc(w.name)}</b><br><span class="muted small">${esc(w.species.slice(0, 5).map((s) => s.name).join(', '))}</span></li>`).join('')}</ul>
+    <ul class="list">${list.map((w) => `<li><button class="destination-row" data-water-id="${esc(w.id)}"><b>${esc(w.name)}</b><span>${esc(w.species.slice(0, 5).map((s) => s.name).join(', '))}</span><span>View water information ↗</span></button></li>`).join('')}</ul>
     <h4>Regulations & advisories</h4><ul class="links">${regulations.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul>`;
   const input = el.querySelector<HTMLInputElement>('.filter')!;
   input.oninput = () => { renderWaters(input.value); const i = $<HTMLInputElement>('#tab-waters .filter'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };
-  el.querySelectorAll<HTMLElement>('li[data-id]').forEach((li) => (li.onclick = () => {
-    const w = waterById(li.dataset.id!)!;
-    if (w.center) map.flyTo({ center: w.center, zoom: 11 });
-    selectDestination(w.id); showTab('destination');
+  el.querySelectorAll<HTMLButtonElement>('[data-water-id]').forEach((button) => (button.onclick = () => {
+    const w = waterById(button.dataset.waterId!)!;
+    showInfo(`<button class="link" data-back-waters>← Back to waters</button>${waterHtml(w)}
+      <button class="btn primary" data-make-destination>Make it your destination</button>
+      <p class="muted small">Plan your visit with nearby access, water readings, weather, saved spots and offline maps.</p>`, (root) => {
+      const back = () => { showTab('waters'); renderWaters(filter); };
+      root.querySelector<HTMLButtonElement>('[data-back-waters]')!.onclick = back;
+      root.querySelector<HTMLButtonElement>('.close')!.onclick = back;
+      root.querySelector<HTMLButtonElement>('[data-make-destination]')!.onclick = () => {
+        selectDestination(w.id);
+        if (w.center) map.flyTo({ center: w.center, zoom: 11 });
+        showTab('destination');
+        $('#tab-destination').scrollTop = 0;
+      };
+    });
   }));
 }
 
