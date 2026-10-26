@@ -13,6 +13,9 @@ on:
         required: false
 permissions:
   contents: write
+concurrency:
+  group: region-packs
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,22 +30,33 @@ jobs:
         uses: actions/cache@v4
         with: { path: pipeline/cache, key: nhd-v1 }
       - name: Run pipeline
+        env:
+          PIPELINE_STEPS: ${{ inputs.steps }}
         working-directory: pipeline/scripts
         run: |
-          S="${{ github.event.inputs.steps }}"; S=${S:-"basemap arcgis osm nhd tiles"}
-          [[ $S == *basemap* ]] && ./10_basemap.sh
-          [[ $S == *arcgis* ]]  && python3 30_fetch_arcgis.py && python3 35_label_points.py
-          [[ $S == *osm* ]]     && python3 40_fetch_osm.py
-          [[ $S == *nhd* ]]     && python3 50_nhd.py && python3 60_enrich_waters.py
-          [[ $S == *tiles* ]]   && ./70_build_tiles.sh
+          S=${PIPELINE_STEPS:-"basemap arcgis osm nhd tiles"}
+          for step in $S; do
+            case "$step" in
+              basemap) ./10_basemap.sh ;;
+              arcgis) python3 30_fetch_arcgis.py; python3 35_label_points.py ;;
+              osm) python3 40_fetch_osm.py ;;
+              nhd) python3 50_nhd.py; python3 60_enrich_waters.py ;;
+              tiles) ./70_build_tiles.sh ;;
+              *) echo "Unknown build step: $step"; exit 1 ;;
+            esac
+          done
           ls -lh ../out
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Validate packs and create download manifest
+        run: node tools/validate-packs.mjs
       - name: Publish GitHub release
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
-          tag="tiles-$(date -u +%Y%m%d)"
-          gh release create "$tag" pipeline/out/*.pmtiles --title "Map data $tag" \
-            --notes "Automated build. Sources: Protomaps/OSM (ODbL), USGS PAD-US 4.1, USGS NHD, county GIS." || \
-          gh release upload "$tag" pipeline/out/*.pmtiles --clobber
+          tag="tiles-$(date -u +%Y%m%d)-${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" pipeline/out/*.pmtiles pipeline/out/manifest.json --title "Map data $tag" \
+            --notes "Validated regional maps. Coverage, archive sizes, checksums, zoom levels and source counts are in manifest.json. Sources: Protomaps/OSM (ODbL), USGS PAD-US 4.1, USGS NHD, county GIS."
       - name: Upload to Cloudflare R2 (optional)
         if: env.R2_BUCKET != ''
         env:

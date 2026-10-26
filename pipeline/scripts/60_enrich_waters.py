@@ -27,7 +27,8 @@ def enrich(path):
     fc = json.loads(path.read_text())
     hits = 0
     for f in fc["features"]:
-        p = f["properties"]
+        p = {k.lower(): v for k, v in f["properties"].items()}
+        f["properties"] = p
         w = INDEX.get(norm(p.get("gnis_name", "")))
         if w:
             p["water_id"] = w["id"]

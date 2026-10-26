@@ -13,7 +13,7 @@ CACHE = ROOT / "cache"
 OUT.mkdir(exist_ok=True)
 CACHE.mkdir(exist_ok=True)
 
-UA = "LongleafOutdoors-pipeline/1.0 (+https://github.com/; open data mirror for offline outdoor map)"
+UA = "LongleafOutdoors-pipeline/1.0 (+https://github.com/mapdude334/longleaf-outdoors; regional offline maps)"
 
 
 def sources() -> dict:
@@ -31,7 +31,10 @@ def http_get(url: str, params: dict | None = None, data: bytes | None = None,
     last = None
     for attempt in range(retries):
         try:
-            req = urllib.request.Request(url, data=data, headers={"User-Agent": UA})
+            headers = {"User-Agent": UA}
+            if data is not None:
+                headers["Content-Type"] = "application/x-www-form-urlencoded"
+            req = urllib.request.Request(url, data=data, headers=headers)
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.read()
         except Exception as e:  # noqa: BLE001

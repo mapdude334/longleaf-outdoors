@@ -50,6 +50,10 @@ def fetch_layer(cfg: dict) -> None:
         from urllib.parse import urlencode
         raw = http_get(url + "/query", data=urlencode(body).encode())
         fc = json.loads(raw)
+        if "error" in fc:
+            raise RuntimeError(fc["error"])
+        if len(fc.get("features", [])) != len(chunk):
+            raise RuntimeError(f"Incomplete batch: expected {len(chunk)} features, got {len(fc.get('features', []))}")
         for f in fc.get("features", []):
             f["properties"] = {k: v for k, v in (f.get("properties") or {}).items() if v not in (None, "", " ")}
             f["properties"]["_src"] = cfg["id"]
@@ -63,6 +67,7 @@ def fetch_layer(cfg: dict) -> None:
 
 def main() -> None:
     wanted = set(sys.argv[1:])
+    failures = []
     for cfg in sources()["arcgis"]:
         if wanted and cfg["id"] not in wanted:
             continue
@@ -70,6 +75,9 @@ def main() -> None:
             fetch_layer(cfg)
         except Exception as e:  # noqa: BLE001 - keep going; one county outage shouldn't kill the build
             print(f"  !! {cfg['id']} failed: {e}")
+            failures.append(cfg["id"])
+    if failures:
+        raise RuntimeError("Incomplete source downloads: " + ", ".join(failures))
 
 
 if __name__ == "__main__":

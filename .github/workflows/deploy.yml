@@ -41,7 +41,9 @@ jobs:
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           tag=$(gh release list --limit 20 --json tagName -q '[.[] | select(.tagName|startswith("tiles-"))][0].tagName')
-          mkdir -p dist/tiles && gh release download "$tag" --pattern '*.pmtiles' --dir dist/tiles
+          test -n "$tag" && test "$tag" != "null"
+          mkdir -p dist/tiles
+          gh release download "$tag" --pattern '*.pmtiles' --pattern 'manifest.json' --dir dist/tiles
           ls -lh dist/tiles
       - uses: actions/upload-pages-artifact@v4
         with: { path: dist }

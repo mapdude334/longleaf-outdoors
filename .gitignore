@@ -10,3 +10,4 @@ pipeline/cache/
 /tools/species-originals/
 /tools/species-contact.jpg
 /.publishing/
+__pycache__/

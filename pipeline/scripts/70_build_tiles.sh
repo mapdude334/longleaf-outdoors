@@ -5,19 +5,18 @@
 set -euo pipefail
 cd "$(dirname "$0")/../out"
 
-layer() { [ -s "$2" ] && echo "-L" "{\"layer\":\"$1\",\"file\":\"$2\"}" || true; }
+layers=()
+for name in public_lands public_lands_labels water_bodies streams access osm_dams; do
+  test -s "$name.geojson" || { echo "Missing required layer: $name"; exit 1; }
+  layers+=(-L "{\"layer\":\"$name\",\"file\":\"$name.geojson\"}")
+done
 
 # shellcheck disable=SC2046
 tippecanoe -o overlays.pmtiles --force \
   --name="Longleaf Outdoors overlays" \
   --attribution="USGS PAD-US 4.1; USGS NHD; © OpenStreetMap contributors (ODbL)" \
   -Z6 -z14 --drop-densest-as-needed --detect-shared-borders --simplify-only-low-zooms -r1 \
-  $(layer public_lands public_lands.geojson) \
-  $(layer public_lands_labels public_lands_labels.geojson) \
-  $(layer water_bodies water_bodies.geojson) \
-  $(layer streams streams.geojson) \
-  -L'{"layer":"access","file":"access.geojson"}' \
-  $(layer osm_dams osm_dams.geojson)
+  "${layers[@]}"
 
 PARCEL_FILES=$(ls parcels_*.geojson 2>/dev/null || true)
 if [ -n "$PARCEL_FILES" ]; then

@@ -7,6 +7,7 @@ their center point (Overpass `out center`).
 from __future__ import annotations
 
 import json
+from urllib.parse import urlencode
 
 from common import OUT, bbox, http_get, sources, write_geojson
 
@@ -40,7 +41,9 @@ def run(name: str, selectors: list[str]) -> list[dict]:
     s, w, n, e = bbox()[1], bbox()[0], bbox()[3], bbox()[2]
     body = "[out:json][timeout:180];(" + "".join(f"{q}({s},{w},{n},{e});" for q in selectors) + ");out center tags;"
     print(f"[osm:{name}] {len(selectors)} selectors")
-    data = json.loads(http_get(sources()["overpass"]["url"], data=("data=" + body).encode(), timeout=240))
+    data = json.loads(http_get(sources()["overpass"]["url"], data=urlencode({"data": body}).encode(), timeout=240))
+    if data.get("remark"):
+        raise RuntimeError("Overpass returned incomplete results: " + data["remark"])
     feats = []
     for el in data.get("elements", []):
         t = el.get("tags", {})
