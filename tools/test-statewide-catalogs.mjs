@@ -36,6 +36,14 @@ for (const catalog of ['access', 'fish-structures', 'restrooms', 'habitat']) {
   console.log(`${catalog}: ${data.features.length} unique points; ${outside} outside core; original records retained.`);
 }
 const waters = (await json('waters')).waters;
+const dams = (await json('dams')).dams;
+const scDams = dams.filter((dam) => ['hartwell-dam', 'russell-dam', 'thurmond-dam', 'saluda-dam', 'santee-dam', 'pinopolis-dam'].includes(dam.id));
+assert.equal(scDams.length, 6, 'South Carolina major dam records are incomplete');
+assert.ok(scDams.every((dam) => dam.coords[0] >= MAP_BOUNDS[0][0] && dam.coords[0] <= MAP_BOUNDS[1][0] && dam.coords[1] >= MAP_BOUNDS[0][1] && dam.coords[1] <= MAP_BOUNDS[1][1] && dam.links.length), 'South Carolina dam points must be mappable and sourced');
+const gaugeSource = await readFile(new URL('../src/layers/gauges.ts', import.meta.url), 'utf8');
+assert.match(gaugeSource, /gauges-al-ga-sc-v3/, 'The gauge cache must invalidate AL/GA-only data after adding South Carolina');
+assert.match(gaugeSource, /stateCd=al,ga,sc/, 'The legacy USGS fallback must include South Carolina');
+console.log(`${scDams.length} South Carolina dam records link to local gauges or official water data sources.`);
 assert.equal(new Set(waters.map((water) => water.id)).size, waters.length);
 const scWaters = waters.filter((water) => water.id.startsWith('sc-water-'));
 assert.ok(scWaters.length > 280, 'South Carolina destination catalog is unexpectedly sparse');

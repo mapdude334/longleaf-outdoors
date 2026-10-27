@@ -11,6 +11,9 @@ export type Gauge = { id: string; name: string; coords: [number, number]; readin
 const CODES = Object.keys(PARAMS);
 const keyQS = USGS_API_KEY ? `&api_key=${encodeURIComponent(USGS_API_KEY)}` : '';
 export let gauges: Gauge[] = [];
+// Bump when the geographic coverage changes so old AL/GA-only device caches
+// cannot keep masking South Carolina stations when the live source is flaky.
+const GAUGE_CACHE_KEY = 'gauges-al-ga-sc-v3';
 
 // Verified against USGS monitoring-location metadata; keep station IDs in the expanded record.
 const LOCAL_NAMES: Record<string, string> = {
@@ -114,7 +117,7 @@ function summary(g: Gauge) {
 
 export async function loadGauges(map: Map): Promise<{ count: number; t: number; offline: boolean; source: string }> {
   let source = 'USGS Water Data API';
-  const res = await cachedLive('gauges-al-ga-v2', 10 * 60_000, async () => {
+  const res = await cachedLive(GAUGE_CACHE_KEY, 10 * 60_000, async () => {
     try {
       return await fromOgc();
     } catch (e) {

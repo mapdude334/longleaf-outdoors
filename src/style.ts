@@ -178,7 +178,7 @@ export function buildStyle(av: Availability): StyleSpecification {
   add('dams', { id: 'dams-lbl', type: 'symbol', source: 'dams', minzoom: 9, layout: { 'text-ignore-placement': true, 'text-allow-overlap': true, 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.3], 'text-anchor': 'top', 'text-font': ['Noto Sans Medium'] }, paint: { 'text-color': '#263238', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
 
   sources.gauges = { ...EMPTY };
-  add('gauges', { id: 'gauges-pt', type: 'symbol', source: 'gauges', layout: { 'icon-image': ['case', ['get', 'stale'], 'll-stale', 'll-gauge'], 'icon-size': 0.85, 'icon-padding': 3 } }, L);
+  add('gauges', { id: 'gauges-pt', type: 'symbol', source: 'gauges', layout: { 'icon-image': ['case', ['get', 'stale'], 'll-stale', 'll-gauge'], 'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.65, 9, 0.8, 13, 0.95], 'icon-padding': 3, 'icon-allow-overlap': true, 'icon-ignore-placement': true } }, L);
   add('gauges', { id: 'gauges-lbl', type: 'symbol', source: 'gauges', minzoom: 10, layout: { 'text-ignore-placement': true, 'text-allow-overlap': true, 'text-field': ['get', 'summary'], 'text-size': 10, 'text-offset': [0, 1.6], 'text-anchor': 'top', 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': '#704700', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
 
   sources.track = { ...EMPTY };

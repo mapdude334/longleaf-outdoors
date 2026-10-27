@@ -58,6 +58,54 @@
       "id": "thurlow-dam", "name": "Thurlow Dam", "river": "Tallapoosa", "lake": "thurlow",
       "operator": "Alabama Power", "coords": [-85.8889, 32.5375], "usgs_radius_km": 8,
       "links": [{"label": "Alabama Power – Thurlow", "url": "https://apcshorelines.com/lake/thurlow/"}]
+    },
+    {
+      "id": "hartwell-dam", "name": "Hartwell Dam", "river": "Savannah", "lake": "hartwell",
+      "operator": "USACE Savannah District", "coords": [-82.8214, 34.3578], "usgs_radius_km": 24,
+      "links": [
+        {"label": "USACE Hartwell Lake hydrologic data & levels", "url": "https://www.sas.usace.army.mil/About/Divisions-and-Offices/Operations-Division/Hartwell-Dam-and-Lake/Plan-A-Visit/Hydrologic-Data-Levels/"},
+        {"label": "USACE Savannah District real-time water dashboard", "url": "https://water.usace.army.mil/office/sas"}
+      ]
+    },
+    {
+      "id": "russell-dam", "name": "Richard B. Russell Dam", "river": "Savannah", "lake": "russell",
+      "operator": "USACE Savannah District", "coords": [-82.6092, 34.0258], "usgs_radius_km": 16,
+      "links": [
+        {"label": "USACE Richard B. Russell Lake hydrologic data & levels", "url": "https://www.sas.usace.army.mil/About/Divisions-and-Offices/Operations-Division/Richard-B-Russell-Dam-and-Lake/Plan-a-Visit/Hydrologic-Data-and-Levels/"},
+        {"label": "USACE Savannah District real-time water dashboard", "url": "https://water.usace.army.mil/office/sas"}
+      ]
+    },
+    {
+      "id": "thurmond-dam", "name": "J. Strom Thurmond Dam", "river": "Savannah", "lake": "thurmond",
+      "operator": "USACE Savannah District", "coords": [-82.1997, 33.6608], "usgs_radius_km": 30,
+      "links": [
+        {"label": "USACE Thurmond Lake hydrologic data & levels", "url": "https://www.sas.usace.army.mil/About/Divisions-and-Offices/Operations-Division/J-Strom-Thurmond-Dam-and-Lake/Plan-a-Visit/Hydrologic-Data-Levels/"},
+        {"label": "USACE Savannah District real-time water dashboard", "url": "https://water.usace.army.mil/office/sas"}
+      ]
+    },
+    {
+      "id": "saluda-dam", "name": "Lake Murray (Saluda) Dam", "river": "Saluda", "lake": "lake-murray",
+      "operator": "Dominion Energy South Carolina", "coords": [-81.2178, 34.0533], "usgs_radius_km": 8,
+      "links": [
+        {"label": "USGS Lake Murray and Saluda River gauge readings", "url": "https://waterdata.usgs.gov/monitoring-location/USGS-02168500/"},
+        {"label": "Dominion Energy South Carolina lake information", "url": "https://www.dominionenergy.com/projects-and-facilities/lake-murray"}
+      ]
+    },
+    {
+      "id": "santee-dam", "name": "Santee Dam (Lake Marion)", "river": "Santee", "lake": "lake-marion",
+      "operator": "Santee Cooper", "coords": [-80.1644, 33.4543], "usgs_radius_km": 8,
+      "links": [
+        {"label": "USGS Lake Marion and Santee River gauge readings", "url": "https://waterdata.usgs.gov/monitoring-location/USGS-02171000/"},
+        {"label": "Santee Cooper lakes & water levels", "url": "https://www.santeecooper.com/lakes/"}
+      ]
+    },
+    {
+      "id": "pinopolis-dam", "name": "Pinopolis Dam (Lake Moultrie)", "river": "Cooper", "lake": "lake-moultrie",
+      "operator": "Santee Cooper", "coords": [-79.9913, 33.2445], "usgs_radius_km": 10,
+      "links": [
+        {"label": "USGS Lake Moultrie gauge readings", "url": "https://waterdata.usgs.gov/monitoring-location/USGS-02172000/"},
+        {"label": "Santee Cooper lakes & water levels", "url": "https://www.santeecooper.com/lakes/"}
+      ]
     }
   ]
 }
