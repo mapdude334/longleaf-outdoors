@@ -254,6 +254,17 @@ details summary { cursor: pointer; padding: 4px 0; }
 .maplibregl-ctrl-group button:focus-visible { outline: 2px solid #1688e8; outline-offset: -2px; }
 .maplibregl-ctrl-group button svg { color: var(--map-control-fg); }
 .maplibregl-ctrl-group .maplibregl-ctrl-icon { filter: none; }
+.maplibregl-ctrl-group button.map-tool-active { background: color-mix(in srgb, var(--accent) 18%, var(--map-control-bg)); box-shadow: inset 0 0 0 2px var(--accent); }
+.maplibregl-ctrl-group button.map-tool-active:hover { background: color-mix(in srgb, var(--accent) 28%, var(--map-control-bg)); }
+.identify-popup .maplibregl-popup-content { padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); box-shadow: var(--shadow); }
+.identify-popup .maplibregl-popup-close-button { z-index: 1; width: 36px; height: 36px; border-radius: 0 9px 0 8px; color: var(--fg); font-size: 20px; }
+.identify-popup .maplibregl-popup-close-button:hover { background: var(--chip); }
+.identify-popup .maplibregl-popup-tip { border-top-color: var(--bg); border-bottom-color: var(--bg); }
+.identify-card { width: min(280px, calc(100vw - 56px)); padding: 12px; }
+.identify-kicker { display: block; padding-right: 24px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; }
+.identify-card > strong { display: block; margin: 5px 28px 4px 0; font-size: 14px; line-height: 1.35; }
+.identify-card p { margin: 5px 0 10px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.identify-card .btn { min-height: 38px; padding: 7px 12px; }
 :root[data-theme="dark"] .maplibregl-ctrl-group {
   --map-control-bg: #182724;
   --map-control-fg: #f0f5f3;

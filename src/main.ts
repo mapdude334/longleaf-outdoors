@@ -2,7 +2,7 @@ import { renderDestination, selectDestination } from './destination';
 import { initWelcome } from './welcome';
 import { initDonations } from './donate';
 import { initTheme } from './theme';
-import { installSymbols, symbolHtml, highlightLocation } from './symbols';
+import { installSymbols, symbolHtml, setIdentifyHighlight } from './symbols';
 import { addShareControl, clearIncomingShare, readIncomingShare, shareSpots, type SharePayload } from './share';
 import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick, useLaunchInTrip, useSpotInTrip, validateTripBackup, type Trip } from './trips';
 import { speciesForLabel, speciesHtml, speciesChoiceHtml, verifiedSpeciesPhoto } from './species';
@@ -10,7 +10,7 @@ import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import { AttributionControl, GeolocateControl, Map, NavigationControl, ScaleControl, setWorkerUrl, type MapGeoJSONFeature } from 'maplibre-gl';
+import { AttributionControl, GeolocateControl, Map, NavigationControl, Popup, ScaleControl, setWorkerUrl, type MapGeoJSONFeature } from 'maplibre-gl';
 import { registerSW } from 'virtual:pwa-register';
 import { AOI, MAP_BOUNDS, START_VIEW } from './config';
 import { availableBasemap, overlayAvailable, viewInsideCore } from './coverage';
@@ -114,11 +114,32 @@ map.addControl({
 }, 'top-right');
 const geolocate = new GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true, showAccuracyCircle: true });
 map.addControl(geolocate, 'top-right');
+let identifyEnabled = true;
+let identifyPopup: Popup | undefined;
+let identifiedFeature: MapGeoJSONFeature | undefined;
+let selectionToolButton: HTMLButtonElement | undefined;
+function clearMapSelection() {
+  identifiedFeature = undefined;
+  identifyPopup?.remove();
+  identifyPopup = undefined;
+  setIdentifyHighlight(map);
+}
+function restoreMapSelection() {
+  setIdentifyHighlight(map, identifiedFeature);
+}
+function updateSelectionTool() {
+  if (!selectionToolButton) return;
+  selectionToolButton.setAttribute('aria-pressed', String(identifyEnabled));
+  selectionToolButton.setAttribute('aria-label', identifyEnabled ? 'Identify map features · on' : 'Identify map features · off');
+  selectionToolButton.title = identifyEnabled ? 'Feature identification on · tap a feature for a map callout' : 'Feature identification off · tap to turn on';
+  selectionToolButton.classList.toggle('map-tool-active', identifyEnabled);
+}
 map.addControl({
   onAdd() {
     const control = document.createElement('div');
     control.className = 'maplibregl-ctrl maplibregl-ctrl-group';
     const tools = [
+      ['Identify map features · on', '<path d="M5 3v12l3.5-3.5L12 19l2-1-3.5-7.5H16L5 3Z"/><circle cx="18" cy="6" r="3"/>', 'identify'],
       ['Map layers', '<path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4"/>', 'layers'],
       ['Map legend', '<path d="M10 5h11M10 12h11M10 19h11"/><circle cx="4" cy="5" r="2"/><path d="M2 10h4v4H2zM2 19h4"/>', 'legend'],
       ['Download this map area for offline use', '<path d="M12 3v12m0 0 5-5m-5 5-5-5M4 17v4h16v-4"/>', 'offline'],
@@ -129,8 +150,20 @@ map.addControl({
       button.title = label;
       button.setAttribute('aria-label', label);
       button.setAttribute('aria-controls', action === 'offline' ? 'tab-offline' : 'tab-layers');
+      if (action === 'identify') {
+        selectionToolButton = button;
+        button.setAttribute('aria-pressed', 'true');
+        button.setAttribute('aria-controls', 'map');
+        button.classList.add('map-tool-active');
+      }
       button.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="display:block;margin:auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round">${icon}</svg>`;
       button.onclick = () => {
+        if (action === 'identify') {
+          identifyEnabled = !identifyEnabled;
+          updateSelectionTool();
+          if (!identifyEnabled) clearMapSelection();
+          return;
+        }
         showTab(action === 'offline' ? 'offline' : 'layers');
         if (action === 'offline') {
           const download = $('#tab-offline .save-area') as HTMLButtonElement | null;
@@ -220,6 +253,7 @@ function destination() {
   return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips'), downloadsChanged: refreshAvailability, gaugeState });
 }
 map.on('style.load', () => showTripPlan(map));
+map.on('style.load', restoreMapSelection);
 map.on('moveend', () => { if (map.getLayer('bg')) applyVisibility(); if (currentTab === 'destination') void destination(); if (currentTab === 'layers') renderLayers(); });
 function showTab(name: string) {
   cancelTripPick();
@@ -601,17 +635,26 @@ function editWpt(id: string) {
 // ---------------- map clicks ----------------
 const CLICK_LAYERS = ['wpt-pt', 'gauges-pt', 'dams-pt', 'access-pts', 'fish-structures-pts', 'restrooms-pts', 'waters-pt', 'waters-lbl', 'osm-dam', 'wb-fill', 'stream-line', 'pl-fill', 'parcel-hit'];
 let identifyRequest = 0;
+let mapIdentifyReturnTab = 'destination';
+let mapIdentifyDetailOpen = false;
 map.on('click', async (e) => {
   if (placeWaypoint) { placeWaypoint(e.lngLat.lng, e.lngLat.lat); return; }
   if (pickingTripSpot()) return;
   const request = ++identifyRequest;
   $('#ctx').hidden = true;
+  if (mapIdentifyDetailOpen) {
+    mapIdentifyDetailOpen = false;
+    showTab(mapIdentifyReturnTab);
+  }
+  if (!identifyEnabled) { clearMapSelection(); return; }
+  clearMapSelection();
   const r = 8;
   const box: [[number, number], [number, number]] = [[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]];
   const layers = CLICK_LAYERS.filter((id) => map.getLayer(id) && map.getLayoutProperty(id, 'visibility') !== 'none');
   const feats = map.queryRenderedFeatures(box, { layers });
   const selectedPoint = feats.find((feature) => feature.geometry.type === 'Point');
-  if (selectedPoint?.geometry.type === 'Point') highlightLocation(map, selectedPoint.geometry.coordinates.slice(0, 2) as [number, number]);
+  identifiedFeature = selectedPoint ?? feats[0];
+  setIdentifyHighlight(map, identifiedFeature);
   const by = (id: string) => feats.find((f) => f.layer.id === id);
   const sections: string[] = [];
   let after: ((root: HTMLElement) => void) | undefined;
@@ -656,27 +699,61 @@ map.on('click', async (e) => {
   if ((!av.overlays || !viewInsideCore(map)) && ui.on.public_lands && map.getZoom() >= 7) pending.push(identifyPublicLands(lng, lat));
   if (!av.parcels && ui.on.parcels && map.getZoom() >= 13) pending.push(identifyParcels(lng, lat));
 
-  if (!sections.length && !pending.length) return;
   const coord = `<p class="muted small coord-line">${fmtCoord(lng, lat, ui.coordFmt)} · <button class="link" id="drop-here">Drop waypoint</button> · <button class="link" id="wx-here2">Weather here</button></p>`;
-  const render = (extra: string[]) => showInfo(sections.concat(extra).join('<hr>') + coord, (root) => {
+  const detailsAfter = (root: HTMLElement) => {
     after?.(root);
     const choose = root.querySelector<HTMLButtonElement>('[data-map-destination]');
     if (choose && water) choose.onclick = () => { selectDestination(water.id); showTab('destination'); $('#tab-destination').scrollTop = 0; };
     root.querySelector<HTMLButtonElement>('#drop-here')!.onclick = () => editWpt(addWpt(lng, lat).id);
     root.querySelector<HTMLButtonElement>('#wx-here2')!.onclick = () => { showTab('weather'); renderWeather([lng, lat]); };
+  };
+  if (!sections.length && !pending.length) return;
+  mapIdentifyReturnTab = currentTab === 'info' ? 'destination' : currentTab;
+  const anchor = identifiedFeature?.geometry.type === 'Point'
+    ? identifiedFeature.geometry.coordinates.slice(0, 2) as [number, number]
+    : [lng, lat] as [number, number];
+  const popupRoot = document.createElement('div');
+  const popup = new Popup({ closeButton: true, closeOnClick: false, closeOnMove: false, className: 'identify-popup', maxWidth: '320px', offset: 12 })
+    .setLngLat(anchor)
+    .setDOMContent(popupRoot)
+    .addTo(map);
+  identifyPopup = popup;
+  if (isCompactLayout()) setSheetSnap('peek');
+  popup.on('close', () => {
+    if (identifyPopup !== popup) return;
+    identifyPopup = undefined;
+    identifiedFeature = undefined;
+    setIdentifyHighlight(map);
   });
-  if (sections.length) render([]);
+  const render = (extra: string[], loading = false) => {
+    const available = sections.length + extra.length > 0;
+    const detailHtml = sections.concat(extra).join('<hr>') + coord;
+    const titleElement = document.createElement('div');
+    titleElement.innerHTML = sections[0] ?? extra[0] ?? '';
+    const fallback = identifiedFeature?.properties?.name ?? identifiedFeature?.properties?.kind ?? 'Map feature';
+    const title = titleElement.querySelector('h1, h2, h3, h4, strong, b')?.textContent?.trim() || String(fallback);
+    const count = sections.length + extra.length;
+    popupRoot.innerHTML = `<div class="identify-card"><span class="identify-kicker">${count > 1 ? `${count} details at this location` : 'Selected map feature'}</span><strong>${esc(title)}</strong><p>${loading ? 'Checking additional map information…' : available ? count > 1 ? 'Several map details are available here.' : 'Open the full feature information and source details.' : 'No additional map information was found here.'}</p>${available ? '<button class="btn primary" data-identify-details>View details</button>' : ''}</div>`;
+    popupRoot.querySelector<HTMLButtonElement>('[data-identify-details]')?.addEventListener('click', () => {
+      if (identifyPopup === popup) identifyPopup = undefined;
+      popup.remove();
+      mapIdentifyDetailOpen = true;
+      showInfo(detailHtml, detailsAfter);
+      $('#tab-info .close')!.onclick = () => { mapIdentifyDetailOpen = false; showTab(mapIdentifyReturnTab); };
+      $('#tab-info [data-map-destination]')?.addEventListener('click', () => { mapIdentifyDetailOpen = false; }, { once: true });
+    });
+  };
+  render([], pending.length > 0);
   if (pending.length) {
-    if (!sections.length) showInfo('<p class="muted">Looking up…</p>');
     const revision = navigationRevision;
     const extra = (await Promise.all(pending)).filter(Boolean) as string[];
-    if (request !== identifyRequest || revision !== navigationRevision) return;
-    if (extra.length || sections.length) render(extra);
-    else showTab('layers');
+    if (request !== identifyRequest || revision !== navigationRevision || identifyPopup !== popup) return;
+    render(extra);
   }
 });
 map.on('mousemove', (e) => {
   if (pickingTripSpot() || placeWaypoint) return;
+  if (!identifyEnabled) { map.getCanvas().style.cursor = ''; return; }
   const layers = CLICK_LAYERS.filter((id) => map.getLayer(id) && id !== 'wb-fill' && id !== 'pl-fill' && id !== 'parcel-hit');
   map.getCanvas().style.cursor = map.queryRenderedFeatures(e.point, { layers }).length ? 'pointer' : '';
 });

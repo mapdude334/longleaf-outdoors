@@ -66,6 +66,9 @@ export function buildStyle(av: Availability): StyleSpecification {
   sources.dem = { type: 'raster-dem', tiles: [demSource.sharedDemProtocolUrl], encoding: 'terrarium', maxzoom: 12, tileSize: 256, attribution: 'Terrain: AWS Terrain Tiles / USGS 3DEP' };
   // The selected destination outline is fetched from USGS NHD and can be cached offline.
   sources['selected-water-boundary'] = { ...EMPTY, attribution: 'USGS National Hydrography Dataset (NHD)' };
+  // A separate source lets map taps highlight any inspected feature without
+  // replacing the destination shoreline outline.
+  sources['identify-selection'] = { ...EMPTY };
   add('hillshade', {
     id: 'hillshade', type: 'hillshade', source: 'dem',
     paint: { 'hillshade-exaggeration': 0.35, 'hillshade-shadow-color': '#4a4a3f', 'hillshade-highlight-color': '#ffffff' },
@@ -183,6 +186,13 @@ export function buildStyle(av: Availability): StyleSpecification {
   sources.waypoints = { ...EMPTY };
   add('mine', { id: 'wpt-pt', type: 'symbol', source: 'waypoints', layout: { 'icon-image': ['match', ['get', 'type'], 'fish', 'll-spot', 'ramp', 'll-boat_ramp', 'camp', 'll-campground', 'hazard', 'll-hazard', 'parking', 'll-parking', 'll-other'], 'icon-size': 0.95, 'icon-allow-overlap': true } }, L);
   add('mine', { id: 'wpt-lbl', type: 'symbol', source: 'waypoints', layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.6], 'text-anchor': 'top', 'text-font': ['Noto Sans Medium'] }, paint: { 'text-color': '#880e4f', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
+
+  // ESRI-style identify feedback: emphasize the selected shape above all data.
+  L.push(
+    { id: 'identify-selection-fill', type: 'fill', source: 'identify-selection', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': '#ffc247', 'fill-opacity': 0.18 } },
+    { id: 'identify-selection-casing', type: 'line', source: 'identify-selection', paint: { 'line-color': '#173c37', 'line-width': ['interpolate', ['linear'], ['zoom'], 7, 4, 14, 7] } },
+    { id: 'identify-selection-outline', type: 'line', source: 'identify-selection', paint: { 'line-color': '#ffc247', 'line-width': ['interpolate', ['linear'], ['zoom'], 7, 2, 14, 3.5] } },
+  );
 
   return {
     version: 8,
