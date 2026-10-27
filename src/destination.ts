@@ -1,6 +1,6 @@
 import { symbolHtml } from './symbols';
 import type { Map } from 'maplibre-gl';
-import { waters, waterAdministrativeLabel, waterDisplayLabel, waterDisplayName, waterHtml } from './layers/waters';
+import { waters, placeTitleCase, waterAdministrativeLabel, waterDisplayLabel, waterDisplayName, waterHtml } from './layers/waters';
 import { gauges, gaugeHtml, fillTrend } from './layers/gauges';
 import { dams, damHtml, fillCwms } from './layers/dams';
 import { ACCESS_LABELS, accessHtml, accessLocation, accessFeatures } from './layers/access';
@@ -38,7 +38,7 @@ function pickerHtml(id: string, title: string, placeholder: string, options: { v
 }
 function regionPickerHtml() {
   const selected = store.get<string>('destination-area')?.v;
-  return pickerHtml('destination-region', 'Choose a region', 'Search regions', REGIONS.map((item) => ({ value: item.id, label: item.label })), selected);
+  return pickerHtml('destination-region', 'Choose a region', 'Search regions', REGIONS.map((item) => ({ value: item.id, label: placeTitleCase(item.label) })), selected);
 }
 function destinationPickerHtml(choices: typeof waters, selected?: string) {
   const sorted = [...choices].sort((a, b) => a.name.localeCompare(b.name));
