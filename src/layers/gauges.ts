@@ -4,6 +4,7 @@
 import type { GeoJSONSource, Map } from 'maplibre-gl';
 import { LIVE_BOUNDS, PARAMS, USGS_API_KEY, USGS_LEGACY_IV, USGS_OGC } from '../config';
 import { cachedLive, fetchJSON, sparkline, esc, ago } from '../util';
+import { recentObservation } from '../observation-age';
 
 export type Reading = { code: string; value: number; time: string; unit?: string };
 export type Gauge = { id: string; name: string; coords: [number, number]; readings: Record<string, Reading> };
@@ -72,7 +73,12 @@ async function fromOgc(): Promise<Gauge[]> {
       if (!id || !f.geometry) continue;
       const g = (byId[id] ??= { id, name: id, coords: f.geometry.coordinates, readings: {} });
       const v = Number(p.value);
-      if (Number.isFinite(v)) g.readings[code] = { code, value: v, time: p.time, unit: p.unit_of_measure };
+      const time = Date.parse(p.time);
+      const previous = g.readings[code];
+      if (p.value != null && Number.isFinite(v) && Number.isFinite(time)
+        && (!previous || time > Date.parse(previous.time))) {
+        g.readings[code] = { code, value: v, time: p.time, unit: p.unit_of_measure };
+      }
     }
   }));
   const ids = Object.keys(byId);
@@ -109,7 +115,13 @@ async function fromLegacy(): Promise<Gauge[]> {
     const code = ts.variable.variableCode[0].value;
     const last = ts.values?.[0]?.value?.at(-1);
     const nd = ts.variable.noDataValue;
-    if (last && Number(last.value) !== nd) g.readings[code] = { code, value: Number(last.value), time: last.dateTime, unit: ts.variable.unit?.unitCode };
+    const value = Number(last?.value);
+    const time = Date.parse(last?.dateTime);
+    const previous = g.readings[code];
+    if (last && Number.isFinite(value) && value !== nd && Number.isFinite(time)
+      && (!previous || time > Date.parse(previous.time))) {
+      g.readings[code] = { code, value, time: last.dateTime, unit: ts.variable.unit?.unitCode };
+    }
   }
   return Object.values(byId);
 }
@@ -143,7 +155,10 @@ export async function loadGauges(map: Map): Promise<{ count: number; t: number; 
       return await fromLegacy();
     }
   });
-  gauges = res.v.map((g) => ({ ...g, name: gaugeName(g) }));
+  const now = Date.now();
+  gauges = res.v.filter((g) => Object.values(g.readings ?? {}).some((r) =>
+    Number.isFinite(r.value) && recentObservation(Date.parse(r.time), now),
+  )).map((g) => ({ ...g, name: gaugeName(g) }));
   setGaugePoints(map);
   return { count: gauges.length, t: res.t, offline: res.offline, source };
 }

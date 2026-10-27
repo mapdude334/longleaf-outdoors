@@ -4,7 +4,7 @@
     {
       "id": "west-point-dam", "name": "West Point Dam", "river": "Chattahoochee", "lake": "west-point",
       "operator": "USACE Mobile District", "coords": [-85.1886, 32.9186], "usgs_radius_km": 12,
-      "cwms": {"office": "SAM", "like": "West.?Point.*"},
+      "cwms": {"office": "SAM", "like": "West.?Point.*", "station": "WestPoint"},
       "links": [
         {"label": "USACE West Point Lake (lake level & releases)", "url": "https://www.sam.usace.army.mil/Missions/Civil-Works/Recreation/West-Point-Lake/"},
         {"label": "USACE Mobile District water management", "url": "https://water.sam.usace.army.mil/"}
@@ -33,7 +33,7 @@
     {
       "id": "wf-george-dam", "name": "Walter F. George Lock & Dam", "river": "Chattahoochee", "lake": "eufaula",
       "operator": "USACE Mobile District", "coords": [-85.0647, 31.6253], "usgs_radius_km": 12,
-      "cwms": {"office": "SAM", "like": ".*George.*"},
+      "cwms": {"office": "SAM", "like": ".*George.*", "station": "WalterFGeorge"},
       "links": [
         {"label": "USACE Walter F. George Lake", "url": "https://www.sam.usace.army.mil/Missions/Civil-Works/Recreation/Walter-F-George-Lake/"},
         {"label": "USACE Mobile District water management", "url": "https://water.sam.usace.army.mil/"}

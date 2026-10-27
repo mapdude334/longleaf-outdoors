@@ -1,21 +1,54 @@
 // Dams: curated release-info sources + nearby live USGS gauges + (for Corps dams) USACE CWMS data.
 import type { GeoJSONSource, Map } from 'maplibre-gl';
 import { CWMS } from '../config';
-import { esc, fetchJSON, haversineKm, sparkline, ago } from '../util';
+import { cachedLive, esc, fetchJSON, haversineKm, sparkline, ago } from '../util';
 import { gauges, gaugeHtml } from './gauges';
+import { recentObservation } from '../observation-age';
 
 export type Dam = {
   id: string; name: string; river: string; lake?: string; operator: string; coords: [number, number];
-  usgs_radius_km?: number; cwms?: { office: string; like: string }; links: { label: string; url: string }[];
+  usgs_radius_km?: number; cwms?: { office: string; like: string; station?: string }; links: { label: string; url: string }[];
+  observationStatus?: 'recent' | 'unknown';
 };
 export let dams: Dam[] = [];
 
+async function latestDamObservation(d: Dam): Promise<number | null> {
+  if (!d.cwms?.station) return null;
+  try {
+    const cwms = d.cwms;
+    const result = await cachedLive<number | null>(`dam-observation-${d.id}-v1`, 6 * 3600_000, async () => {
+      const cat = await fetchJSON<any>(`${CWMS}/catalog/TIMESERIES?office=${cwms.office}&like=${encodeURIComponent(cwms.like)}&page-size=200`, { headers: { Accept: 'application/json;version=2' }, timeout: 15000 });
+      if (!Array.isArray(cat.entries) || (typeof cat.total === 'number' && cat.total > cat.entries.length)) throw new Error('Incomplete Corps catalog');
+      const now = Date.now();
+      const times = cat.entries.filter((entry: any) => {
+        const name = String(entry.name ?? '');
+        return (name.startsWith(`${cwms.station}.`) || name.startsWith(`${cwms.station}-`))
+          && /\.(Elev|Flow|Power|Energy)(?:[-.]|$)/i.test(name) && /\.Raw(?:-|$)/i.test(name);
+      }).flatMap((entry: any) => Array.isArray(entry.extents) ? entry.extents : [])
+        .map((extent: any) => Date.parse(extent['latest-time']))
+        .filter((time: number) => Number.isFinite(time) && time <= now);
+      return times.length ? Math.max(...times) : null;
+    });
+    return result.v;
+  } catch {
+    return null;
+  }
+}
+
 export async function loadDams(map: Map) {
   const j = await fetchJSON<{ dams: Dam[] }>(`${import.meta.env.BASE_URL}data/dams.json`);
-  dams = j.dams;
+  // Keep markers available while the dated-source lookup is pending.
+  dams = j.dams.map((d) => ({ ...d, observationStatus: 'unknown' }));
   (map.getSource('dams') as GeoJSONSource).setData({
     type: 'FeatureCollection',
     features: dams.map((d) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: d.coords }, properties: { id: d.id, name: d.name } })),
+  });
+  const latest = await Promise.all(j.dams.map(latestDamObservation));
+  const now = Date.now();
+  dams = j.dams.flatMap((d, index) => {
+    const time = latest[index];
+    if (time !== null && !recentObservation(time, now)) return [];
+    return [{ ...d, observationStatus: time === null ? 'unknown' as const : 'recent' as const }];
   });
 }
 
@@ -27,6 +60,7 @@ export function damHtml(d: Dam): string {
     .slice(0, 4);
   return `<h3>${esc(d.name)}</h3>
   <p class="muted">${esc(d.river)} River · ${esc(d.operator)}</p>
+  ${d.observationStatus === 'unknown' ? '<p class="muted small">A recent observation date is not available for this dam. Check the official sources below for current conditions.</p>' : ''}
   <div class="callout warn">Water levels below dams can rise several feet in minutes when generation starts. Check the schedule before wading or anchoring in tailwaters.</div>
   <h4>Release / generation schedule</h4>
   <ul class="links">${d.links.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul>
