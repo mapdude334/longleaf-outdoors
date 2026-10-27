@@ -64,6 +64,8 @@ export function buildStyle(av: Availability): StyleSpecification {
 
   // ---------- terrain ----------
   sources.dem = { type: 'raster-dem', tiles: [demSource.sharedDemProtocolUrl], encoding: 'terrarium', maxzoom: 12, tileSize: 256, attribution: 'Terrain: AWS Terrain Tiles / USGS 3DEP' };
+  // The selected destination outline is fetched from USGS NHD and can be cached offline.
+  sources['selected-water-boundary'] = { ...EMPTY, attribution: 'USGS National Hydrography Dataset (NHD)' };
   add('hillshade', {
     id: 'hillshade', type: 'hillshade', source: 'dem',
     paint: { 'hillshade-exaggeration': 0.35, 'hillshade-shadow-color': '#4a4a3f', 'hillshade-highlight-color': '#ffffff' },
@@ -117,6 +119,12 @@ export function buildStyle(av: Availability): StyleSpecification {
     sources['hydro-live'] = { type: 'raster', tiles: [USGS_HYDRO_TILES], tileSize: 256, maxzoom: 16, attribution: 'USGS NHD' };
     add('water', { id: 'hydro-live', type: 'raster', source: 'hydro-live', paint: { 'raster-opacity': 0.85 } }, L);
   }
+
+  L.push(
+    { id: 'selected-water-fill', type: 'fill', source: 'selected-water-boundary', paint: { 'fill-color': '#efb53d', 'fill-opacity': 0.11 } },
+    { id: 'selected-water-casing', type: 'line', source: 'selected-water-boundary', paint: { 'line-color': '#173c37', 'line-width': ['interpolate', ['linear'], ['zoom'], 7, 3.5, 13, 6] } },
+    { id: 'selected-water-outline', type: 'line', source: 'selected-water-boundary', paint: { 'line-color': '#ffc247', 'line-width': ['interpolate', ['linear'], ['zoom'], 7, 2, 13, 3.5] } },
+  );
 
   // ---------- contours (generated client-side from the DEM) ----------
   sources.contours = {

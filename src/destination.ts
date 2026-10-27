@@ -11,6 +11,7 @@ import { packStatus, loadPackManifest } from './pmtiles';
 import { esc, haversineKm, store } from './util';
 import { isCompactLayout, setSheetSnap } from './sheet';
 import { locationBounds } from './region-bounds';
+import { showSelectedWaterOutline } from './water-outline';
 
 const BOUNDS: [[number, number], [number, number]] = [[-85.32, 32.86], [-85.02, 33.22]];
 type Region = { id: string; label: string; bounds: [[number, number], [number, number]]; state?: 'AL' | 'GA'; };
@@ -82,6 +83,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   const water = choices.find((w) => w.id === selected) ?? choices[0];
   if (!choices.length) {
     root.innerHTML = `<div class="destination-hero"><span class="destination-eyebrow">EXPLORE ALABAMA &amp; GEORGIA</span>${regionPickerHtml(region)}<label class="destination-picker">Choose your destination<select id="destination-select" disabled><option>No cataloged waters in this area yet</option></select></label><h2>${esc(region.label)}</h2><p>We don’t have destination records mapped for this area yet. You can still explore the map and its available layers.</p><button class="btn destination-explore" data-explore-region>Explore this area ↗</button></div><div class="destination-body"><div class="destination-card"><b>Destination coverage is still growing</b><p class="muted small">The map can show available public data here, but lake-specific species, access, and trip guidance have not been cataloged for this region yet.</p></div></div>`;
+    showSelectedWaterOutline(map, undefined);
     wireRegionPicker(root, map, region, actions);
     root.querySelector<HTMLButtonElement>('[data-explore-region]')!.onclick = () => zoomToRegion(map, region);
     return;
@@ -121,6 +123,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       <p class="small region-scope-note">Showing cataloged destinations in this area. Spatial layers and offline map coverage vary by source.</p>
       <label class="destination-picker">Choose your destination<select id="destination-select">${choices.map((w) => `<option value="${esc(w.id)}" ${w.id === water?.id ? 'selected' : ''}>${esc(w.name)}${w.location_label ? ` · ${esc(w.location_label)}` : ''}</option>`).join('')}</select></label>
       <h2>${esc(water?.name ?? 'Choose your water')}</h2><p>Pick your launch. Check the water.<br>Keep the day yours.</p>
+      <p class="muted small water-outline-status" data-water-outline-status role="status" aria-live="polite"></p>
       <button class="btn destination-explore" ${water?.center ? '' : 'disabled'}>Explore this water ↗</button>
       ${water && !water.center ? '<p class="small">A single map location is not available for this destination. Browse its information below.</p>' : ''}
     </div>
@@ -149,6 +152,10 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       <h4>04 / Ready for no signal?</h4><div class="destination-card" id="destination-packs" aria-live="polite">Checking downloaded maps…</div>
       <p class="muted small">Map packs cover the configured region. Weather and release information need a connection for updates. Keep the app open while recording GPS.</p>
     </div>`;
+  showSelectedWaterOutline(map, water, (message) => {
+    const status = root.querySelector<HTMLElement>('[data-water-outline-status]');
+    if (status) status.textContent = message;
+  });
   const headings = [...root.querySelectorAll<HTMLElement>('.destination-body > h4')];
   headings.forEach((heading, index) => {
     const section = document.createElement('details');

@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { stripTypeScriptTypes } from 'node:module';
 
 const json = async (name) => JSON.parse(await readFile(new URL(`../public/data/${name}.json`, import.meta.url), 'utf8'));
-const original = (name) => JSON.parse(execFileSync('git', ['show', `origin/main:public/data/${name}.json`], { encoding: 'utf8' }));
+const original = (name) => JSON.parse(execFileSync('git', ['show', `origin/main:public/data/${name}.json`], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }));
 const moduleUrl = (source) => `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source)).toString('base64')}`;
 const configSource = (await readFile(new URL('../src/config.ts', import.meta.url), 'utf8')).replaceAll('import.meta.env', JSON.stringify({ BASE_URL: '/' }));
 const configUrl = moduleUrl(configSource);
