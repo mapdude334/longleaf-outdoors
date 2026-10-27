@@ -64,7 +64,7 @@ async function fromOgc(): Promise<Gauge[]> {
     for (const f of locations) {
       const id = String(f.properties?.monitoring_location_number ?? f.id ?? '').replace(/^USGS-/, '');
       const state = String(f.properties?.state_code ?? '');
-      if (byId[id] && ['01', '13'].includes(state) && f.properties?.agency_code === 'USGS') {
+      if (byId[id] && ['01', '13', '45'].includes(state) && f.properties?.agency_code === 'USGS') {
         byId[id].name = f.properties.monitoring_location_name || byId[id].name;
         inScope.add(id);
       }
@@ -78,7 +78,7 @@ async function fromOgc(): Promise<Gauge[]> {
 }
 
 async function fromLegacy(): Promise<Gauge[]> {
-  const url = `${USGS_LEGACY_IV}?format=json&stateCd=al,ga&parameterCd=${CODES.join(',')}&siteStatus=active`;
+  const url = `${USGS_LEGACY_IV}?format=json&stateCd=al,ga,sc&parameterCd=${CODES.join(',')}&siteStatus=active`;
   const j = await fetchJSON<any>(url, { timeout: 30000 });
   const byId: Record<string, Gauge> = {};
   for (const ts of j.value?.timeSeries ?? []) {

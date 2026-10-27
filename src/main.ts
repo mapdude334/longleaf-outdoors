@@ -464,10 +464,10 @@ function openSpecies(label: string, back: () => void) {
 const OVERLAY_ROWS: [string, string, string?][] = [
   ['public_lands', 'Public lands (PAD-US)', 'WMAs, national/state forests & parks, USACE lands, easements'],
   ['access', 'Boat ramps & access', 'Ramps, piers, paddle launches, marinas, campgrounds'],
-  ['fish_structures', 'Fish attractors & reefs', 'AL/GA agency freshwater structures and coastal reefs · zoom 11+'],
+  ['fish_structures', 'Fish attractors & reefs', 'AL/GA/SC agency freshwater structures and coastal reefs · zoom 11+'],
   ['habitat', 'Aquatic habitat surveys', 'Georgia DNR historical vegetation records · zoom 11+'],
   ['state_boundaries', 'State boundaries', 'Census generalized outlines; offshore sites may lie beyond state borders'],
-  ['restrooms', 'Public restrooms', 'AL/GA agency facility reports and regional OSM points · zoom 10+'],
+  ['restrooms', 'Public restrooms', 'AL/GA/SC agency facility reports and regional OSM points · zoom 10+'],
   ['waters', 'Lake & river fishing info', 'Species and notes for major waters'],
   ['gauges', 'Live river gauges & lake levels', 'USGS flow, stage, elevation, water temp'],
   ['dams', 'Dams & release schedules', 'Georgia Power, Alabama Power, USACE'],
@@ -501,7 +501,7 @@ function renderLayers() {
     <h4>Quick map views</h4>
     <div class="seg layer-profiles"><button data-profile="fishing">Fishing</button><button data-profile="facilities">Facilities</button><button data-profile="land">Land &amp; water</button><button data-profile="all">All layers</button></div>
     <p class="muted small">Start with a focused map, then switch on extra detail when you need it.</p>
-    <p class="muted small">Agency point catalogs cover Alabama, Georgia and associated Gulf/Atlantic sites. The downloadable regional archives still cover East Alabama / West Georgia. Outside that footprint, online basemaps and land/water layers are used; save an area in Offline before traveling.</p>
+    <p class="muted small">Agency point catalogs cover Alabama, Georgia, South Carolina and associated Gulf/Atlantic sites. The downloadable regional archives still cover East Alabama / West Georgia. Outside that footprint, online basemaps and land/water layers are used; save an area in Offline before traveling.</p>
     <h4>Basemap</h4>
     <div class="seg">${bases.map(([id, label, ok]) => `<button data-base="${id}" class="${ui.basemap === id ? 'active' : ''}" ${ok ? '' : 'disabled title="Install with the data pipeline"'}>${label}</button>`).join('')}</div>
     <label class="row"><input type="checkbox" id="t3d" ${ui.terrain3d ? 'checked' : ''}> 3D terrain (tilt with two fingers / right-drag)</label>

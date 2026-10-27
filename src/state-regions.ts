@@ -24,22 +24,25 @@ export type RegionDefinition = {
 export const STATES: StateDefinition[] = [
   { code: 'AL', name: 'Alabama', coverage: 'available', bounds: [[-88.65, 28.5], [-84.85, 35.1]] },
   { code: 'GA', name: 'Georgia', coverage: 'available', bounds: [[-85.7, 30.25], [-79.5, 35.05]] },
-  { code: 'SC', name: 'South Carolina', coverage: 'planned', bounds: [[-83.55, 31.9], [-78.5, 35.25]] },
+  { code: 'SC', name: 'South Carolina', coverage: 'available', bounds: [[-83.55, 31.85], [-78.4, 35.25]] },
   { code: 'NC', name: 'North Carolina', coverage: 'planned', bounds: [[-84.5, 33.75], [-75.3, 36.65]] },
   { code: 'VA', name: 'Virginia', coverage: 'planned', bounds: [[-83.7, 36.45], [-75.0, 39.5]] },
 ];
 
 const AL_GULF: GeographicBounds = [[-88.65, 28.5], [-87.25, 31.35]];
 const GA_ATLANTIC: GeographicBounds = [[-82.35, 30.25], [-79.5, 32.5]];
+const SC_ATLANTIC: GeographicBounds = [[-81.55, 31.85], [-78.4, 35.25]];
 
 /** Keep the existing region IDs, labels, bounds, and membership behavior stable. */
 export const REGIONS: RegionDefinition[] = [
   { id: 'core', label: 'East Alabama & West Georgia · core map pack', bounds: [[-86.35, 31.55], [-84.35, 33.85]] },
   { id: 'alabama', label: 'Alabama · statewide & Gulf', states: ['AL'], bounds: STATES[0].bounds },
   { id: 'georgia', label: 'Georgia · statewide & Atlantic', states: ['GA'], bounds: STATES[1].bounds },
-  { id: 'coastal', label: 'Gulf & Atlantic Coast', bounds: [[-88.65, 28.5], [-79.5, 32.5]], membership: [
+  { id: 'south-carolina', label: 'South Carolina · statewide & coast', states: ['SC'], bounds: STATES[2].bounds },
+  { id: 'coastal', label: 'Gulf & Atlantic Coast', bounds: [[-88.65, 28.5], [-78.4, 35.25]], membership: [
     { states: ['AL'], bounds: AL_GULF },
     { states: ['GA'], bounds: GA_ATLANTIC },
+    { states: ['SC'], bounds: SC_ATLANTIC },
   ] },
   { id: 'gulf', label: 'Alabama Gulf & coast', bounds: AL_GULF, membership: [{ states: ['AL'], bounds: AL_GULF }] },
   { id: 'atlantic', label: 'Georgia Atlantic & coast', bounds: GA_ATLANTIC, membership: [{ states: ['GA'], bounds: GA_ATLANTIC }] },

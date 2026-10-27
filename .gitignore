@@ -11,3 +11,4 @@ pipeline/cache/
 /tools/species-contact.jpg
 /.publishing/
 __pycache__/
+pipeline/staging/south-carolina/

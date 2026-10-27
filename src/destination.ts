@@ -62,7 +62,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   const selected = store.get<string>('destination')?.v ?? 'west-point';
   const water = choices.find((w) => w.id === selected) ?? choices[0];
   if (!choices.length) {
-    root.innerHTML = `<div class="destination-hero"><span class="destination-eyebrow">EXPLORE ALABAMA &amp; GEORGIA</span>${regionPickerHtml(region)}<label class="destination-picker">Choose your destination<select id="destination-select" disabled><option>No cataloged waters in this area yet</option></select></label><h2>${esc(region.label)}</h2><p>We don’t have destination records mapped for this area yet. You can still explore the map and its available layers.</p><button class="btn destination-explore" data-explore-region>Explore this area ↗</button></div><div class="destination-body"><div class="destination-card"><b>Destination coverage is still growing</b><p class="muted small">The map can show available public data here, but lake-specific species, access, and trip guidance have not been cataloged for this region yet.</p></div></div>`;
+    root.innerHTML = `<div class="destination-hero"><span class="destination-eyebrow">EXPLORE THE SOUTHEAST</span>${regionPickerHtml(region)}<label class="destination-picker">Choose your destination<select id="destination-select" disabled><option>No cataloged waters in this area yet</option></select></label><h2>${esc(region.label)}</h2><p>We don’t have destination records mapped for this area yet. You can still explore the map and its available layers.</p><button class="btn destination-explore" data-explore-region>Explore this area ↗</button></div><div class="destination-body"><div class="destination-card"><b>Destination coverage is still growing</b><p class="muted small">The map can show available public data here, but lake-specific species, access, and trip guidance have not been cataloged for this region yet.</p></div></div>`;
     showSelectedWaterOutline(map, undefined);
     wireRegionPicker(root, map, region, actions);
     root.querySelector<HTMLButtonElement>('[data-explore-region]')!.onclick = () => zoomToRegion(map, region);
@@ -98,7 +98,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   const tripSummaryOpen = root.querySelector<HTMLDetailsElement>('details[data-trip-summary]')?.open;
   const overviewOpen = root.querySelector<HTMLDetailsElement>('details[data-overview]')?.open;
   root.innerHTML = `<div class="destination-hero">
-      <span class="destination-eyebrow">YOUR NEXT DAY OUT · ALABAMA / GEORGIA</span>
+      <span class="destination-eyebrow">YOUR NEXT DAY OUT · SOUTHEAST</span>
       ${regionPickerHtml(region)}
       <p class="small region-scope-note">Showing cataloged destinations in this area. Spatial layers and offline map coverage vary by source.</p>
       <label class="destination-picker">Choose your destination<select id="destination-select">${choices.map((w) => `<option value="${esc(w.id)}" ${w.id === water?.id ? 'selected' : ''}>${esc(w.name)}${w.location_label ? ` · ${esc(w.location_label)}` : ''}</option>`).join('')}</select></label>

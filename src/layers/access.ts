@@ -60,7 +60,7 @@ export async function loadAccessLive(map: Map) {
   return { count: features.length, offline: res.offline, source: 'OSM live' };
 }
 
-const KEEP = ['name', 'operator', 'access', 'status', 'waterbody', 'county', 'state', 'species_summary', 'fee', 'opening_hours', 'surface', 'lanes', 'website', 'phone', 'description', 'parking', 'toilets', 'fishing', 'lit', 'addr:street', 'addr:city'];
+const KEEP = ['name', 'operator', 'maintenance', 'access', 'status', 'public_access', 'waterbody', 'waterbody_type', 'water_type', 'county', 'state', 'source_access_type', 'source_access_subtype', 'species_summary', 'fee', 'opening_hours', 'surface', 'parking_surface', 'lanes', 'website', 'phone', 'description', 'directions', 'parking', 'toilets', 'courtesy_dock', 'fishing_pier', 'picnic_area', 'accessibility', 'game_zone', 'fishing', 'lit', 'addr:street', 'addr:city'];
 
 /** Describe the mapped position without inventing a facility name or access conditions. */
 export function accessLocation(p: Record<string, any>, coords: [number, number]): string {
