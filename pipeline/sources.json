@@ -68,5 +68,26 @@
         "nwr[\"power\"=\"plant\"][\"plant:source\"=\"hydro\"]"
       ]
     }
+  },
+  "angler_data": {
+    "fish_attractors": {
+      "url": "https://conservationgis.alabama.gov/adcnrweb/rest/services/FishAttractors/MapServer/0",
+      "title": "Alabama DCNR freshwater fish attractors",
+      "out_fields": "OBJECTID,Waterbody,Structure,Depth_at_F,Amount,Installati"
+    },
+    "restrooms": {
+      "queries": [
+        "nwr[\"amenity\"=\"toilets\"]",
+        "nwr[\"toilets\"=\"yes\"][\"leisure\"~\"^(park|slipway|marina|fishing|camp_site)$\"]",
+        "nwr[\"toilets\"=\"yes\"][\"tourism\"=\"camp_site\"]",
+        "nwr[\"toilets\"=\"yes\"][\"amenity\"=\"boat_ramp\"]"
+      ],
+      "note": "OSM public toilet features and facilities explicitly tagged with toilets=yes. Facility-level tags locate the recreation site, not necessarily the restroom building."
+    },
+    "usace_west_point": {
+      "url": "https://www.sam.usace.army.mil/Missions/Civil-Works/Recreation/West-Point-Lake/Fishing/",
+      "coordinate_file": "west_point_usace_fish_attractors.csv",
+      "note": "Official Mobile District fish-attractor coordinate sheet linked from the West Point Lake fishing page; retain source edition date and verify with Corps buoy markers."
+    }
   }
 }

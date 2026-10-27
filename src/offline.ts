@@ -92,7 +92,7 @@ export async function storageSummary() {
 
 const PM_LABELS: Record<PmKey, string> = {
   basemap: 'Vector basemap (roads, trails, names – OpenStreetMap)',
-  overlays: 'Public lands, lakes, streams, ramps & access',
+  overlays: 'Public lands, lakes, streams, ramps, fish structures & restrooms',
   parcels: 'Parcels (counties with free public data)',
 };
 

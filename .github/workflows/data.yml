@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       steps:
-        description: "Space-separated steps to run (basemap arcgis osm nhd tiles) — blank = all"
+        description: "Space-separated steps to run (basemap arcgis osm nhd angler tiles) — blank = all"
         required: false
 permissions:
   contents: write
@@ -34,13 +34,14 @@ jobs:
           PIPELINE_STEPS: ${{ inputs.steps }}
         working-directory: pipeline/scripts
         run: |
-          S=${PIPELINE_STEPS:-"basemap arcgis osm nhd tiles"}
+          S=${PIPELINE_STEPS:-"basemap arcgis osm nhd angler tiles"}
           for step in $S; do
             case "$step" in
               basemap) ./10_basemap.sh ;;
               arcgis) python3 30_fetch_arcgis.py; python3 35_label_points.py ;;
               osm) python3 40_fetch_osm.py ;;
               nhd) python3 50_nhd.py; python3 60_enrich_waters.py ;;
+              angler) python3 45_angler.py ;;
               tiles) ./70_build_tiles.sh ;;
               *) echo "Unknown build step: $step"; exit 1 ;;
             esac
@@ -56,7 +57,7 @@ jobs:
         run: |
           tag="tiles-$(date -u +%Y%m%d)-${GITHUB_RUN_NUMBER}"
           gh release create "$tag" pipeline/out/*.pmtiles pipeline/out/manifest.json --title "Map data $tag" \
-            --notes "Validated regional maps. Coverage, archive sizes, checksums, zoom levels and source counts are in manifest.json. Sources: Protomaps/OSM (ODbL), USGS PAD-US 4.1, USGS NHD, county GIS."
+            --notes "Validated regional maps. Coverage, archive sizes, checksums, zoom levels and source counts are in manifest.json. Sources: Protomaps/OSM (ODbL), USGS PAD-US 4.1 and NHD, Alabama DCNR fish-attractor GIS, USACE Mobile District, and county GIS."
       - name: Upload to Cloudflare R2 (optional)
         if: env.R2_BUCKET != ''
         env:

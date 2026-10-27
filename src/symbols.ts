@@ -1,6 +1,6 @@
 import type { Map } from 'maplibre-gl';
 
-export const SYMBOL_COLORS: Record<string, string> = { boat_ramp: '#14645e', paddle_launch: '#14645e', fishing: '#754699', marina: '#43566a', campground: '#98532e', trailhead: '#486640', parking: '#424b53', other: '#555b60', water: '#23476a', dam: '#39434c', gauge: '#9b6107', stale: '#697078', spot: '#ad3867', hazard: '#b63b32' };
+export const SYMBOL_COLORS: Record<string, string> = { boat_ramp: '#14645e', paddle_launch: '#14645e', fishing: '#754699', marina: '#43566a', campground: '#98532e', trailhead: '#486640', parking: '#424b53', restroom: '#2f5b50', structure: '#914f82', other: '#555b60', water: '#23476a', dam: '#39434c', gauge: '#9b6107', stale: '#697078', spot: '#ad3867', hazard: '#b63b32' };
 export const symbolUrl = (kind: string) => `${import.meta.env.BASE_URL}symbols/${kind in SYMBOL_COLORS ? kind : 'other'}.svg`;
 export const symbolHtml = (kind: string) => `<img class="map-key-icon" src="${symbolUrl(kind)}" alt="" width="28" height="28">`;
 const images = new globalThis.Map<string, Promise<ImageData>>();

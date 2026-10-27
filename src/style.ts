@@ -71,7 +71,7 @@ export function buildStyle(av: Availability): StyleSpecification {
 
   // ---------- public lands ----------
   if (av.overlays) {
-    sources.overlays = { type: 'vector', url: av.overlays.url, attribution: 'USGS PAD-US, USGS NHD, © OpenStreetMap' };
+    sources.overlays = { type: 'vector', url: av.overlays.url, attribution: 'USGS PAD-US, USGS NHD, Alabama DCNR fish attractors, USACE Mobile District, © OpenStreetMap contributors' };
     add('public_lands', { id: 'pl-fill', type: 'fill', source: 'overlays', 'source-layer': 'public_lands', paint: { 'fill-color': MANAGER_COLOR, 'fill-opacity': 0.28 } }, L);
     add('public_lands', {
       id: 'pl-line', type: 'line', source: 'overlays', 'source-layer': 'public_lands',
@@ -136,9 +136,15 @@ export function buildStyle(av: Availability): StyleSpecification {
   if (av.overlays) {
     add('access', accessLayer('access-pts', 'overlays', 'access'), L);
     add('dams_osm', { ...badge('osm-dam', 'overlays', 'dam'), 'source-layer': 'osm_dams', minzoom: 11 } as LayerSpecification, L);
+    add('fish_structures', { ...badge('fish-structures-pts', 'overlays', 'structure'), 'source-layer': 'fish_structures', minzoom: 11 } as LayerSpecification, L);
+    add('restrooms', { ...badge('restrooms-pts', 'overlays', 'restroom'), 'source-layer': 'restrooms', minzoom: 10 } as LayerSpecification, L);
   } else {
     sources['access-live'] = { ...EMPTY };
     add('access', accessLayer('access-pts', 'access-live'), L);
+    sources['fish-structures-live'] = { ...EMPTY };
+    add('fish_structures', { ...badge('fish-structures-pts', 'fish-structures-live', 'structure'), minzoom: 11 }, L);
+    sources['restrooms-live'] = { ...EMPTY };
+    add('restrooms', { ...badge('restrooms-pts', 'restrooms-live', 'restroom'), minzoom: 10 }, L);
   }
 
   // ---------- live + curated GeoJSON ----------
