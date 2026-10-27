@@ -83,7 +83,7 @@ export function renderDestinationDownloads(root: HTMLElement, map: Map, onChange
     const inputs = [...root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')];
     const disabled = inputs.map((input) => input.disabled);
     inputs.forEach((input) => input.disabled = true);
-    const destination = document.querySelector<HTMLInputElement>('#destination-select');
+    const destination = document.querySelector<HTMLButtonElement>('#destination-select');
     if (destination) destination.disabled = true;
     start.disabled = true; cancel.hidden = false; progress.hidden = false;
     cancel.onclick = () => { controller.abort(); cancel.disabled = true; message.textContent = 'Stopping download…'; };

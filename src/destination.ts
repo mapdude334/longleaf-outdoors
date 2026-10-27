@@ -29,23 +29,65 @@ function zoomToRegion(map: Map, region: RegionDefinition) {
   const camera = map.cameraForBounds(region.bounds, { padding, maxZoom: 9, bearing: 0, pitch: 0 });
   if (camera) map.flyTo({ ...camera, duration: 900, essential: true });
 }
-function regionPickerHtml(region: RegionDefinition) {
-  const savedRegion = store.get<string>('destination-area')?.v;
-  const selected = REGIONS.find((item) => item.id === savedRegion);
-  return `<label class="destination-picker">Choose a region<span class="destination-combobox"><input id="destination-region" type="search" list="destination-region-options" value="${esc(selected?.label ?? '')}" placeholder="Search regions" autocomplete="off"><span aria-hidden="true"></span></span><datalist id="destination-region-options">${REGIONS.map((item) => `<option value="${esc(item.label)}"></option>`).join('')}</datalist></label>`;
+function pickerHtml(id: string, title: string, placeholder: string, options: { value: string; label: string }[], selected?: string, disabled = false) {
+  const selectedOption = options.find((option) => option.value === selected);
+  return `<div class="destination-picker"><span class="destination-picker-label" id="${id}-label">${esc(title)}</span><div class="destination-combobox"><button type="button" id="${id}" class="destination-select" role="combobox" aria-labelledby="${id}-label ${id}-value" aria-haspopup="listbox" aria-expanded="false" aria-controls="${id}-list" data-picker-button ${disabled ? 'disabled' : ''}><span id="${id}-value">${esc(selectedOption?.label ?? placeholder)}</span><span class="destination-select-arrow" aria-hidden="true"></span></button><div class="destination-menu" hidden><input type="search" class="destination-search" placeholder="Type to search" aria-label="Search ${esc(title.toLowerCase())}" autocomplete="off"><div class="destination-option-list" id="${id}-list" role="listbox" aria-labelledby="${id}-label">${options.map((option) => `<button type="button" class="destination-option" role="option" data-picker-option data-value="${esc(option.value)}" aria-selected="${option.value === selected ? 'true' : 'false'}">${esc(option.label)}</button>`).join('')}</div><p class="destination-no-results" hidden>No matches. Try another search.</p></div></div></div>`;
+}
+function regionPickerHtml() {
+  const selected = store.get<string>('destination-area')?.v;
+  return pickerHtml('destination-region', 'Choose a region', 'Search regions', REGIONS.map((item) => ({ value: item.id, label: item.label })), selected);
+}
+function destinationPickerHtml(choices: typeof waters, selected?: string) {
+  const sorted = [...choices].sort((a, b) => a.name.localeCompare(b.name));
+  const options = sorted.map((water) => ({ value: water.id, label: `${water.name}${water.location_label ? ` · ${water.location_label}` : ''} · ${water.state}` }));
+  return pickerHtml('destination-select', 'Choose your destination', sorted.length ? 'Search lakes, rivers, or coastal waters' : 'No cataloged waters in this area yet', options, selected, !sorted.length);
+}
+function wireSearchPicker(root: HTMLElement, id: string, choose: (value: string) => void) {
+  const button = root.querySelector<HTMLButtonElement>(`#${id}`);
+  const menu = button?.parentElement?.querySelector<HTMLElement>('.destination-menu');
+  const search = menu?.querySelector<HTMLInputElement>('.destination-search');
+  const list = menu?.querySelector<HTMLElement>('.destination-option-list');
+  const noResults = menu?.querySelector<HTMLElement>('.destination-no-results');
+  if (!button || !menu || !search || !list || !noResults || button.disabled) return;
+  const filter = () => {
+    const term = search.value.trim().toLocaleLowerCase();
+    let matches = 0;
+    list.querySelectorAll<HTMLButtonElement>('[data-picker-option]').forEach((option) => {
+      const visible = option.textContent!.toLocaleLowerCase().includes(term);
+      option.hidden = !visible;
+      if (visible) matches++;
+    });
+    noResults.hidden = matches > 0;
+  };
+  button.onclick = () => {
+    menu.hidden = !menu.hidden;
+    button.setAttribute('aria-expanded', String(!menu.hidden));
+    if (!menu.hidden) { search.value = ''; filter(); search.focus(); }
+  };
+  search.oninput = filter;
+  search.onkeydown = (event) => {
+    if (event.key === 'Escape') { menu.hidden = true; button.setAttribute('aria-expanded', 'false'); button.focus(); }
+    if (event.key === 'Enter') {
+      const first = list.querySelector<HTMLButtonElement>('[data-picker-option]:not([hidden])');
+      if (first) { event.preventDefault(); choose(first.dataset.value!); }
+    }
+  };
+  list.onclick = (event) => {
+    const option = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-picker-option]');
+    if (option) choose(option.dataset.value!);
+  };
 }
 function wireRegionPicker(root: HTMLElement, map: Map, region: RegionDefinition, actions: Parameters<typeof renderDestination>[2]) {
-  root.querySelector<HTMLInputElement>('#destination-region')?.addEventListener('change', async (event) => {
-    const field = event.target as HTMLInputElement;
-    const nextRegion = REGIONS.find((item) => item.label === field.value);
-    if (!nextRegion) { field.value = store.get<string>('destination-area')?.v ? region.label : ''; return; }
-    if (nextRegion.id === region.id) { store.set('destination-area', nextRegion.id); field.value = nextRegion.label; return; }
+  wireSearchPicker(root, 'destination-region', (id) => {
+    const nextRegion = REGIONS.find((item) => item.id === id);
+    if (!nextRegion) return;
+    if (nextRegion.id === region.id) { store.set('destination-area', nextRegion.id); void renderDestination(root, map, actions); return; }
     store.set('destination-area', nextRegion.id);
     actions.regionChanged?.();
     const current = store.get<string>('destination')?.v;
     if (current && !regionWaters(nextRegion).some((water) => water.id === current)) store.del('destination');
     root.scrollTop = 0;
-    await renderDestination(root, map, actions);
+    void renderDestination(root, map, actions);
     // Recalculate the map viewport after the destination panel has refreshed.
     // This keeps the selected region centered in the unobstructed map area.
     requestAnimationFrame(() => {
@@ -77,29 +119,25 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   const choices = regionWaters(region).sort((a, b) => a.name.localeCompare(b.name));
   const selected = store.get<string>('destination')?.v;
   const water = choices.find((w) => w.id === selected);
-  const waterLabel = (w: typeof choices[number]) => `${w.name}${w.location_label ? ` · ${w.location_label}` : ''} · ${w.state}`;
-  const waterChoices = new globalThis.Map(choices.map((w) => [waterLabel(w), w]));
   if (!choices.length) {
-    root.innerHTML = `<div class="destination-hero"><span class="destination-eyebrow">YOUR NEXT DAY OUT</span>${regionPickerHtml(region)}<label class="destination-picker">Choose your destination<span class="destination-combobox"><input id="destination-select" type="search" list="destination-options" placeholder="No cataloged waters in this area yet" disabled><span aria-hidden="true"></span></span></label><h2>Explore the map</h2><p>We don’t have destination records mapped for this area yet. You can still explore the map and its available layers.</p><button class="btn destination-explore" data-explore-region>Explore this area ↗</button></div><div class="destination-body"><div class="destination-card"><b>Destination coverage is still growing</b><p class="muted small">The map can show available public data here, but lake-specific species, access, and trip guidance have not been cataloged for this region yet.</p></div></div>`;
+    root.innerHTML = `<div class="destination-hero"><span class="destination-eyebrow">YOUR NEXT DAY OUT</span>${regionPickerHtml()}${destinationPickerHtml([], undefined)}<h2>Explore the map</h2><p>We don’t have destination records mapped for this area yet. You can still explore the map and its available layers.</p><button class="btn destination-explore" data-explore-region>Explore this area ↗</button></div><div class="destination-body"><div class="destination-card"><b>Destination coverage is still growing</b><p class="muted small">The map can show available public data here, but lake-specific species, access, and trip guidance have not been cataloged for this region yet.</p></div></div>`;
     showSelectedWaterOutline(map, undefined);
     wireRegionPicker(root, map, region, actions);
     root.querySelector<HTMLButtonElement>('[data-explore-region]')!.onclick = () => zoomToRegion(map, region);
     return;
   }
   if (!water) {
-    root.innerHTML = `<div class="destination-hero"><span class="destination-eyebrow">YOUR NEXT DAY OUT</span>${regionPickerHtml(region)}<p class="small region-scope-note">Search for a region to update the map data and destination choices.</p><label class="destination-picker">Choose your destination<span class="destination-combobox"><input id="destination-select" type="search" list="destination-options" placeholder="Search lakes, rivers, or coastal waters" autocomplete="off"><span aria-hidden="true"></span></span><datalist id="destination-options">${[...waterChoices.keys()].map((label) => `<option value="${esc(label)}"></option>`).join('')}</datalist></label><h2>Choose a body of water</h2><p>Select a lake, river, or coastal water to see its details, species, nearby access, and trip planning options.</p><button class="btn destination-explore" data-explore-region>Explore this area ↗</button></div><div class="destination-body"><div class="destination-card"><b>Explore the map while you decide</b><p class="muted small">Available regional map data remains visible. Choose a destination above when you’re ready for water-specific information and planning.</p></div></div>`;
+    root.innerHTML = `<div class="destination-hero"><span class="destination-eyebrow">YOUR NEXT DAY OUT</span>${regionPickerHtml()}<p class="small region-scope-note">Search for a region to update the map data and destination choices.</p>${destinationPickerHtml(choices)}<h2>Choose a body of water</h2><p>Select a lake, river, or coastal water to see its details, species, nearby access, and trip planning options.</p><button class="btn destination-explore" data-explore-region>Explore this area ↗</button></div><div class="destination-body"><div class="destination-card"><b>Explore the map while you decide</b><p class="muted small">Available regional map data remains visible. Choose a destination above when you’re ready for water-specific information and planning.</p></div></div>`;
     showSelectedWaterOutline(map, undefined);
     wireRegionPicker(root, map, region, actions);
     root.querySelector<HTMLButtonElement>('[data-explore-region]')!.onclick = () => zoomToRegion(map, region);
-    root.querySelector<HTMLInputElement>('#destination-select')!.onchange = (event) => {
-      const field = event.target as HTMLInputElement;
-      const chosen = waterChoices.get(field.value);
-      if (!field.value) { store.del('destination'); void renderDestination(root, map, actions); return; }
-      if (!chosen) { field.value = ''; field.setCustomValidity('Choose a water from the suggestions.'); field.reportValidity(); return; }
-      field.setCustomValidity(''); selectDestination(chosen.id);
+    wireSearchPicker(root, 'destination-select', (id) => {
+      const chosen = choices.find((item) => item.id === id);
+      if (!chosen) return;
+      selectDestination(chosen.id);
       if (chosen.center) map.flyTo({ center: chosen.center, zoom: 10 });
       root.scrollTop = 0; void renderDestination(root, map, actions);
-    };
+    });
     return;
   }
   const CENTER = water?.center ?? [-85.16, 33.0] as [number, number];
@@ -133,9 +171,9 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   const overviewOpen = root.querySelector<HTMLDetailsElement>('details[data-overview]')?.open;
   root.innerHTML = `<div class="destination-hero">
       <span class="destination-eyebrow">YOUR NEXT DAY OUT · SOUTHEAST</span>
-      ${regionPickerHtml(region)}
+      ${regionPickerHtml()}
       <p class="small region-scope-note">Map points and destination choices are scoped to this area. Choose another region to switch the map data shown here.</p>
-      <label class="destination-picker">Choose your destination<span class="destination-combobox"><input id="destination-select" type="search" list="destination-options" value="${esc(waterLabel(water))}" placeholder="Search lakes, rivers, or coastal waters" autocomplete="off"><span aria-hidden="true"></span></span><datalist id="destination-options">${[...waterChoices.keys()].map((label) => `<option value="${esc(label)}"></option>`).join('')}</datalist></label>
+      ${destinationPickerHtml(choices, water.id)}
       <h2>${esc(water?.name ?? 'Choose your water')}</h2><p>Pick your launch. Check the water.<br>Keep the day yours.</p>
       <p class="muted small water-outline-status" data-water-outline-status role="status" aria-live="polite"></p>
       <button class="btn destination-explore" ${water?.center ? '' : 'disabled'}>Explore this water ↗</button>
@@ -183,19 +221,14 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   if (tripSummary) tripSummary.open = tripSummaryOpen ?? !isCompactLayout();
   const overviewDetails = root.querySelector<HTMLDetailsElement>('details[data-overview]');
   if (overviewDetails) overviewDetails.open = overviewOpen ?? !isCompactLayout();
-  root.querySelector<HTMLInputElement>('#destination-select')!.onchange = (event) => {
-    const field = event.target as HTMLInputElement;
-    const next = waterChoices.get(field.value);
-    if (!field.value) { store.del('destination'); void renderDestination(root, map, actions); return; }
-    if (!next) { field.value = waterLabel(water); field.setCustomValidity('Choose a water from the suggestions.'); field.reportValidity(); return; }
-    field.setCustomValidity('');
-    const id = next.id;
+  wireSearchPicker(root, 'destination-select', (id) => {
+    const next = waters.find((item) => item.id === id);
+    if (!next) return;
     selectDestination(id);
     if (next?.center) map.flyTo({ center: next.center, zoom: 10 });
     root.scrollTop = 0;
     void renderDestination(root, map, actions);
-    root.querySelector<HTMLInputElement>('#destination-select')?.focus({ preventScroll: true });
-  };
+  });
   wireRegionPicker(root, map, region, actions);
   const overview = root.querySelector<HTMLButtonElement>('[data-action="overview"]');
   root.querySelector<HTMLButtonElement>('[data-action="trips"]')!.onclick = actions.trips;
