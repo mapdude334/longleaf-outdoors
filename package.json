@@ -7,7 +7,7 @@
     "build": "npm run validate:points && tsc && vite build",
     "validate:points": "node pipeline/scripts/validate-point-symbols.mjs",
     "test:preview": "node tools/test-preview-isolation.mjs",
-    "test:regions": "node tools/test-region-bounds.mjs && node tools/test-water-outline.mjs",
+    "test:regions": "node tools/test-region-bounds.mjs && node tools/test-water-outline.mjs && node tools/test-state-regions.mjs",
     "test:statewide": "node tools/test-statewide-catalogs.mjs",
     "preview": "vite preview",
     "typecheck": "tsc"

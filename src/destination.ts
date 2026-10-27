@@ -12,42 +12,22 @@ import { esc, haversineKm, store } from './util';
 import { isCompactLayout, setSheetSnap } from './sheet';
 import { locationBounds } from './region-bounds';
 import { showSelectedWaterOutline } from './water-outline';
+import { REGIONS, regionContainsWater, type RegionDefinition } from './state-regions';
 
 const BOUNDS: [[number, number], [number, number]] = [[-85.32, 32.86], [-85.02, 33.22]];
-type Region = { id: string; label: string; bounds: [[number, number], [number, number]]; state?: 'AL' | 'GA'; };
-const REGIONS: Region[] = [
-  { id: 'core', label: 'East Alabama & West Georgia · core map pack', bounds: [[-86.35, 31.55], [-84.35, 33.85]] },
-  { id: 'alabama', label: 'Alabama · statewide & Gulf', state: 'AL', bounds: [[-88.65, 28.5], [-84.85, 35.1]] },
-  { id: 'georgia', label: 'Georgia · statewide & Atlantic', state: 'GA', bounds: [[-85.7, 30.25], [-79.5, 35.05]] },
-  { id: 'coastal', label: 'Gulf & Atlantic Coast', bounds: [[-88.65, 28.5], [-79.5, 32.5]] },
-  { id: 'gulf', label: 'Alabama Gulf & coast', bounds: [[-88.65, 28.5], [-87.25, 31.35]] },
-  { id: 'atlantic', label: 'Georgia Atlantic & coast', bounds: [[-82.35, 30.25], [-79.5, 32.5]] },
-];
-const stateCodes = (state: string) => state.split(/[\/,]/).map((part) => part.trim());
-const regionWaters = (region: Region) => waters.filter((water) => {
-  if (!water.center) return false;
-  if (['coastal', 'gulf', 'atlantic'].includes(region.id)) {
-    const [lng, lat] = water.center;
-    const codes = stateCodes(water.state);
-    return (region.id !== 'atlantic' && codes.includes('AL') && lng >= -88.65 && lng <= -87.25 && lat >= 28.5 && lat <= 31.35)
-      || (region.id !== 'gulf' && codes.includes('GA') && lng >= -82.35 && lng <= -79.5 && lat >= 30.25 && lat <= 32.5);
-  }
-  if (region.state) return stateCodes(water.state).includes(region.state);
-  const [west, south] = region.bounds[0], [east, north] = region.bounds[1];
-  return water.center[0] >= west && water.center[0] <= east && water.center[1] >= south && water.center[1] <= north && (!region.state || stateCodes(water.state).includes(region.state));
-});
+const regionWaters = (region: RegionDefinition) => waters.filter((water) => regionContainsWater(region, water));
 const selectedRegion = () => REGIONS.find((region) => region.id === store.get<string>('destination-area')?.v) ?? REGIONS[0];
-function zoomToRegion(map: Map, region: Region) {
+function zoomToRegion(map: Map, region: RegionDefinition) {
   const points = regionWaters(region).flatMap((water) => water.center ? [water.center] : []);
   const bounds = locationBounds(points) ?? region.bounds;
   if (isCompactLayout()) setSheetSnap('peek');
   const bottom = isCompactLayout() ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) + 20 : 45;
   map.fitBounds(bounds, { padding: { top: 45, left: isCompactLayout() ? 35 : 410, right: 45, bottom }, duration: 900, maxZoom: points.length === 1 ? 11 : 12 });
 }
-function regionPickerHtml(region: Region) {
+function regionPickerHtml(region: RegionDefinition) {
   return `<label class="destination-picker">Choose a region<select id="destination-region">${REGIONS.map((item) => `<option value="${item.id}" ${item.id === region.id ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}</select></label>`;
 }
-function wireRegionPicker(root: HTMLElement, map: Map, region: Region, actions: Parameters<typeof renderDestination>[2]) {
+function wireRegionPicker(root: HTMLElement, map: Map, region: RegionDefinition, actions: Parameters<typeof renderDestination>[2]) {
   root.querySelector<HTMLSelectElement>('#destination-region')?.addEventListener('change', (event) => {
     const nextRegion = REGIONS.find((item) => item.id === (event.target as HTMLSelectElement).value) ?? REGIONS[0];
     store.set('destination-area', nextRegion.id);
