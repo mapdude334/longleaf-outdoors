@@ -196,6 +196,12 @@ header#top {
 .tabs button { flex: 1; border: 0; background: none; color: var(--muted); padding: 10px 6px; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
 .tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
 .tab { overflow-y: auto; min-height: 0; overflow-wrap: anywhere; padding: 8px 14px 18px; flex: 1; -webkit-overflow-scrolling: touch; }
+#tab-offline.offline-tab { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+#tab-offline.offline-tab[hidden] { display: none; }
+.offline-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-wrap: anywhere; padding: 8px 14px 18px; -webkit-overflow-scrolling: touch; }
+.offline-download-dock { flex: none; z-index: 2; padding: 9px 14px; border-top: 1px solid var(--line); background: var(--bg); box-shadow: 0 -6px 14px color-mix(in srgb, var(--fg) 9%, transparent); }
+.offline-download-dock p { margin: 0 0 5px; }
+.offline-download-dock .save-area { display: block; width: 100%; min-height: 52px; touch-action: manipulation; }
 .tab h3 { margin: 6px 0 2px; font-size: 17px; }
 .tab h4 { margin: 14px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
 .tab hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }

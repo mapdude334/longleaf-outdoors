@@ -144,8 +144,10 @@ const PM_LABELS: Record<PmKey, string> = {
 /** Renders the Offline panel. `onChanged` reloads the map style when archives are added/removed. */
 export async function renderOffline(root: HTMLElement, map: Map, onChanged: () => void, visibleLayers: Record<string, boolean> = {}, onLayerVisibilityChange?: (group: string, enabled: boolean) => void, onShowSavedMaps?: () => void) {
   const rerender = () => renderOffline(root, map, onChanged, visibleLayers, onLayerVisibilityChange, onShowSavedMaps);
+  root.classList.add('offline-tab');
   const s = await storageSummary();
   root.innerHTML = `
+    <div class="offline-scroll">
     <h3>Offline maps</h3>
     <p class="muted small">Download before you lose signal. Files are stored in this browser on this device.
       Used ${mb(s.used)} of ${mb(s.quota)}${s.persisted ? ' · storage is persistent' : ' · <b>storage may be cleared by the browser</b> (persistence will be requested)'}.</p>
@@ -172,10 +174,15 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
       <label>Maximum offline zoom <select class="maxz"><option>13</option><option selected>14</option><option>15</option><option>16</option></select></label>
       <p class="muted small est"></p>
       <p class="muted small" data-area-limit>Area downloads are limited to ${MAX_AREA_TILES.toLocaleString()} tiles and about ${mb(MAX_AREA_BYTES)} per download to protect device storage. Browser storage rules vary by device.</p>
-      <button class="btn primary save-area">Download this view for offline use</button> <button class="btn clear-area">Clear saved areas (${s.rasterCount.toLocaleString()} tiles)</button>
+      <button class="btn clear-area">Clear saved areas (${s.rasterCount.toLocaleString()} tiles)</button>
       <progress class="area-prog" hidden max="1" value="0"></progress>
       <p class="muted small" data-saved-areas></p>
       <button class="btn" data-show-saved>View saved maps and areas</button>
+    </div>
+    </div>
+    <div class="offline-download-dock">
+      <p class="muted small" data-offline-dock-status aria-live="polite"></p>
+      <button class="btn primary save-area">Download this view for offline use</button>
     </div>`;
 
   void loadPackManifest().then((manifest) => {
@@ -232,7 +239,14 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
     const tileEstimate = layersSel().reduce((sum, layer) => sum + n / Math.max(1, layersSel().length) * ({ topo: 28_000, imagery: 85_000, terrain: 14_000, hydro: 22_000 }[layer] ?? 35_000), 0);
     est.textContent = !hasBaseMap ? 'Choose a base map (USGS Topo or Imagery) so the saved area can be viewed offline.' : n > MAX_AREA_TILES ? `More than ${MAX_AREA_TILES.toLocaleString()} tiles — zoom in or lower max zoom` : n ? `${n.toLocaleString()} tiles · roughly ${mb(tileEstimate)} · device limit ${mb(MAX_AREA_BYTES)} per download` : 'Select at least one map layer to download map tiles for this area.';
     root.querySelector<HTMLElement>('[data-area-network]')!.textContent = navigator.onLine ? 'Connected · ready to prepare this view.' : 'You are offline. Previously saved areas and app data remain available; connect to download another area.';
-    root.querySelector<HTMLButtonElement>('.save-area')!.disabled = !hasBaseMap || n === 0 || !navigator.onLine;
+    const saveButton = root.querySelector<HTMLButtonElement>('.save-area')!;
+    const tooLarge = n > MAX_AREA_TILES;
+    saveButton.disabled = !hasBaseMap || n === 0 || tooLarge || !navigator.onLine;
+    root.querySelector<HTMLElement>('[data-offline-dock-status]')!.textContent = !navigator.onLine
+      ? 'Connect to download this map area.'
+      : !hasBaseMap ? 'Choose USGS Topo or Imagery below.'
+        : tooLarge ? 'This view exceeds the tile limit. Zoom in or lower the maximum zoom.'
+          : n ? `${n.toLocaleString()} tiles · roughly ${mb(tileEstimate)}` : 'Choose map layers below to prepare this download.';
     const saved = store.get<SavedArea[]>(AREA_KEY)?.v ?? [];
     const current = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] as [number, number, number, number];
     const requiredLayers = layersSel();
