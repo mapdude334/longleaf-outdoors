@@ -86,6 +86,8 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     const water = waters.find((w) => w.id === trip.destination);
     const coastal = /coastal|reef/i.test(water?.type ?? '');
     const candidates = new globalThis.Map<string, Place>();
+    const namedRampIds = new Set<string>();
+    const savedRampIds = new Set<string>();
     const cached = store.get<any[]>('access-osm')?.v ?? [];
     const rendered = map.getLayer('access-pts') ? map.queryRenderedFeatures(undefined, { layers: ['access-pts'] }) : [];
     for (const f of [...cached, ...rendered]) {
@@ -94,22 +96,72 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       if (!water?.center || (f.properties.waterbody_id !== water.id && haversineKm(coords, water.center) > (coastal ? 120 : 40)) || /closed|decommissioned/i.test(String(f.properties.status ?? ''))) continue;
       const id = String(f.properties.osm ?? f.properties.record_id ?? coords.join(','));
       const name = String(f.properties.name ?? '').trim();
-      candidates.set(id, { id, name: name && !/^(boat ramp|launch|paddle launch)$/i.test(name) ? name : `${f.properties.kind === 'paddle_launch' ? 'Paddle launch' : 'Boat ramp'} — ${accessLocation(f.properties, coords)}`, coords });
+      const hasName = !!name && !/^(boat ramp|launch|paddle launch)$/i.test(name);
+      if (hasName) namedRampIds.add(id);
+      candidates.set(id, { id, name: hasName ? name : `${f.properties.kind === 'paddle_launch' ? 'Paddle launch' : 'Boat ramp'} — ${accessLocation(f.properties, coords)}`, coords });
     }
-    for (const w of getWpts().filter((w) => w.type === 'ramp')) candidates.set(w.id, { id: w.id, name: w.name, coords: [w.lng, w.lat] });
+    for (const w of getWpts().filter((w) => w.type === 'ramp')) {
+      candidates.set(w.id, { id: w.id, name: w.name, coords: [w.lng, w.lat] });
+      savedRampIds.add(w.id);
+    }
     if (trip.ramp && !candidates.has(trip.ramp.id)) {
       const ramp = trip.ramp;
       candidates.set(ramp.id, { ...ramp, name: !ramp.name.trim() || /^(Launch ·|boat ramp$|launch$)/i.test(ramp.name) ? `Boat ramp — ${accessLocation({}, ramp.coords)}` : ramp.name });
     }
-    const ramps = [...candidates.values()].sort((a, b) => water?.center ? haversineKm(a.coords, water.center) - haversineKm(b.coords, water.center) : a.name.localeCompare(b.name));
+    const ramps = [...candidates.values()].sort((a, b) => {
+      const group = (ramp: Place) => namedRampIds.has(ramp.id) ? 0 : savedRampIds.has(ramp.id) ? 1 : 2;
+      return group(a) - group(b) || (water?.center ? haversineKm(a.coords, water.center) - haversineKm(b.coords, water.center) : a.name.localeCompare(b.name));
+    });
+    const destinationOptions = [...waters].sort((a, b) => a.state.localeCompare(b.state) || a.name.localeCompare(b.name));
+    const destinationChoices = new globalThis.Map<string, string>();
+    const destinationLabels = new globalThis.Map<string, string>();
+    const waterBaseLabels = (choice: (typeof destinationOptions)[number]) => `${choice.name}${choice.river ? ` · ${choice.river}` : ''} · ${choice.state}`;
+    const waterLabelCounts = new globalThis.Map<string, number>();
+    for (const choice of destinationOptions) waterLabelCounts.set(waterBaseLabels(choice), (waterLabelCounts.get(waterBaseLabels(choice)) ?? 0) + 1);
+    for (const choice of destinationOptions) {
+      const base = waterBaseLabels(choice);
+      const peers = (waterLabelCounts.get(base) ?? 0) > 1 ? destinationOptions.filter((other) => waterBaseLabels(other) === base) : [];
+      let detail = choice.location_label?.trim();
+      if (detail && detail.toLowerCase() === choice.state.toLowerCase()) detail = '';
+      if (!detail && peers.length > 1 && choice.center) {
+        const located = peers.flatMap((peer) => peer.center ? [peer.center] : []);
+        const meanLat = located.reduce((sum, point) => sum + point[1], 0) / Math.max(1, located.length);
+        const meanLng = located.reduce((sum, point) => sum + point[0], 0) / Math.max(1, located.length);
+        const northSouth = Math.abs(choice.center[1] - meanLat) >= Math.abs(choice.center[0] - meanLng);
+        detail = northSouth ? `${choice.center[1] >= meanLat ? 'Northern' : 'Southern'} section` : `${choice.center[0] >= meanLng ? 'Eastern' : 'Western'} section`;
+      }
+      if (!detail && peers.length > 1) detail = `Mapped area ${peers.indexOf(choice) + 1}`;
+      let label = `${base}${detail ? ` · ${detail}` : ''}`;
+      if (destinationChoices.has(label)) label += ` · Mapped area ${peers.indexOf(choice) + 1}`;
+      destinationChoices.set(label, choice.id);
+      destinationLabels.set(choice.id, label);
+    }
+    const selectedDestination = destinationLabels.get(trip.destination) ?? 'Choose a current lake (previous destination retired)';
+    const rampChoices = new globalThis.Map<string, Place>();
+    const rampLabels = new globalThis.Map<string, string>();
+    const rampLabelCounts = new globalThis.Map<string, number>();
+    for (const ramp of ramps) {
+      const miles = water?.center ? (haversineKm(ramp.coords, water.center) / 1.609344).toFixed(1) : '';
+      const label = `${ramp.name}${namedRampIds.has(ramp.id) && miles ? ` · ${miles} mi from mapped center` : savedRampIds.has(ramp.id) && miles ? ` · Saved launch · ${miles} mi away` : ''}`;
+      rampLabelCounts.set(label, (rampLabelCounts.get(label) ?? 0) + 1);
+      rampLabels.set(ramp.id, label);
+    }
+    for (const ramp of ramps) {
+      let label = rampLabels.get(ramp.id)!;
+      if ((rampLabelCounts.get(label) ?? 0) > 1) label += ` · ${accessLocation({}, ramp.coords)}`;
+      if (rampChoices.has(label)) label += ` · ${ramp.coords[1].toFixed(4)}° N, ${Math.abs(ramp.coords[0]).toFixed(4)}° W`;
+      rampLabels.set(ramp.id, label);
+      rampChoices.set(label, ramp);
+    }
+    const selectedRamp = trip.ramp ? rampLabels.get(trip.ramp.id) ?? trip.ramp.name : '';
     const spots = new globalThis.Map<string, Place>();
     for (const w of getWpts().filter((w) => w.type === 'fish')) spots.set(w.id, { id: w.id, name: w.name, coords: [w.lng, w.lat] });
     for (const spot of trip.spots) spots.set(spot.id, spot);
     root.innerHTML = `<button class="link" data-back>← My trips</button><h3>Plan your trip</h3>
       <label class="field">Trip name<input id="trip-name" maxlength="120" value="${esc(trip.name)}" placeholder="Saturday on the lake"></label>
       <label class="field">Trip date<input id="trip-date" type="date" value="${esc(trip.date ?? '')}"></label>
-      <label class="field">Destination<select id="trip-destination">${waters.some((w) => w.id === trip.destination) ? '' : `<option value="${esc(trip.destination)}" selected>Choose a specific lake (previous group retired)</option>`}${waters.map((w) => `<option value="${esc(w.id)}" ${w.id === trip.destination ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label>
-      <label class="field">${symbolHtml('boat_ramp')}Boat ramp / launch<select id="trip-ramp"><option value="">Choose a launch later</option>${ramps.map((r) => `<option value="${esc(r.id)}" ${trip.ramp?.id === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>
+      <label class="field">Destination<input id="trip-destination" type="search" list="trip-destination-options" value="${esc(selectedDestination)}" placeholder="Search by lake, river or state" autocomplete="off"><datalist id="trip-destination-options">${destinationOptions.map((choice) => `<option value="${esc(destinationLabels.get(choice.id) ?? choice.name)}"></option>`).join('')}</datalist></label>
+      <label class="field">${symbolHtml('boat_ramp')}Boat ramp / launch<input id="trip-ramp" type="search" list="trip-ramp-options" value="${esc(selectedRamp)}" placeholder="Search nearby or saved launches" autocomplete="off"><datalist id="trip-ramp-options">${ramps.map((r) => `<option value="${esc(rampLabels.get(r.id) ?? r.name)}"></option>`).join('')}</datalist></label>
       <p class="muted small">Agency-matched launches on this water, other launches within ${coastal ? '75' : '25'} miles of its overview point, and your saved launches. Distances are straight-line proximity, not boating routes; confirm access and suitability before traveling.</p>
       <button class="btn" data-refresh-launches>Refresh nearby launches</button>
       <h4>${symbolHtml('spot')}Fishing spots</h4>${[...spots.values()].map((s) => `<div class="trip-spot"><label class="row"><input type="checkbox" data-trip-spot="${esc(s.id)}" ${trip.spots.some((p) => p.id === s.id) ? 'checked' : ''}>Include this spot</label><label class="field">Spot name<input data-spot-name="${esc(s.id)}" maxlength="120" value="${esc(s.name)}"></label><span class="muted small">${s.coords[1].toFixed(5)}, ${s.coords[0].toFixed(5)}</span> <button class="link" data-remove-spot="${esc(s.id)}">Remove from trip</button></div>`).join('') || '<p class="muted small">Choose saved fishing waypoints from My Spots, or drop a pin anywhere on the map.</p>'}
@@ -119,9 +171,13 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       <div class="row-btns"><button class="btn primary" data-save-trip>Save trip</button><button class="btn" data-open-trip>Open trip on map</button><button class="btn" data-share-trip-draft>Share trip</button></div>`;
     const input = <T extends HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(id: string) => root.querySelector<T>(id)!;
     const collect = () => {
-      trip.name = input('#trip-name').value.trim(); trip.destination = input('#trip-destination').value;
+      trip.name = input('#trip-name').value.trim();
+      const destinationId = destinationChoices.get(input<HTMLInputElement>('#trip-destination').value);
+      if (destinationId) trip.destination = destinationId;
       trip.date = input('#trip-date').value;
-      trip.ramp = candidates.get(input('#trip-ramp').value);
+      const rampInput = input<HTMLInputElement>('#trip-ramp');
+      if (!rampInput.value) trip.ramp = undefined;
+      else if (rampChoices.has(rampInput.value)) trip.ramp = rampChoices.get(rampInput.value);
       trip.notes = input('#trip-notes').value;
       root.querySelectorAll<HTMLInputElement>('[data-spot-name]').forEach((field) => { const spot = spots.get(field.dataset.spotName!); if (spot) spot.name = field.value.trim() || 'Fishing spot'; });
       trip.spots = [...root.querySelectorAll<HTMLInputElement>('[data-trip-spot]:checked')].flatMap((b) => spots.get(b.dataset.tripSpot!) ?? []);
@@ -129,7 +185,14 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     const autosave = () => { collect(); if (store.set('trip-draft', trip)) root.querySelector('[data-trip-status]')!.textContent = 'Draft autosaved on this device.'; };
     root.oninput = autosave;
     root.onchange = autosave;
-    input<HTMLSelectElement>('#trip-ramp').onchange = () => {
+    input<HTMLInputElement>('#trip-ramp').onchange = () => {
+      const field = input<HTMLInputElement>('#trip-ramp');
+      if (field.value && !rampChoices.has(field.value)) {
+        field.setCustomValidity('Choose a launch from the suggestions, or clear the field.');
+        field.reportValidity();
+        return;
+      }
+      field.setCustomValidity('');
       autosave(); showTripPlan(map, trip);
       if (!trip.ramp) return;
       highlightLocation(map, trip.ramp.coords);
@@ -139,6 +202,20 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     };
     root.querySelectorAll<HTMLButtonElement>('[data-remove-spot]').forEach((button) => button.onclick = () => { collect(); trip.spots = trip.spots.filter((p) => p.id !== button.dataset.removeSpot); store.set('trip-draft', trip); edit(trip); showTripPlan(map, trip); });
     const save = () => {
+      const destinationInput = input<HTMLInputElement>('#trip-destination');
+      if (!destinationChoices.has(destinationInput.value)) {
+        destinationInput.setCustomValidity('Choose a destination from the suggestions.');
+        destinationInput.reportValidity();
+        return false;
+      }
+      destinationInput.setCustomValidity('');
+      const rampInput = input<HTMLInputElement>('#trip-ramp');
+      if (rampInput.value && !rampChoices.has(rampInput.value)) {
+        rampInput.setCustomValidity('Choose a launch from the suggestions, or clear the field.');
+        rampInput.reportValidity();
+        return false;
+      }
+      rampInput.setCustomValidity('');
       collect();
       if (!waters.some((w) => w.id === trip.destination)) { input('#trip-destination').focus(); toast('Choose a specific lake for this trip.'); return false; }
       if (!trip.name) { input('#trip-name').focus(); toast('Give your trip a name.'); return false; }
@@ -151,7 +228,14 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       root.querySelector('[data-trip-status]')!.textContent = 'Trip saved on this device.';
       return true;
     };
-    input<HTMLSelectElement>('#trip-destination').onchange = () => {
+    input<HTMLInputElement>('#trip-destination').onchange = () => {
+      const field = input<HTMLInputElement>('#trip-destination');
+      if (!destinationChoices.has(field.value)) {
+        field.setCustomValidity('Choose a destination from the suggestions.');
+        field.reportValidity();
+        return;
+      }
+      field.setCustomValidity('');
       collect(); trip.ramp = undefined; store.set('trip-draft', trip);
       const center = waters.find((w) => w.id === trip.destination)?.center;
       if (center) map.flyTo({ center, zoom: 11, padding: { left: !isCompactLayout() ? 410 : 40, right: 55, top: 50, bottom: !isCompactLayout() ? 45 : 150 } });
