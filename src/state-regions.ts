@@ -57,6 +57,13 @@ function within(point: readonly [number, number], bounds: GeographicBounds): boo
   return point[0] >= west && point[0] <= east && point[1] >= south && point[1] <= north;
 }
 
+/** Whether a map point belongs to the currently selected geographic region. */
+export function regionContainsPoint(region: RegionDefinition, point: readonly [number, number]): boolean {
+  if (!point.every(Number.isFinite)) return false;
+  if (region.membership) return region.membership.some((area) => within(point, area.bounds));
+  return within(point, region.bounds);
+}
+
 export function regionContainsWater(region: RegionDefinition, water: { state: string; center?: [number, number] | null }): boolean {
   if (!water.center) return false;
   const codes = stateCodes(water.state);

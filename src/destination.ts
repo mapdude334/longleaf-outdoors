@@ -18,11 +18,9 @@ const BOUNDS: [[number, number], [number, number]] = [[-85.32, 32.86], [-85.02, 
 const regionWaters = (region: RegionDefinition) => waters.filter((water) => regionContainsWater(region, water));
 const selectedRegion = () => REGIONS.find((region) => region.id === store.get<string>('destination-area')?.v) ?? REGIONS[0];
 function zoomToRegion(map: Map, region: RegionDefinition) {
-  const points = regionWaters(region).flatMap((water) => water.center ? [water.center] : []);
-  const bounds = locationBounds(points) ?? region.bounds;
   if (isCompactLayout()) setSheetSnap('peek');
   const bottom = isCompactLayout() ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) + 20 : 45;
-  map.fitBounds(bounds, { padding: { top: 45, left: isCompactLayout() ? 35 : 410, right: 45, bottom }, duration: 900, maxZoom: points.length === 1 ? 11 : 12 });
+  map.fitBounds(region.bounds, { padding: { top: 45, left: isCompactLayout() ? 35 : 410, right: 45, bottom }, duration: 900, maxZoom: 9 });
 }
 function regionPickerHtml(region: RegionDefinition) {
   return `<label class="destination-picker">Choose a region<select id="destination-region">${REGIONS.map((item) => `<option value="${item.id}" ${item.id === region.id ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}</select></label>`;
@@ -31,6 +29,7 @@ function wireRegionPicker(root: HTMLElement, map: Map, region: RegionDefinition,
   root.querySelector<HTMLSelectElement>('#destination-region')?.addEventListener('change', (event) => {
     const nextRegion = REGIONS.find((item) => item.id === (event.target as HTMLSelectElement).value) ?? REGIONS[0];
     store.set('destination-area', nextRegion.id);
+    actions.regionChanged?.();
     const options = regionWaters(nextRegion);
     const current = store.get<string>('destination')?.v;
     if (options.length && !options.some((water) => water.id === current)) selectDestination(options[0].id);
@@ -55,6 +54,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   trips: () => void;
   downloadsChanged: () => void;
   gaugeState: 'loading' | 'ready' | 'unavailable';
+  regionChanged?: () => void;
 }) {
   if (destinationDownloadBusy()) return;
   const region = selectedRegion();
@@ -100,7 +100,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   root.innerHTML = `<div class="destination-hero">
       <span class="destination-eyebrow">YOUR NEXT DAY OUT · SOUTHEAST</span>
       ${regionPickerHtml(region)}
-      <p class="small region-scope-note">Showing cataloged destinations in this area. Spatial layers and offline map coverage vary by source.</p>
+      <p class="small region-scope-note">Map points and destination choices are scoped to this area. Choose another region to switch the map data shown here.</p>
       <label class="destination-picker">Choose your destination<select id="destination-select">${choices.map((w) => `<option value="${esc(w.id)}" ${w.id === water?.id ? 'selected' : ''}>${esc(w.name)}${w.location_label ? ` · ${esc(w.location_label)}` : ''}</option>`).join('')}</select></label>
       <h2>${esc(water?.name ?? 'Choose your water')}</h2><p>Pick your launch. Check the water.<br>Keep the day yours.</p>
       <p class="muted small water-outline-status" data-water-outline-status role="status" aria-live="polite"></p>

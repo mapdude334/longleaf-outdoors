@@ -15,6 +15,23 @@ export let gauges: Gauge[] = [];
 // cannot keep masking South Carolina stations when the live source is flaky.
 const GAUGE_CACHE_KEY = 'gauges-al-ga-sc-v3';
 
+function mapFeature(g: Gauge, now: number) {
+  const times = Object.values(g.readings).map((r) => Date.parse(r.time)).filter(Number.isFinite);
+  const newest = times.length ? Math.max(...times) : 0;
+  return {
+    type: 'Feature' as const, id: g.id,
+    geometry: { type: 'Point' as const, coordinates: g.coords },
+    properties: { id: g.id, name: g.name, summary: summary(g), stale: now - newest > 6 * 3600_000, ...(g.readings['00060'] ? { q: g.readings['00060'].value } : {}) },
+  };
+}
+
+export function setGaugePoints(map: Map, include: (coords: [number, number]) => boolean = () => true) {
+  const source = map.getSource('gauges') as GeoJSONSource | undefined;
+  if (!source) return;
+  const now = Date.now();
+  source.setData({ type: 'FeatureCollection', features: gauges.filter((g) => include(g.coords)).map((g) => mapFeature(g, now)) });
+}
+
 // Verified against USGS monitoring-location metadata; keep station IDs in the expanded record.
 const LOCAL_NAMES: Record<string, string> = {
   '02339400': 'West Point Lake · near West Point',
@@ -127,19 +144,7 @@ export async function loadGauges(map: Map): Promise<{ count: number; t: number; 
     }
   });
   gauges = res.v.map((g) => ({ ...g, name: gaugeName(g) }));
-  const now = Date.now();
-  (map.getSource('gauges') as GeoJSONSource).setData({
-    type: 'FeatureCollection',
-    features: gauges.map((g) => {
-      const times = Object.values(g.readings).map((r) => Date.parse(r.time)).filter(Number.isFinite);
-      const newest = times.length ? Math.max(...times) : 0;
-      return {
-        type: 'Feature', id: g.id,
-        geometry: { type: 'Point', coordinates: g.coords },
-        properties: { id: g.id, name: g.name, summary: summary(g), stale: now - newest > 6 * 3600_000, ...(g.readings['00060'] ? { q: g.readings['00060'].value } : {}) },
-      };
-    }),
-  });
+  setGaugePoints(map);
   return { count: gauges.length, t: res.t, offline: res.offline, source };
 }
 

@@ -10,13 +10,13 @@ import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import { AttributionControl, GeolocateControl, Map, NavigationControl, Popup, ScaleControl, setWorkerUrl, type MapGeoJSONFeature } from 'maplibre-gl';
+import { AttributionControl, GeolocateControl, Map, NavigationControl, Popup, ScaleControl, setWorkerUrl, type GeoJSONSource, type MapGeoJSONFeature } from 'maplibre-gl';
 import { registerSW } from 'virtual:pwa-register';
 import { AOI, MAP_BOUNDS, START_VIEW } from './config';
 import { availableBasemap, overlayAvailable, viewInsideCore } from './coverage';
 import { resolvePm } from './pmtiles';
 import { buildStyle, groups, ACCESS_COLORS, type Availability, type BasemapId } from './style';
-import { loadGauges, gauges, gaugeHtml, fillTrend } from './layers/gauges';
+import { loadGauges, gauges, gaugeHtml, fillTrend, setGaugePoints } from './layers/gauges';
 import { loadDams, dams, damHtml, fillCwms } from './layers/dams';
 import { loadWaters, waters, waterById, waterByName, waterHtml, regulations } from './layers/waters';
 import { loadAccessLive, accessFeatures, accessHtml, ACCESS_LABELS } from './layers/access';
@@ -27,6 +27,7 @@ import { addWpt, deleteTrack, deleteWpt, downloadGpx, getTracks, getWpts, import
 import { renderOffline, renderSavedMaps } from './offline';
 import { $, ago, esc, fmtCoord, store, toast } from './util';
 import { IS_PREVIEW } from './environment';
+import { REGIONS, regionContainsPoint } from './state-regions';
 
 setWorkerUrl(workerUrl);
 if (IS_PREVIEW) {
@@ -227,11 +228,11 @@ let gaugeState: 'loading' | 'ready' | 'unavailable' = 'loading';
 async function reloadData() {
   const parts: string[] = [];
   await Promise.allSettled([
-    loadWaters(map).then(() => { renderWaters(); if (currentTab === 'destination') void destination(); }),
-    loadDams(map).then(() => { if (currentTab === 'destination') void destination(); }),
-    loadGauges(map).then((r) => { gaugeState = 'ready'; parts.push(`${r.count} gauges · ${r.source}${r.offline ? ' (cached ' + ago(r.t) + ')' : ''}`); if (currentTab === 'destination') void destination(); }).catch(() => { gaugeState = 'unavailable'; parts.push('Gauges unavailable'); if (currentTab === 'destination') void destination(); }),
-    loadAccessLive(map).then((r) => { parts.push(`${r.count} access points (${r.source}${r.offline ? ', cached' : ''})`); if (currentTab === 'destination') void destination(); }).catch(() => parts.push('Access points unavailable')),
-    loadAnglerData(map).then((r) => parts.push(`${r.structureCount} fish structures · ${r.restroomCount} restroom records · ${r.habitatCount} habitat records`)).catch(() => parts.push('Angler structure/restroom/habitat data unavailable')),
+    loadWaters(map).then(() => { applyRegionPointVisibility(true); renderWaters(); if (currentTab === 'destination') void destination(); }),
+    loadDams(map).then(() => { applyRegionPointVisibility(true); if (currentTab === 'destination') void destination(); }),
+    loadGauges(map).then((r) => { gaugeState = 'ready'; applyRegionPointVisibility(true); parts.push(`${r.count} gauges · ${r.source}${r.offline ? ' (cached ' + ago(r.t) + ')' : ''}`); if (currentTab === 'destination') void destination(); }).catch(() => { gaugeState = 'unavailable'; parts.push('Gauges unavailable'); if (currentTab === 'destination') void destination(); }),
+    loadAccessLive(map).then((r) => { applyRegionPointVisibility(true); parts.push(`${r.count} access points (${r.source}${r.offline ? ', cached' : ''})`); if (currentTab === 'destination') void destination(); }).catch(() => parts.push('Access points unavailable')),
+    loadAnglerData(map).then((r) => { applyRegionPointVisibility(true); parts.push(`${r.structureCount} fish structures · ${r.restroomCount} restroom records · ${r.habitatCount} habitat records`); }).catch(() => parts.push('Angler structure/restroom/habitat data unavailable')),
   ]);
   dataStatus = parts.join(' · ');
   renderLayers();
@@ -242,15 +243,44 @@ async function reloadData() {
 // ---------------- sheet / tabs ----------------
 const sheet = $('#sheet');
 let currentTab = 'destination';
+let regionalPointScope = '';
+function activeMapRegion() {
+  return REGIONS.find((item) => item.id === store.get<string>('destination-area')?.v) ?? REGIONS[0];
+}
+function applyRegionPointVisibility(force = false) {
+  const region = activeMapRegion();
+  if (!force && regionalPointScope === region.id) return;
+  regionalPointScope = region.id;
+  const include = (coords: readonly [number, number]) => regionContainsPoint(region, coords);
+  const setPoints = (sourceId: string, features: any[]) => {
+    const source = map.getSource(sourceId) as GeoJSONSource | undefined;
+    if (!source) return;
+    source.setData({
+      type: 'FeatureCollection',
+      features: features.filter((feature) => feature.geometry?.type === 'Point' && include(feature.geometry.coordinates)),
+    });
+  };
+  setPoints('waters', waters.filter((water) => water.center).map((water) => ({
+    type: 'Feature', geometry: { type: 'Point', coordinates: water.center },
+    properties: { id: water.id, name: water.name.replace(/\s*\(.*\)/, ''), priority: water.id.startsWith('water-') ? 1 : 0 },
+  })));
+  setPoints('dams', dams.map((dam) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: dam.coords }, properties: { id: dam.id, name: dam.name } })));
+  setGaugePoints(map, include);
+  setPoints('access-live', accessFeatures());
+  setPoints('fish-structures-live', fishStructures);
+  setPoints('restrooms-live', restrooms);
+  setPoints('habitat-live', habitats);
+}
 let cancelWaypointPick: (() => void) | undefined;
 let placeWaypoint: ((lng: number, lat: number) => void) | undefined;
 let navigationRevision = 0;
 function destination() {
+  applyRegionPointVisibility();
   showTripPlan(map);
   const selected = waters.find((water) => water.id === store.get<string>('destination')?.v)?.name;
   sheet.dataset.destination = selected ?? '';
   setSheetSnap((sheet.dataset.snap || 'peek') as SheetSnap);
-  return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips'), downloadsChanged: refreshAvailability, gaugeState });
+  return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips'), downloadsChanged: refreshAvailability, gaugeState, regionChanged: () => applyRegionPointVisibility(true) });
 }
 map.on('style.load', () => showTripPlan(map));
 map.on('style.load', restoreMapSelection);
@@ -803,11 +833,12 @@ q.oninput = () => {
     hits.push({ label: `Go to ${a}, ${b}`, sub: 'Coordinates', center: [b, a], zoom: 14 });
   }
   for (const w of waters) if (w.name.toLowerCase().includes(s) || w.species.some((x) => x.name.toLowerCase().includes(s))) hits.push({ label: w.name, sub: 'Water · ' + w.species.slice(0, 3).map((x) => x.name).join(', '), center: w.center ?? map.getCenter().toArray() as [number, number], zoom: 11, open: () => { selectDestination(w.id); showTab('destination'); } });
-  for (const d of dams) if (d.name.toLowerCase().includes(s)) hits.push({ label: d.name, sub: 'Dam · ' + d.operator, center: d.coords, zoom: 13, open: () => showInfo(damHtml(d), (r) => fillCwms(r, d)) });
-  for (const g of gauges) if (g.name.toLowerCase().includes(s) || g.id.includes(s)) hits.push({ label: g.name, sub: 'USGS gauge ' + g.id, center: g.coords, zoom: 13, open: () => showInfo(gaugeHtml(g), (r) => fillTrend(r, g)) });
-  for (const f of fishStructures) if ([f.properties.name, f.properties.waterbody, f.properties.structure].some((v) => String(v ?? '').toLowerCase().includes(s))) hits.push({ label: String(f.properties.name || 'Fish attractor'), sub: `${f.properties.waterbody || 'Fish structure'} · ${f.properties.data_source || 'agency data'}`, center: f.geometry.coordinates as [number, number], zoom: 14, open: () => showInfo(fishStructureHtml(f.properties, f.geometry.coordinates as [number, number])) });
-  for (const f of habitats) if ([f.properties.name, f.properties.waterbody, f.properties.habitat_type].some((v) => String(v ?? '').toLowerCase().includes(s))) hits.push({ label: String(f.properties.name), sub: `Habitat survey · ${f.properties.observed_at || 'date not supplied'}`, center: f.geometry.coordinates as [number, number], zoom: 14, open: () => showInfo(habitatHtml(f.properties, f.geometry.coordinates as [number, number])) });
-  for (const f of restrooms) if (!['public restroom', 'restroom reported at recreation facility'].includes(String(f.properties.name || '').toLowerCase()) && String(f.properties.name || '').toLowerCase().includes(s)) hits.push({ label: String(f.properties.name), sub: `Restroom · ${f.properties.facility || 'recreation facility'}`, center: f.geometry.coordinates as [number, number], zoom: 15, open: () => showInfo(restroomHtml(f.properties)) });
+  const region = activeMapRegion();
+  for (const d of dams) if (regionContainsPoint(region, d.coords) && d.name.toLowerCase().includes(s)) hits.push({ label: d.name, sub: 'Dam · ' + d.operator, center: d.coords, zoom: 13, open: () => showInfo(damHtml(d), (r) => fillCwms(r, d)) });
+  for (const g of gauges) if (regionContainsPoint(region, g.coords) && (g.name.toLowerCase().includes(s) || g.id.includes(s))) hits.push({ label: g.name, sub: 'USGS gauge ' + g.id, center: g.coords, zoom: 13, open: () => showInfo(gaugeHtml(g), (r) => fillTrend(r, g)) });
+  for (const f of fishStructures) if (regionContainsPoint(region, f.geometry.coordinates as [number, number]) && [f.properties.name, f.properties.waterbody, f.properties.structure].some((v) => String(v ?? '').toLowerCase().includes(s))) hits.push({ label: String(f.properties.name || 'Fish attractor'), sub: `${f.properties.waterbody || 'Fish structure'} · ${f.properties.data_source || 'agency data'}`, center: f.geometry.coordinates as [number, number], zoom: 14, open: () => showInfo(fishStructureHtml(f.properties, f.geometry.coordinates as [number, number])) });
+  for (const f of habitats) if (regionContainsPoint(region, f.geometry.coordinates as [number, number]) && [f.properties.name, f.properties.waterbody, f.properties.habitat_type].some((v) => String(v ?? '').toLowerCase().includes(s))) hits.push({ label: String(f.properties.name), sub: `Habitat survey · ${f.properties.observed_at || 'date not supplied'}`, center: f.geometry.coordinates as [number, number], zoom: 14, open: () => showInfo(habitatHtml(f.properties, f.geometry.coordinates as [number, number])) });
+  for (const f of restrooms) if (regionContainsPoint(region, f.geometry.coordinates as [number, number]) && !['public restroom', 'restroom reported at recreation facility'].includes(String(f.properties.name || '').toLowerCase()) && String(f.properties.name || '').toLowerCase().includes(s)) hits.push({ label: String(f.properties.name), sub: `Restroom · ${f.properties.facility || 'recreation facility'}`, center: f.geometry.coordinates as [number, number], zoom: 15, open: () => showInfo(restroomHtml(f.properties)) });
   for (const p of getWpts()) if (p.name.toLowerCase().includes(s)) hits.push({ label: p.name, sub: 'My waypoint', center: [p.lng, p.lat], zoom: 15, open: () => editWpt(p.id) });
   const accessSrc = av.overlays ? map.querySourceFeatures('overlays', { sourceLayer: 'access' }) : map.querySourceFeatures('access-live');
   const seen = new Set<string>();
@@ -834,7 +865,7 @@ const updateNet = () => { net.textContent = navigator.onLine ? 'Online' : 'Offli
 addEventListener('online', () => { updateNet(); reloadData(); });
 addEventListener('offline', updateNet);
 updateNet();
-setInterval(() => { if (navigator.onLine && document.visibilityState === 'visible') loadGauges(map).catch(() => {}); }, 15 * 60_000);
+setInterval(() => { if (navigator.onLine && document.visibilityState === 'visible') loadGauges(map).then(() => applyRegionPointVisibility(true)).catch(() => {}); }, 15 * 60_000);
 
 // ---------------- boot ----------------
 map.once('style.load', () => {
