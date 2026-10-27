@@ -1,0 +1,39 @@
+{
+  "colors": {
+    "boat_ramp": "#14645e",
+    "paddle_launch": "#14645e",
+    "fishing": "#754699",
+    "marina": "#43566a",
+    "campground": "#98532e",
+    "trailhead": "#486640",
+    "parking": "#424b53",
+    "restroom": "#2f5b50",
+    "structure": "#914f82",
+    "other": "#555b60",
+    "water": "#23476a",
+    "dam": "#39434c",
+    "gauge": "#9b6107",
+    "stale": "#697078",
+    "spot": "#ad3867",
+    "hazard": "#b63b32"
+  },
+  "catalogs": {
+    "access": {
+      "boat_ramp": "boat_ramp",
+      "paddle_launch": "paddle_launch",
+      "fishing": "fishing",
+      "marina": "marina",
+      "campground": "campground",
+      "trailhead": "trailhead",
+      "parking": "parking",
+      "other": "other"
+    },
+    "fish-structures": {
+      "fish_structure": "structure",
+      "structure": "structure"
+    },
+    "restrooms": {
+      "restroom": "restroom"
+    }
+  }
+}

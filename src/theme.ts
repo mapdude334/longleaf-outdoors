@@ -1,5 +1,6 @@
+import { storageKey } from './environment';
 export type ThemeMode = 'system' | 'light' | 'dark';
-const KEY = 'longleaf:theme-mode';
+const KEY = storageKey('longleaf:theme-mode');
 const MODES: ThemeMode[] = ['system', 'light', 'dark'];
 let mode: ThemeMode = 'system';
 const darkPreference = window.matchMedia('(prefers-color-scheme: dark)');

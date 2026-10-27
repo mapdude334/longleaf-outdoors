@@ -1,7 +1,23 @@
 import type { Map } from 'maplibre-gl';
+import pointSymbols from './point-symbols.json';
 
-export const SYMBOL_COLORS: Record<string, string> = { boat_ramp: '#14645e', paddle_launch: '#14645e', fishing: '#754699', marina: '#43566a', campground: '#98532e', trailhead: '#486640', parking: '#424b53', restroom: '#2f5b50', structure: '#914f82', other: '#555b60', water: '#23476a', dam: '#39434c', gauge: '#9b6107', stale: '#697078', spot: '#ad3867', hazard: '#b63b32' };
-export const symbolUrl = (kind: string) => `${import.meta.env.BASE_URL}symbols/${kind in SYMBOL_COLORS ? kind : 'other'}.svg`;
+export const SYMBOL_COLORS: Record<string, string> = pointSymbols.colors;
+export const SYMBOL_KINDS = Object.freeze(Object.keys(SYMBOL_COLORS));
+const SYMBOL_KIND_SET = new Set(SYMBOL_KINDS);
+type PointCatalog = keyof typeof pointSymbols.catalogs;
+
+/** Normalize imported point categories through the shared cross-region Maki registry. */
+export function normalizePointKinds<T extends { properties?: Record<string, any> }>(features: T[], catalog: PointCatalog, source: string): T[] {
+  const mappings: Record<string, string> = pointSymbols.catalogs[catalog];
+  return features.map((feature) => {
+    const raw = feature.properties?.kind;
+    const kind = typeof raw === 'string' ? mappings[raw] : undefined;
+    if (!kind || !SYMBOL_KIND_SET.has(kind)) throw new Error(`${source} contains unmapped point category: ${String(raw)}`);
+    return { ...feature, properties: { ...feature.properties, kind } };
+  });
+}
+
+export const symbolUrl = (kind: string) => `${import.meta.env.BASE_URL}symbols/${Object.hasOwn(SYMBOL_COLORS, kind) ? kind : 'other'}.svg`;
 export const symbolHtml = (kind: string) => `<img class="map-key-icon" src="${symbolUrl(kind)}" alt="" width="28" height="28">`;
 const images = new globalThis.Map<string, Promise<ImageData>>();
 export function installSymbols(map: Map) {

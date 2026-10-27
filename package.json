@@ -4,7 +4,10 @@
   "description": "Offline-first fishing & outdoor map PWA for East Alabama / West Georgia",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npm run validate:points && tsc && vite build",
+    "validate:points": "node pipeline/scripts/validate-point-symbols.mjs",
+    "test:preview": "node tools/test-preview-isolation.mjs",
+    "test:regions": "node tools/test-region-bounds.mjs",
     "preview": "vite preview",
     "typecheck": "tsc"
   },

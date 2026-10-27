@@ -22,6 +22,7 @@
 .destination-picker { display: block; margin-top: 18px; font-size: 12px; color: #e1ece6; }
 .destination-picker select { display: block; width: 100%; min-height: 44px; margin-top: 7px; padding: 10px 30px 10px 10px; border: 1px solid #a8c6b5; border-radius: 7px; background: #f2f5ea; color: #173f36; font: inherit; font-size: 14px; }
 .destination-picker select:focus-visible { outline: 3px solid #e5edce; outline-offset: 3px; }
+.destination-hero .region-scope-note { margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #e1ece6; }
 .trip-pin-banner { position: fixed; z-index: 10; top: calc(var(--top) + 12px); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 100px); display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 8px; background: var(--bg); color: var(--fg); box-shadow: var(--shadow); font-size: 13px; }
 .destination-hero h2 { font-family: Georgia, serif; font-size: 37px; line-height: 1.05; font-weight: 400; margin: 22px 0 12px; }
 .destination-hero p { font-size: 15px; line-height: 1.6; color: #e1ece6; }

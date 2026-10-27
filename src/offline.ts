@@ -4,9 +4,10 @@ import type { Map } from 'maplibre-gl';
 import { GLYPHS, SPRITE, PMTILES, RASTER_BASEMAPS, TERRAIN_URL, USGS_HYDRO_TILES, type PmKey } from './config';
 import { localFile, loadPackManifest, packStatus, remoteSize, removeFromDevice, saveToDevice } from './pmtiles';
 import { esc, toast } from './util';
+import { cacheName } from './environment';
 
-export const RASTER_CACHE = 'vw-raster';
-export const STATIC_CACHE = 'vw-static';
+export const RASTER_CACHE = cacheName('vw-raster');
+export const STATIC_CACHE = cacheName('vw-static');
 const FONTS = ['Noto Sans Regular', 'Noto Sans Medium', 'Noto Sans Italic'];
 const RANGES = ['0-255', '256-511', '8192-8447'];
 

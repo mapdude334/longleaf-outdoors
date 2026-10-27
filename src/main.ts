@@ -25,8 +25,15 @@ import { weatherHtml } from './weather';
 import { addWpt, deleteTrack, deleteWpt, downloadGpx, getTracks, getWpts, importGpx, importSharedWpts, initWaypoints, isRecording, toggleRecording, trackKm, updateWpt, WPT_TYPES } from './waypoints';
 import { renderOffline } from './offline';
 import { $, ago, esc, fmtCoord, store, toast } from './util';
+import { IS_PREVIEW } from './environment';
 
 setWorkerUrl(workerUrl);
+if (IS_PREVIEW) {
+  document.title = 'Longleaf Atlas Preview';
+  document.querySelector('.brand-copy strong')!.textContent = 'Longleaf Atlas · Preview';
+  document.querySelector('.welcome-eyebrow')!.textContent = 'PREVIEW · TEST VERSION';
+  document.querySelector('#welcome-intro')!.textContent = 'Try upcoming features here. Trips, spots and downloads in this preview are saved separately from the main app.';
+}
 initWelcome();
 initDonations();
 registerSW({ immediate: true, onOfflineReady: () => toast('App installed offline. Download map packs before your trip.') });

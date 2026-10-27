@@ -1,5 +1,6 @@
+import { storageKey } from './environment';
 const EDITION = '2026-10-26.2';
-const KEY = 'vw:acknowledgment';
+const KEY = storageKey('vw:acknowledgment');
 
 export function initWelcome() {
   const dialog = document.querySelector<HTMLDialogElement>('#welcome')!;

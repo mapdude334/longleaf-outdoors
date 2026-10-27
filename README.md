@@ -74,6 +74,7 @@ pipeline/ (Python + GDAL + tippecanoe + pmtiles)        app/ (Vite + TypeScript 
 
 - `public/data/waters.json` holds the species, notes and links for each water body. `gnis_names` controls how entries are joined to NHD features.
 - `public/data/dams.json` holds dams, operators, release-info links, the gauge search radius and CWMS name patterns.
+- `src/point-symbols.json` is the shared point-symbol registry. Map new source categories to an existing symbol there and add a matching SVG under `public/symbols/`; `npm run build` checks the point catalogs and symbol files before compiling.
 - `pipeline/sources.json` holds the AOI, zoom levels, and the ArcGIS layers to mirror. To add a county parcel service, add another `parcels_*` entry.
 
 ## Data sources & licenses

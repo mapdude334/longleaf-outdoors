@@ -4,11 +4,12 @@ import { addProtocol } from 'maplibre-gl';
 import { FileSource, PMTiles, Protocol } from 'pmtiles';
 import { PMTILES, TILE_BASE, type PmKey } from './config';
 import { fetchJSON, store } from './util';
+import { cacheName, IS_PREVIEW } from './environment';
 
 export const protocol = new Protocol({ metadata: true });
 addProtocol('pmtiles', protocol.tile);
 
-const CACHE_NAME = 'vw-pmtiles';
+const CACHE_NAME = cacheName('vw-pmtiles');
 export const remoteUrl = (k: PmKey) => new URL(TILE_BASE + PMTILES[k], location.href).href;
 export type PackManifest = { schema: number; region: string; bounds: [number, number, number, number]; builtAt: string; parcelCoverage: string[]; packs: Record<PmKey, { bytes: number; maxZoom: number; sha256: string }> };
 let manifestRequest: Promise<PackManifest | null> | undefined;
@@ -31,7 +32,8 @@ async function fetchPackManifest(): Promise<PackManifest | null> {
 
 async function opfsDir(): Promise<FileSystemDirectoryHandle | null> {
   try {
-    return await navigator.storage.getDirectory();
+    const root = await navigator.storage.getDirectory();
+    return IS_PREVIEW ? await root.getDirectoryHandle('longleaf-preview', { create: true }) : root;
   } catch {
     return null;
   }

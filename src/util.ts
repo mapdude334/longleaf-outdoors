@@ -1,3 +1,5 @@
+import { storageKey } from './environment';
+
 export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) =>
   root.querySelector(sel) as T;
 
@@ -21,7 +23,7 @@ export async function fetchJSON<T = any>(url: string, opts: RequestInit & { time
 export const store = {
   get<T>(k: string): { t: number; v: T } | null {
     try {
-      const s = localStorage.getItem('vw:' + k);
+      const s = localStorage.getItem(storageKey('vw:' + k));
       return s ? JSON.parse(s) : null;
     } catch {
       return null;
@@ -29,7 +31,7 @@ export const store = {
   },
   set<T>(k: string, v: T) {
     try {
-      localStorage.setItem('vw:' + k, JSON.stringify({ t: Date.now(), v }));
+      localStorage.setItem(storageKey('vw:' + k), JSON.stringify({ t: Date.now(), v }));
       return true;
     } catch (e) {
       console.warn('storage full?', e);
@@ -38,7 +40,7 @@ export const store = {
     }
   },
   del(k: string) {
-    try { localStorage.removeItem('vw:' + k); } catch { /* ignore */ }
+    try { localStorage.removeItem(storageKey('vw:' + k)); } catch { /* ignore */ }
   },
 };
 

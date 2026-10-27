@@ -3,6 +3,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // BASE: '/' for a custom domain or local dev; '/<repo>/' for https://<user>.github.io/<repo>/
 const base = process.env.BASE_PATH ?? '/';
+const preview = process.env.VITE_PREVIEW === 'true';
+const cacheName = (name: string) => preview ? `longleaf-preview-${name}` : name;
 
 const tileCache = (pattern: RegExp, cacheName: string, maxEntries: number) => ({
   urlPattern: pattern,
@@ -22,8 +24,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png', 'data/*.json', 'species/*.jpg'],
       manifest: {
-        name: 'Longleaf Atlas',
-        short_name: 'Longleaf Atlas',
+        name: preview ? 'Longleaf Atlas Preview' : 'Longleaf Atlas',
+        short_name: preview ? 'Longleaf Preview' : 'Longleaf Atlas',
         description: 'Spatially Driven Recreation. Outdoor maps, destinations, fishing information and trip planning for the Southeast.',
         theme_color: '#1e3a2b',
         background_color: '#1e3a2b',
@@ -45,13 +47,13 @@ export default defineConfig({
         navigateFallbackDenylist: [/\.pmtiles$/],
         runtimeCaching: [
           // Cache names must match src/offline.ts (RASTER_CACHE / STATIC_CACHE)
-          tileCache(/^https:\/\/basemap\.nationalmap\.gov\/arcgis\/rest\/services\/.*\/tile\//, 'vw-raster', 80000),
-          tileCache(/^https:\/\/s3\.amazonaws\.com\/elevation-tiles-prod\//, 'vw-raster', 80000),
-          tileCache(/^https:\/\/protomaps\.github\.io\/basemaps-assets\//, 'vw-static', 2000),
+          tileCache(/^https:\/\/basemap\.nationalmap\.gov\/arcgis\/rest\/services\/.*\/tile\//, cacheName('vw-raster'), 80000),
+          tileCache(/^https:\/\/s3\.amazonaws\.com\/elevation-tiles-prod\//, cacheName('vw-raster'), 80000),
+          tileCache(/^https:\/\/protomaps\.github\.io\/basemaps-assets\//, cacheName('vw-static'), 2000),
           {
             urlPattern: /\/(MapServer|FeatureServer)\/export\?/,
             handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'vw-arcgis', expiration: { maxEntries: 6000, maxAgeSeconds: 60 * 60 * 24 * 60 }, cacheableResponse: { statuses: [0, 200] } },
+            options: { cacheName: cacheName('vw-arcgis'), expiration: { maxEntries: 6000, maxAgeSeconds: 60 * 60 * 24 * 60 }, cacheableResponse: { statuses: [0, 200] } },
           },
         ],
       },

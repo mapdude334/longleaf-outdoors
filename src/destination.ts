@@ -10,9 +10,58 @@ import { activeTrip } from './trips';
 import { packStatus, loadPackManifest } from './pmtiles';
 import { esc, haversineKm, store } from './util';
 import { isCompactLayout, setSheetSnap } from './sheet';
+import { locationBounds } from './region-bounds';
 
 const BOUNDS: [[number, number], [number, number]] = [[-85.32, 32.86], [-85.02, 33.22]];
-export function selectDestination(id: string) { store.set('destination', id); }
+type Region = { id: string; label: string; bounds: [[number, number], [number, number]]; state?: 'AL' | 'GA'; };
+const REGIONS: Region[] = [
+  { id: 'core', label: 'East Alabama & West Georgia · core map pack', bounds: [[-86.35, 31.55], [-84.35, 33.85]] },
+  { id: 'alabama', label: 'Alabama · cataloged destinations', state: 'AL', bounds: [[-88.6, 30.15], [-84.85, 35.1]] },
+  { id: 'georgia', label: 'Georgia · cataloged destinations', state: 'GA', bounds: [[-85.7, 30.25], [-80.75, 35.05]] },
+  { id: 'coastal', label: 'Gulf & Atlantic Coast · map bookmark', bounds: [[-88.55, 29.55], [-80.72, 32.12]] },
+];
+const stateCodes = (state: string) => state.split(/[\/,]/).map((part) => part.trim());
+const regionWaters = (region: Region) => waters.filter((water) => {
+  if (!water.center) return false;
+  if (region.id === 'coastal') {
+    const [lng, lat] = water.center;
+    const codes = stateCodes(water.state);
+    return (codes.includes('AL') && lng >= -88.4 && lng <= -87.25 && lat <= 31.35)
+      || (codes.includes('GA') && lng >= -82.35 && lng <= -80.72 && lat <= 32.12);
+  }
+  const [west, south] = region.bounds[0], [east, north] = region.bounds[1];
+  return water.center[0] >= west && water.center[0] <= east && water.center[1] >= south && water.center[1] <= north && (!region.state || stateCodes(water.state).includes(region.state));
+});
+const selectedRegion = () => REGIONS.find((region) => region.id === store.get<string>('destination-area')?.v) ?? REGIONS[0];
+function zoomToRegion(map: Map, region: Region) {
+  const points = regionWaters(region).flatMap((water) => water.center ? [water.center] : []);
+  const bounds = locationBounds(points) ?? region.bounds;
+  if (isCompactLayout()) setSheetSnap('peek');
+  const bottom = isCompactLayout() ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) + 20 : 45;
+  map.fitBounds(bounds, { padding: { top: 45, left: isCompactLayout() ? 35 : 410, right: 45, bottom }, duration: 900, maxZoom: points.length === 1 ? 11 : 12 });
+}
+function regionPickerHtml(region: Region) {
+  return `<label class="destination-picker">Choose a region<select id="destination-region">${REGIONS.map((item) => `<option value="${item.id}" ${item.id === region.id ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}</select></label>`;
+}
+function wireRegionPicker(root: HTMLElement, map: Map, region: Region, actions: Parameters<typeof renderDestination>[2]) {
+  root.querySelector<HTMLSelectElement>('#destination-region')?.addEventListener('change', (event) => {
+    const nextRegion = REGIONS.find((item) => item.id === (event.target as HTMLSelectElement).value) ?? REGIONS[0];
+    store.set('destination-area', nextRegion.id);
+    const options = regionWaters(nextRegion);
+    const current = store.get<string>('destination')?.v;
+    if (options.length && !options.some((water) => water.id === current)) selectDestination(options[0].id);
+    zoomToRegion(map, nextRegion);
+    root.scrollTop = 0;
+    void renderDestination(root, map, actions);
+  });
+}
+export function selectDestination(id: string) {
+  store.set('destination', id);
+  const current = selectedRegion();
+  if (regionWaters(current).some((water) => water.id === id)) return;
+  const matching = REGIONS.find((region) => regionWaters(region).some((water) => water.id === id));
+  if (matching) store.set('destination-area', matching.id);
+}
 
 export async function renderDestination(root: HTMLElement, map: Map, actions: {
   weather: (at: [number, number]) => void;
@@ -24,8 +73,16 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   gaugeState: 'loading' | 'ready' | 'unavailable';
 }) {
   if (destinationDownloadBusy()) return;
+  const region = selectedRegion();
+  const choices = regionWaters(region).sort((a, b) => a.name.localeCompare(b.name));
   const selected = store.get<string>('destination')?.v ?? 'west-point';
-  const water = waters.find((w) => w.id === selected) ?? waters.find((w) => w.id === 'west-point');
+  const water = choices.find((w) => w.id === selected) ?? choices[0];
+  if (!choices.length) {
+    root.innerHTML = `<div class="destination-hero"><span class="destination-eyebrow">EXPLORE ALABAMA &amp; GEORGIA</span>${regionPickerHtml(region)}<label class="destination-picker">Choose your destination<select id="destination-select" disabled><option>No cataloged waters in this area yet</option></select></label><h2>${esc(region.label)}</h2><p>We don’t have destination records mapped for this area yet. You can still explore the map and its available layers.</p><button class="btn destination-explore" data-explore-region>Explore this area ↗</button></div><div class="destination-body"><div class="destination-card"><b>Destination coverage is still growing</b><p class="muted small">The map can show available public data here, but lake-specific species, access, and trip guidance have not been cataloged for this region yet.</p></div></div>`;
+    wireRegionPicker(root, map, region, actions);
+    root.querySelector<HTMLButtonElement>('[data-explore-region]')!.onclick = () => zoomToRegion(map, region);
+    return;
+  }
   const CENTER = water?.center ?? [-85.16, 33.0] as [number, number];
   const radius = Math.max(8, Math.sqrt((water?.acres ?? 5000) * 0.00404686 / Math.PI) * 2.4);
   const latSpan = radius / 111;
@@ -55,7 +112,9 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   const overviewOpen = root.querySelector<HTMLDetailsElement>('details[data-overview]')?.open;
   root.innerHTML = `<div class="destination-hero">
       <span class="destination-eyebrow">YOUR NEXT DAY OUT · ALABAMA / GEORGIA</span>
-      <label class="destination-picker">Choose your destination<select id="destination-select">${[...waters].sort((a, b) => a.name.localeCompare(b.name)).map((w) => `<option value="${esc(w.id)}" ${w.id === water?.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label>
+      ${regionPickerHtml(region)}
+      <p class="small region-scope-note">Showing cataloged destinations in this area. Spatial layers and offline map coverage vary by source.</p>
+      <label class="destination-picker">Choose your destination<select id="destination-select">${choices.map((w) => `<option value="${esc(w.id)}" ${w.id === water?.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label>
       <h2>${esc(water?.name ?? 'Choose your water')}</h2><p>Pick your launch. Check the water.<br>Keep the day yours.</p>
       <button class="btn destination-explore" ${water?.center ? '' : 'disabled'}>Explore this water ↗</button>
       ${water && !water.center ? '<p class="small">A single map location is not available for this destination. Browse its information below.</p>' : ''}
@@ -107,6 +166,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
     void renderDestination(root, map, actions);
     root.querySelector<HTMLSelectElement>('#destination-select')?.focus({ preventScroll: true });
   };
+  wireRegionPicker(root, map, region, actions);
   const overview = root.querySelector<HTMLButtonElement>('[data-action="overview"]');
   root.querySelector<HTMLButtonElement>('[data-action="trips"]')!.onclick = actions.trips;
   const tripWeather = root.querySelector<HTMLButtonElement>('[data-trip-weather]');

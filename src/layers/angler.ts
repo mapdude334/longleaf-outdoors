@@ -1,6 +1,7 @@
 import type { Feature, Point } from 'geojson';
 import type { GeoJSONSource, Map } from 'maplibre-gl';
 import { esc, fetchJSON } from '../util';
+import { normalizePointKinds } from '../symbols';
 
 export type AnglerFeature = Feature<Point, Record<string, any>>;
 type Catalog = { type: string; updated: string; source?: string; sourceUrl?: string; features: AnglerFeature[] };
@@ -13,6 +14,7 @@ async function catalog(path: string): Promise<Catalog> {
   if (result.type !== 'FeatureCollection' || !Array.isArray(result.features) || !result.features.every((f) =>
     f.geometry?.type === 'Point' && f.geometry.coordinates.length >= 2 && f.geometry.coordinates.every(Number.isFinite),
   )) throw new Error(`Invalid map data: ${path}`);
+  result.features = normalizePointKinds(result.features, path === 'fish-structures.json' ? 'fish-structures' : 'restrooms', path);
   return result;
 }
 
