@@ -84,11 +84,12 @@ function wireRegionPicker(root: HTMLElement, map: Map, region: RegionDefinition,
   wireSearchPicker(root, 'destination-region', (id) => {
     const nextRegion = REGIONS.find((item) => item.id === id);
     if (!nextRegion) return;
-    if (nextRegion.id === region.id) { store.set('destination-area', nextRegion.id); void renderDestination(root, map, actions); return; }
-    store.set('destination-area', nextRegion.id);
-    actions.regionChanged?.();
-    const current = store.get<string>('destination')?.v;
-    if (current && !regionWaters(nextRegion).some((water) => water.id === current)) store.del('destination');
+    if (nextRegion.id !== region.id) {
+      store.set('destination-area', nextRegion.id);
+      actions.regionChanged?.();
+      const current = store.get<string>('destination')?.v;
+      if (current && !regionWaters(nextRegion).some((water) => water.id === current)) store.del('destination');
+    }
     root.scrollTop = 0;
     void renderDestination(root, map, actions);
     // Recalculate the map viewport after the destination panel has refreshed.
