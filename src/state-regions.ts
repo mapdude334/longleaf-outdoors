@@ -13,6 +13,8 @@ export type RegionDefinition = {
   id: string;
   label: string;
   bounds: GeographicBounds;
+  /** Optional camera extent when the data scope includes adjacent waters beyond the state outline. */
+  viewBounds?: GeographicBounds;
   states?: StateCode[];
   membership?: RegionMembership[];
 };
@@ -36,9 +38,9 @@ const SC_ATLANTIC: GeographicBounds = [[-81.55, 31.85], [-78.4, 35.25]];
 /** Keep the existing region IDs, labels, bounds, and membership behavior stable. */
 export const REGIONS: RegionDefinition[] = [
   { id: 'core', label: 'East Alabama & West Georgia · core map pack', bounds: [[-86.35, 31.55], [-84.35, 33.85]] },
-  { id: 'alabama', label: 'Alabama · statewide & Gulf', states: ['AL'], bounds: STATES[0].bounds },
-  { id: 'georgia', label: 'Georgia · statewide & Atlantic', states: ['GA'], bounds: STATES[1].bounds },
-  { id: 'south-carolina', label: 'South Carolina · statewide & coast', states: ['SC'], bounds: STATES[2].bounds },
+  { id: 'alabama', label: 'Alabama · statewide & Gulf', states: ['AL'], bounds: STATES[0].bounds, viewBounds: [[-88.47323, 30.14469], [-84.88825, 35.00803]] },
+  { id: 'georgia', label: 'Georgia · statewide & Atlantic', states: ['GA'], bounds: STATES[1].bounds, viewBounds: [[-85.60517, 30.35576], [-80.78296, 35.0013]] },
+  { id: 'south-carolina', label: 'South Carolina · statewide & coast', states: ['SC'], bounds: STATES[2].bounds, viewBounds: [[-83.3539, 31.99595], [-78.4993, 35.21522]] },
   { id: 'coastal', label: 'Gulf & Atlantic Coast', bounds: [[-88.65, 28.5], [-78.4, 35.25]], membership: [
     { states: ['AL'], bounds: AL_GULF },
     { states: ['GA'], bounds: GA_ATLANTIC },

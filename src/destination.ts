@@ -25,8 +25,11 @@ function zoomToRegion(map: Map, region: RegionDefinition) {
   // per-camera padding to the global padding, which otherwise shifts the
   // target region away from the visible map area.
   map.setPadding({ top: 0, left: 0, right: 0, bottom: 0 });
-  const padding = { top: 45, left: compact ? 35 : 410, right: 45, bottom };
-  const camera = map.cameraForBounds(region.bounds, { padding, maxZoom: 9, bearing: 0, pitch: 0 });
+  const panel = document.querySelector<HTMLElement>('#sheet');
+  const panelRight = panel?.getBoundingClientRect().right ?? 390;
+  const left = compact ? 35 : Math.max(45, Math.ceil(panelRight + 20));
+  const padding = { top: 45, left, right: 45, bottom };
+  const camera = map.cameraForBounds(region.viewBounds ?? region.bounds, { padding, maxZoom: 9, bearing: 0, pitch: 0 });
   if (camera) map.flyTo({ ...camera, duration: 900, essential: true });
 }
 function pickerHtml(id: string, title: string, placeholder: string, options: { value: string; label: string }[], selected?: string, disabled = false) {
