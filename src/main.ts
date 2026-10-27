@@ -24,7 +24,7 @@ import { loadAnglerData, fishStructures, restrooms, habitats, fishStructureHtml,
 import { identifyParcels, identifyPublicLands, publicLandHtml, MANAGER_TYPES } from './layers/identify';
 import { weatherHtml } from './weather';
 import { addWpt, deleteTrack, deleteWpt, downloadGpx, getTracks, getWpts, importGpx, importSharedWpts, initWaypoints, isRecording, toggleRecording, trackKm, updateWpt, WPT_TYPES } from './waypoints';
-import { renderOffline } from './offline';
+import { renderOffline, renderSavedMaps } from './offline';
 import { $, ago, esc, fmtCoord, store, toast } from './util';
 import { IS_PREVIEW } from './environment';
 
@@ -234,7 +234,19 @@ function showTab(name: string) {
   } else setSheetSnap('full');
   if (name === 'destination') void destination();
   if (name === 'weather') renderWeather();
-  if (name === 'offline') renderOffline($('#tab-offline'), map, refreshAvailability, ui.on, updateOfflineDataLayer);
+  if (name === 'offline') renderOffline($('#tab-offline'), map, refreshAvailability, ui.on, updateOfflineDataLayer, () => showTab('saved-maps'));
+  if (name === 'saved-maps') void renderSavedMaps($('#tab-saved-maps'), map, refreshAvailability, (area) => {
+    const base = area.mapLayers.find((layer): layer is BasemapId => layer === 'topo' || layer === 'imagery');
+    if (base) ui.basemap = base;
+    ui.on.hillshade = area.mapLayers.includes('terrain');
+    ui.on.water = area.mapLayers.includes('hydro');
+    saveUi();
+    applyVisibility();
+    map.fitBounds([[area.bounds[0], area.bounds[1]], [area.bounds[2], area.bounds[3]]], { padding: 48, maxZoom: Math.min(area.maxZoom, 14), duration: 500 });
+  }, (bounds) => {
+    if (av.basemap) { ui.basemap = 'vector'; saveUi(); applyVisibility(); }
+    map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 48, maxZoom: 9, duration: 500 });
+  });
   if (name === 'mine') renderMine();
   if (name === 'trips') renderTrips($('#tab-trips'), map, openTripDestination);
 }
