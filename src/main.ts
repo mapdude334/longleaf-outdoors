@@ -3,8 +3,8 @@ import { initWelcome } from './welcome';
 import { initDonations } from './donate';
 import { initTheme } from './theme';
 import { installSymbols, symbolHtml, highlightLocation } from './symbols';
-import { addShareControl } from './share';
-import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick, useLaunchInTrip, useSpotInTrip } from './trips';
+import { addShareControl, clearIncomingShare, readIncomingShare, shareSpots, type SharePayload } from './share';
+import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick, useLaunchInTrip, useSpotInTrip, validateTripBackup, type Trip } from './trips';
 import { speciesForLabel, speciesHtml, speciesChoiceHtml } from './species';
 import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -22,7 +22,7 @@ import { loadAccessLive, accessHtml, ACCESS_LABELS } from './layers/access';
 import { loadAnglerData, fishStructures, restrooms, fishStructureHtml, restroomHtml } from './layers/angler';
 import { identifyParcels, identifyPublicLands, publicLandHtml, MANAGER_TYPES } from './layers/identify';
 import { weatherHtml } from './weather';
-import { addWpt, deleteTrack, deleteWpt, downloadGpx, getTracks, getWpts, importGpx, initWaypoints, isRecording, toggleRecording, trackKm, updateWpt, WPT_TYPES } from './waypoints';
+import { addWpt, deleteTrack, deleteWpt, downloadGpx, getTracks, getWpts, importGpx, importSharedWpts, initWaypoints, isRecording, toggleRecording, trackKm, updateWpt, WPT_TYPES } from './waypoints';
 import { renderOffline } from './offline';
 import { $, ago, esc, fmtCoord, store, toast } from './util';
 
@@ -35,10 +35,17 @@ registerSW({ immediate: true, onOfflineReady: () => toast('App installed offline
 type UiState = { basemap: BasemapId; on: Record<string, boolean>; terrain3d: boolean; coordFmt: 'dd' | 'dm' };
 const DEFAULT_ON: Record<string, boolean> = {
   hillshade: true, public_lands: true, parcels: false, water: true, contours: false, radar: false,
-  access: true, fish_structures: true, restrooms: true, dams: true, dams_osm: true, gauges: true, waters: true, mine: true,
+  access: true, fish_structures: false, restrooms: false, dams: true, dams_osm: true, gauges: true, waters: true, mine: true,
 };
 const ui: UiState = { basemap: 'topo', terrain3d: false, coordFmt: 'dd', ...store.get<UiState>('ui')?.v, on: { ...DEFAULT_ON, ...store.get<UiState>('ui')?.v?.on } };
 const saveUi = () => store.set('ui', ui);
+const previousUi = store.get<UiState>('ui')?.v;
+if (!store.get<boolean>('map-profile-cleanup')?.v) {
+  const oldNoisyDefaults = previousUi?.on && previousUi.on.fish_structures === true && previousUi.on.restrooms === true
+    && Object.entries({ ...DEFAULT_ON, fish_structures: true, restrooms: true }).every(([key, value]) => previousUi.on[key] === value);
+  if (oldNoisyDefaults) { ui.on.fish_structures = false; ui.on.restrooms = false; saveUi(); }
+  store.set('map-profile-cleanup', true);
+}
 let av: Availability = { basemap: null, overlays: null, parcels: null };
 
 const map = new Map({
@@ -203,7 +210,7 @@ function showTab(name: string) {
   if (name === 'weather') renderWeather();
   if (name === 'offline') renderOffline($('#tab-offline'), map, refreshAvailability);
   if (name === 'mine') renderMine();
-  if (name === 'trips') renderTrips($('#tab-trips'), map, (id) => { selectDestination(id); showTab('destination'); $('#tab-destination').scrollTop = 0; if (isCompactLayout()) setSheetSnap('peek'); });
+  if (name === 'trips') renderTrips($('#tab-trips'), map, openTripDestination);
 }
 document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((b) => (b.onclick = () => {
   if (currentTab === b.dataset.tab && sheet.classList.contains('open')) setSheetSnap('peek');
@@ -301,6 +308,66 @@ function showInfo(html: string, after?: (root: HTMLElement) => void) {
   });
 }
 
+function handleIncomingShare() {
+  let incoming: SharePayload | undefined;
+  try { incoming = readIncomingShare(); }
+  catch (error) {
+    showInfo(`<h3>Shared link could not be opened</h3><p>${esc((error as Error).message)}</p><button class="btn" data-dismiss-share>Continue to the map</button>`, (root) => {
+      const dismiss = () => { clearIncomingShare(); showTab('destination'); };
+      root.querySelector<HTMLButtonElement>('.close')!.onclick = dismiss;
+      root.querySelector<HTMLButtonElement>('[data-dismiss-share]')!.onclick = dismiss;
+    });
+    return;
+  }
+  if (!incoming) return;
+  const dismiss = () => { clearIncomingShare(); showTab('destination'); };
+  if (incoming.kind === 'trip') {
+    const trip = incoming.trip;
+    const water = waters.find((w) => w.id === trip.destination);
+    const invalid = !water || (() => { try { validateTripBackup({ schema: 1, trips: [trip] }); return false; } catch { return true; } })();
+    showInfo(`<h3>Review a shared trip</h3>${invalid ? '<p>This trip refers to a destination or details that this version of the app cannot open.</p>' : `<div class="destination-card"><b>${esc(trip.name)}</b><p>${esc(water!.name)}${trip.date ? ` · ${esc(trip.date)}` : ''}</p><p>Launch: ${esc(trip.ramp?.name ?? 'Not selected')}</p><p>Fishing spots: ${esc(trip.spots.map((spot) => spot.name).join(', ') || 'None added')}</p>${trip.notes ? `<p style="white-space:pre-wrap">${esc(trip.notes)}</p>` : ''}</div><p class="muted small">Nothing is saved until you choose to add a copy. This link carries exact pin locations and notes, and is visible to anyone who has it.</p>`}<div class="row-btns"><button class="btn primary" data-save-shared-trip ${invalid ? 'disabled' : ''}>Save trip copy</button><button class="btn" data-dismiss-share>Not now</button></div>`, (root) => {
+      root.querySelector<HTMLButtonElement>('.close')!.onclick = dismiss;
+      root.querySelector<HTMLButtonElement>('[data-dismiss-share]')!.onclick = dismiss;
+      root.querySelector<HTMLButtonElement>('[data-save-shared-trip]')!.onclick = () => {
+        try {
+          validateTripBackup({ schema: 1, trips: [trip] });
+          if (!waters.some((w) => w.id === trip.destination)) throw Error('This destination is not available in the current app.');
+          const copy: Trip = { ...structuredClone(trip), id: crypto.randomUUID(), ramp: trip.ramp ? { ...trip.ramp, id: crypto.randomUUID() } : undefined, spots: trip.spots.map((spot) => ({ ...spot, id: crypto.randomUUID() })), updated: Date.now() };
+          const trips = [copy, ...(store.get<Trip[]>('trips')?.v ?? [])];
+          if (!store.set('trips', trips) || !store.set('active-trip', copy)) throw Error('This device could not save the shared trip. Check available storage and try again.');
+          selectDestination(copy.destination);
+          clearIncomingShare();
+          openTripDestination(copy.destination);
+          const coords = [...(copy.ramp ? [copy.ramp.coords] : []), ...copy.spots.map((spot) => spot.coords), ...(water!.center ? [water!.center] : [])];
+          if (coords.length) map.fitBounds([[Math.min(...coords.map((p) => p[0])), Math.min(...coords.map((p) => p[1]))], [Math.max(...coords.map((p) => p[0])), Math.max(...coords.map((p) => p[1]))]], { padding: { left: !isCompactLayout() ? 420 : 40, right: 55, top: 45, bottom: !isCompactLayout() ? 45 : 150 }, maxZoom: 13 });
+          toast('Shared trip saved on this device.');
+        } catch (error) { root.querySelector('[data-share-error]')?.remove(); const note = document.createElement('p'); note.className = 'muted small'; note.dataset.shareError = ''; note.textContent = (error as Error).message; root.append(note); }
+      };
+    });
+  } else {
+    showInfo(`<h3>Review shared locations</h3><p>${incoming.spots.length} saved map pin${incoming.spots.length === 1 ? '' : 's'} from a friend.</p><ul class="list">${incoming.spots.map((spot) => `<li><b>${esc(spot.name)}</b><span>${esc(WPT_TYPES[spot.type]?.label ?? 'Location')} · ${fmtCoord(spot.lng, spot.lat, ui.coordFmt)}</span>${spot.notes ? `<span>${esc(spot.notes)}</span>` : ''}</li>`).join('')}</ul><p class="muted small">Nothing is saved until you choose to add these locations to My Spots. Exact coordinates are visible to anyone with the link.</p><div class="row-btns"><button class="btn primary" data-save-shared-spots>Save to My Spots</button><button class="btn" data-dismiss-share>Not now</button></div>`, (root) => {
+      root.querySelector<HTMLButtonElement>('.close')!.onclick = dismiss;
+      root.querySelector<HTMLButtonElement>('[data-dismiss-share]')!.onclick = dismiss;
+      root.querySelector<HTMLButtonElement>('[data-save-shared-spots]')!.onclick = () => {
+        const imported = importSharedWpts(incoming!.kind === 'spots' ? incoming!.spots : []);
+        if (!imported.length) { toast('These locations could not be saved on this device.'); return; }
+        clearIncomingShare();
+        showTab('mine');
+        const coords = imported.map((spot) => [spot.lng, spot.lat] as [number, number]);
+        map.fitBounds([[Math.min(...coords.map((p) => p[0])), Math.min(...coords.map((p) => p[1]))], [Math.max(...coords.map((p) => p[0])), Math.max(...coords.map((p) => p[1]))]], { padding: { left: !isCompactLayout() ? 420 : 40, right: 55, top: 45, bottom: !isCompactLayout() ? 45 : 150 }, maxZoom: 14 });
+        toast(`${imported.length} shared location${imported.length === 1 ? '' : 's'} saved to My Spots.`);
+      };
+    });
+  }
+}
+
+function openTripDestination(id: string) {
+  selectDestination(id);
+  showTab('destination');
+  $('#tab-destination').scrollTop = 0;
+  if (isCompactLayout()) setSheetSnap('peek');
+}
+
 function openSpecies(label: string, back: () => void) {
   const matches = speciesForLabel(label);
   if (!matches.length) return;
@@ -333,6 +400,19 @@ const OVERLAY_ROWS: [string, string, string?][] = [
   ['radar', 'Weather radar', 'Live NEXRAD'],
   ['mine', 'My waypoints & tracks'],
 ];
+const LAYER_PROFILES: Record<string, string[]> = {
+  fishing: ['public_lands', 'access', 'water', 'dams', 'dams_osm', 'gauges', 'waters', 'mine'],
+  facilities: ['public_lands', 'access', 'restrooms', 'water', 'waters', 'mine'],
+  land: ['public_lands', 'water', 'contours', 'hillshade'],
+  all: OVERLAY_ROWS.map(([group]) => group).concat('dams_osm'),
+};
+function useLayerProfile(profile: string) {
+  const enabled = LAYER_PROFILES[profile];
+  if (!enabled) return;
+  for (const [group] of OVERLAY_ROWS) ui.on[group] = enabled.includes(group);
+  ui.on.dams_osm = enabled.includes('dams_osm');
+  saveUi(); applyVisibility(); renderLayers();
+}
 function renderLayers() {
   const el = $('#tab-layers');
   const bases: [BasemapId, string, boolean][] = [
@@ -340,6 +420,9 @@ function renderLayers() {
   ];
   el.innerHTML = `
     <h3>Map layers</h3>
+    <h4>Quick map views</h4>
+    <div class="seg layer-profiles"><button data-profile="fishing">Fishing</button><button data-profile="facilities">Facilities</button><button data-profile="land">Land &amp; water</button><button data-profile="all">All layers</button></div>
+    <p class="muted small">Start with a focused map, then switch on extra detail when you need it.</p>
     <h4>Basemap</h4>
     <div class="seg">${bases.map(([id, label, ok]) => `<button data-base="${id}" class="${ui.basemap === id ? 'active' : ''}" ${ok ? '' : 'disabled title="Install with the data pipeline"'}>${label}</button>`).join('')}</div>
     <label class="row"><input type="checkbox" id="t3d" ${ui.terrain3d ? 'checked' : ''}> 3D terrain (tilt with two fingers / right-drag)</label>
@@ -360,6 +443,7 @@ function renderLayers() {
     <p class="muted small">Data: ${esc(dataStatus || 'loading…')}<br>
     Overlays: ${av.overlays ? (av.overlays.where === 'device' ? 'offline pack on device' : 'streaming') : 'live services (install packs in Offline tab)'}.</p>`;
   el.querySelectorAll<HTMLButtonElement>('[data-base]').forEach((b) => (b.onclick = () => { ui.basemap = b.dataset.base as BasemapId; saveUi(); applyVisibility(); renderLayers(); }));
+  el.querySelectorAll<HTMLButtonElement>('[data-profile]').forEach((b) => (b.onclick = () => useLayerProfile(b.dataset.profile!)));
   el.querySelectorAll<HTMLInputElement>('[data-g]').forEach((c) => (c.onchange = () => {
     ui.on[c.dataset.g!] = c.checked;
     if (c.dataset.g === 'dams') ui.on.dams_osm = c.checked;
@@ -420,7 +504,7 @@ function renderMine() {
       <button class="btn ${isRecording() ? 'danger' : ''}" id="rec">${isRecording() ? '■ Stop track' : '● Record track'}</button>
     </div>
     <h4>Waypoints (${w.length})</h4>
-    <ul class="list">${w.map((p) => `<li data-id="${p.id}">${symbolHtml(({ fish: 'spot', ramp: 'boat_ramp', camp: 'campground', hazard: 'hazard', parking: 'parking' } as Record<string, string>)[p.type] ?? 'other')}<b>${esc(p.name)}</b> <span class="muted small">${esc(WPT_TYPES[p.type]?.label ?? '')} · ${fmtCoord(p.lng, p.lat, ui.coordFmt)}</span></li>`).join('') || '<li class="muted">Long-press (or right-click) the map to drop a waypoint.</li>'}</ul>
+    <ul class="list">${w.map((p) => `<li data-id="${esc(p.id)}">${symbolHtml(({ fish: 'spot', ramp: 'boat_ramp', camp: 'campground', hazard: 'hazard', parking: 'parking' } as Record<string, string>)[p.type] ?? 'other')}<b>${esc(p.name)}</b> <span class="muted small">${esc(WPT_TYPES[p.type]?.label ?? '')} · ${fmtCoord(p.lng, p.lat, ui.coordFmt)}</span><div class="row-btns"><button class="btn" data-share-wpt="${esc(p.id)}">Share location</button></div></li>`).join('') || '<li class="muted">Long-press (or right-click) the map to drop a waypoint.</li>'}</ul>
     <h4>Tracks (${t.length})</h4>
     <ul class="list">${t.map((tr) => `<li data-track="${tr.id}"><b>${esc(tr.name)}</b> <span class="muted small">${(trackKm(tr) * 0.621).toFixed(2)} mi</span> <button class="link del-track">delete</button></li>`).join('') || '<li class="muted">No tracks yet.</li>'}</ul>
     <div class="row-btns"><button class="btn" id="gpx-out">Export GPX</button><label class="btn">Import GPX<input type="file" accept=".gpx,application/gpx+xml" hidden id="gpx-in"></label></div>
@@ -449,6 +533,7 @@ function renderMine() {
   el.querySelector<HTMLButtonElement>('#gpx-out')!.onclick = downloadGpx;
   el.querySelector<HTMLInputElement>('#gpx-in')!.onchange = (e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) importGpx(f).catch(() => toast('Could not read the GPX file.'));  };
   el.querySelectorAll<HTMLElement>('li[data-id]').forEach((li) => (li.onclick = () => { const p = w.find((x) => x.id === li.dataset.id)!; map.flyTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), 14) }); editWpt(p.id); }));
+  el.querySelectorAll<HTMLButtonElement>('[data-share-wpt]').forEach((button) => (button.onclick = (event) => { event.stopPropagation(); const point = w.find((p) => p.id === button.dataset.shareWpt); if (point) { try { shareSpots([point]); } catch (error) { toast((error as Error).message); } } }));
   el.querySelectorAll<HTMLElement>('li[data-track] .del-track').forEach((b) => (b.onclick = () => { deleteTrack(b.closest<HTMLElement>('li')!.dataset.track!); }));
 }
 document.addEventListener('vw:mine-changed', () => { if (currentTab === 'mine') renderMine(); });
@@ -638,3 +723,10 @@ map.once('style.load', () => {
   setSheetSnap(isCompactLayout() ? 'peek' : 'full');
 });
 map.on('error', (e) => console.debug('map error', e.error?.message ?? e));
+
+if (new URL(location.href).searchParams.has('share')) {
+  const openReview = () => { if (map.loaded()) handleIncomingShare(); else map.once('load', handleIncomingShare); };
+  const welcome = $('#welcome') as HTMLDialogElement;
+  if (welcome.open) welcome.addEventListener('close', openReview, { once: true });
+  else openReview();
+}

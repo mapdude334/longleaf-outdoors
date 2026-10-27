@@ -68,6 +68,11 @@ export function addWpt(lng: number, lat: number, name?: string, type = 'fish', n
   save();
   return w;
 }
+export function importSharedWpts(points: Pick<Wpt, 'name' | 'type' | 'lng' | 'lat' | 'notes'>[]) {
+  const imported = points.map((p) => ({ id: crypto.randomUUID(), name: p.name.trim().slice(0, 120) || 'Shared location', type: WPT_TYPES[p.type] ? p.type : 'other', lng: p.lng, lat: p.lat, notes: (p.notes ?? '').slice(0, 2000), time: Date.now() }));
+  wpts.push(...imported);
+  return save() ? imported : [];
+}
 export function updateWpt(id: string, patch: Partial<Wpt>) {
   wpts = wpts.map((w) => (w.id === id ? { ...w, ...patch } : w));
   return save();

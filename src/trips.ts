@@ -5,6 +5,7 @@ import { getWpts } from './waypoints';
 import { loadAccessLive, accessLocation } from './layers/access';
 import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
 import { esc, haversineKm, store, toast } from './util';
+import { shareTrip } from './share';
 
 export type Place = { id: string; name: string; coords: [number, number] };
 export type Trip = { id: string; name: string; destination: string; date?: string; ramp?: Place; spots: Place[]; notes: string; updated: number; view: { center: [number, number]; zoom: number } };
@@ -57,7 +58,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       <p class="muted small" data-import-status role="status"></p>
       ${draft() ? '<p class="muted small">Resume and save your draft before starting another trip. Backups include saved trips.</p>' : ''}
       <p class="muted small">Saved on this browser, available offline. Map packs must be downloaded separately. Clearing browser data removes trips.</p>
-      <ul class="list">${saved().map((t) => `<li><button class="destination-row" data-edit="${esc(t.id)}"><b>${esc(t.name)}</b><span>${esc(waters.find((w) => w.id === t.destination)?.name ?? t.destination)}</span><span>${esc(t.ramp?.name ?? 'No launch selected')} · ${t.spots.length} fishing spots</span></button></li>`).join('') || '<li class="muted">Your saved trips will appear here.</li>'}</ul>`;
+      <ul class="list">${saved().map((t) => `<li><button class="destination-row" data-edit="${esc(t.id)}"><b>${esc(t.name)}</b><span>${esc(waters.find((w) => w.id === t.destination)?.name ?? t.destination)}</span><span>${esc(t.ramp?.name ?? 'No launch selected')} · ${t.spots.length} fishing spots</span></button><div class="row-btns"><button class="btn" data-share-trip="${esc(t.id)}">Share trip</button></div></li>`).join('') || '<li class="muted">Your saved trips will appear here.</li>'}</ul>`;
     root.querySelector<HTMLButtonElement>('[data-new]')!.onclick = () => edit({ id: crypto.randomUUID(), name: '', destination: store.get<string>('destination')?.v ?? 'west-point', spots: [], notes: '', updated: Date.now(), view: { center: map.getCenter().toArray() as [number, number], zoom: map.getZoom() } });
     const resume = root.querySelector<HTMLButtonElement>('[data-resume]');
     if (resume) resume.onclick = () => edit(structuredClone(draft()!));
@@ -79,6 +80,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       } catch (error) { status.textContent = (error as Error).message; }
     };
     root.querySelectorAll<HTMLButtonElement>('[data-edit]').forEach((b) => b.onclick = () => { const trip = saved().find((t) => t.id === b.dataset.edit); if (trip) edit(structuredClone(trip)); });
+    root.querySelectorAll<HTMLButtonElement>('[data-share-trip]').forEach((b) => b.onclick = () => { const trip = saved().find((t) => t.id === b.dataset.shareTrip); if (trip) { try { shareTrip(trip); } catch (error) { toast((error as Error).message); } } });
   }
   function edit(trip: Trip) {
     const water = waters.find((w) => w.id === trip.destination);
@@ -113,7 +115,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       <label class="field">New fishing spot name<input id="trip-spot-name" maxlength="120" placeholder="Point, cove or brush pile"></label><button class="btn" data-add-spot>Drop a fishing pin</button><button class="btn" data-cancel-pin hidden>Cancel pin</button>
       <label class="field">Trip notes<textarea id="trip-notes" rows="5" maxlength="10000" placeholder="Meet-up time, tackle, plan for the day…">${esc(trip.notes)}</textarea></label>
       <p class="muted small" data-trip-status aria-live="polite">${draft()?.id === trip.id ? 'Autosaved draft recovered. Save trip when your plan is ready.' : saved().some((t) => t.id === trip.id) ? 'Previously saved. Edits will autosave as a draft.' : 'Your draft will autosave as you edit.'}</p>
-      <div class="row-btns"><button class="btn primary" data-save-trip>Save trip</button><button class="btn" data-open-trip>Open trip on map</button></div>`;
+      <div class="row-btns"><button class="btn primary" data-save-trip>Save trip</button><button class="btn" data-open-trip>Open trip on map</button><button class="btn" data-share-trip-draft>Share trip</button></div>`;
     const input = <T extends HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(id: string) => root.querySelector<T>(id)!;
     const collect = () => {
       trip.name = input('#trip-name').value.trim(); trip.destination = input('#trip-destination').value;
@@ -148,7 +150,12 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       root.querySelector('[data-trip-status]')!.textContent = 'Trip saved on this device.';
       return true;
     };
-    input<HTMLSelectElement>('#trip-destination').onchange = () => { collect(); trip.ramp = undefined; store.set('trip-draft', trip); edit(trip); };
+    input<HTMLSelectElement>('#trip-destination').onchange = () => {
+      collect(); trip.ramp = undefined; store.set('trip-draft', trip);
+      const center = waters.find((w) => w.id === trip.destination)?.center;
+      if (center) map.flyTo({ center, zoom: 11, padding: { left: !isCompactLayout() ? 410 : 40, right: 55, top: 50, bottom: !isCompactLayout() ? 45 : 150 } });
+      edit(trip);
+    };
     root.querySelector<HTMLButtonElement>('[data-back]')!.onclick = list;
     root.querySelector<HTMLButtonElement>('[data-refresh-launches]')!.onclick = async (event) => {
       const button = event.currentTarget as HTMLButtonElement;
@@ -191,6 +198,15 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       toast('Tap the map where you want your fishing pin. Escape cancels.', 10000);
     };
     root.querySelector<HTMLButtonElement>('[data-save-trip]')!.onclick = () => { if (save()) toast('Trip saved.'); };
+    root.querySelector<HTMLButtonElement>('[data-share-trip-draft]')!.onclick = () => {
+      collect();
+      if (!waters.some((w) => w.id === trip.destination)) { input('#trip-destination').focus(); toast('Choose a destination before sharing.'); return; }
+      if (!trip.name) { input('#trip-name').focus(); toast('Name your trip before sharing.'); return; }
+      trip.updated = Date.now();
+      trip.view = { center: map.getCenter().toArray() as [number, number], zoom: map.getZoom() };
+      store.set('trip-draft', trip);
+      try { shareTrip(trip); } catch (error) { toast((error as Error).message); }
+    };
     root.querySelector<HTMLButtonElement>('[data-open-trip]')!.onclick = () => {
       // Opening a saved trip restores its saved view; edits are saved explicitly.
       if (!save()) return;
