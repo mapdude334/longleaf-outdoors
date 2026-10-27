@@ -18,10 +18,13 @@ const BOUNDS: [[number, number], [number, number]] = [[-85.32, 32.86], [-85.02, 
 const regionWaters = (region: RegionDefinition) => waters.filter((water) => regionContainsWater(region, water));
 const selectedRegion = () => REGIONS.find((region) => region.id === store.get<string>('destination-area')?.v) ?? REGIONS[0];
 function zoomToRegion(map: Map, region: RegionDefinition) {
-  if (isCompactLayout()) setSheetSnap('peek');
-  const bottom = isCompactLayout() ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) + 20 : 45;
-  const padding = { top: 45, left: isCompactLayout() ? 35 : 410, right: 45, bottom };
-  const camera = map.cameraForBounds(region.bounds, { padding, maxZoom: 9, bearing: 0, pitch: 0 });
+  const compact = isCompactLayout();
+  if (compact) setSheetSnap('peek');
+  const bottom = compact ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) + 20 : 45;
+  // Desktop map padding already accounts for the open side panel (400 px).
+  // Adding another left offset here double-counted it and pushed regions off view.
+  const padding = compact ? { top: 45, left: 35, right: 45, bottom } : undefined;
+  const camera = map.cameraForBounds(region.bounds, { ...(padding ? { padding } : {}), maxZoom: 9, bearing: 0, pitch: 0 });
   if (camera) map.flyTo({ ...camera, duration: 900, essential: true });
 }
 function regionPickerHtml(region: RegionDefinition) {
