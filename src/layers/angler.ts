@@ -16,14 +16,12 @@ async function catalog(path: string): Promise<Catalog> {
   return result;
 }
 
-export async function loadAnglerData(map: Map, hasOfflineOverlays: boolean) {
+export async function loadAnglerData(map: Map) {
   const [structures, toilets] = await Promise.all([catalog('fish-structures.json'), catalog('restrooms.json')]);
   fishStructures = structures.features;
   restrooms = toilets.features;
-  if (!hasOfflineOverlays) {
-    (map.getSource('fish-structures-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: fishStructures });
-    (map.getSource('restrooms-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: restrooms });
-  }
+  (map.getSource('fish-structures-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: fishStructures });
+  (map.getSource('restrooms-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: restrooms });
   return { structureCount: fishStructures.length, restroomCount: restrooms.length, updated: structures.updated };
 }
 

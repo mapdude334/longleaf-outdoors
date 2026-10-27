@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Build vector overlay tilesets with tippecanoe -> PMTiles.
-#   overlays.pmtiles : public lands, waters, access, dams, fish structures, restrooms   (~20-80 MB)
+#   overlays.pmtiles : public lands(+_labels), water_bodies, streams, access, osm_dams   (~20-80 MB)
 #   parcels.pmtiles  : county parcels (only where free public services exist)  (~50-300 MB)
 set -euo pipefail
 cd "$(dirname "$0")/../out"
 
 layers=()
-for name in public_lands public_lands_labels water_bodies streams access osm_dams fish_structures restrooms; do
+for name in public_lands public_lands_labels water_bodies streams access osm_dams; do
   test -s "$name.geojson" || { echo "Missing required layer: $name"; exit 1; }
   layers+=(-L "{\"layer\":\"$name\",\"file\":\"$name.geojson\"}")
 done

@@ -57,7 +57,7 @@ jobs:
         run: |
           tag="tiles-$(date -u +%Y%m%d)-${GITHUB_RUN_NUMBER}"
           gh release create "$tag" pipeline/out/*.pmtiles pipeline/out/manifest.json --title "Map data $tag" \
-            --notes "Validated regional maps. Coverage, archive sizes, checksums, zoom levels and source counts are in manifest.json. Sources: Protomaps/OSM (ODbL), USGS PAD-US 4.1 and NHD, Alabama DCNR fish-attractor GIS, USACE Mobile District, and county GIS."
+            --notes "Validated regional maps. Coverage, archive sizes, checksums, zoom levels and source counts are in manifest.json. Sources: Protomaps/OSM (ODbL), USGS PAD-US 4.1 and NHD, and county GIS."
       - name: Upload to Cloudflare R2 (optional)
         if: env.R2_BUCKET != ''
         env:

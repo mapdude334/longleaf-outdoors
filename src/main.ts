@@ -149,7 +149,7 @@ async function reloadData() {
     loadDams(map).then(() => { if (currentTab === 'destination') void destination(); }),
     loadGauges(map).then((r) => { gaugeState = 'ready'; parts.push(`${r.count} gauges · ${r.source}${r.offline ? ' (cached ' + ago(r.t) + ')' : ''}`); if (currentTab === 'destination') void destination(); }).catch(() => { gaugeState = 'unavailable'; parts.push('Gauges unavailable'); if (currentTab === 'destination') void destination(); }),
     loadAccessLive(map).then((r) => { parts.push(`${r.count} access points (${r.source}${r.offline ? ', cached' : ''})`); if (currentTab === 'destination') void destination(); }).catch(() => parts.push('Access points unavailable')),
-    loadAnglerData(map, !!av.overlays).then((r) => parts.push(`${r.structureCount} fish structures · ${r.restroomCount} restroom records`)).catch(() => parts.push('Angler structure/restroom data unavailable')),
+    loadAnglerData(map).then((r) => parts.push(`${r.structureCount} fish structures · ${r.restroomCount} restroom records`)).catch(() => parts.push('Angler structure/restroom data unavailable')),
   ]);
   dataStatus = parts.join(' · ');
   renderLayers();

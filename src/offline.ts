@@ -92,7 +92,7 @@ export async function storageSummary() {
 
 const PM_LABELS: Record<PmKey, string> = {
   basemap: 'Vector basemap (roads, trails, names – OpenStreetMap)',
-  overlays: 'Public lands, lakes, streams, ramps, fish structures & restrooms',
+  overlays: 'Public lands, lakes, streams, ramps & access',
   parcels: 'Parcels (counties with free public data)',
 };
 
@@ -105,7 +105,7 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
       Used ${mb(s.used)} of ${mb(s.quota)}${s.persisted ? ' · storage is persistent' : ' · <b>storage may be cleared by the browser</b> (persistence will be requested)'}.</p>
     <h4>Region packs</h4>
     <p class="muted small region-summary" aria-live="polite">East Alabama / West Georgia · checking published map edition…</p>
-    <p class="muted small">These packs contain vector maps and overlays. Save imagery, terrain and contours separately using “Save this area” below. Weather and river readings need a connection to update.</p>
+    <p class="muted small">These packs contain vector maps and overlays. Fish attractor and restroom points are bundled with the app for offline use. Save imagery, terrain and contours separately using “Save this area” below. Weather and river readings need a connection to update.</p>
     <div class="packs">${(Object.keys(PMTILES) as PmKey[]).map((k) => `
       <div class="pack" data-k="${k}"><div><b>${esc(PM_LABELS[k])}</b><br><span class="muted small status">checking…</span></div>
       <div class="pack-actions"></div><progress hidden max="1" value="0"></progress></div>`).join('')}

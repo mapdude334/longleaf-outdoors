@@ -136,16 +136,17 @@ export function buildStyle(av: Availability): StyleSpecification {
   if (av.overlays) {
     add('access', accessLayer('access-pts', 'overlays', 'access'), L);
     add('dams_osm', { ...badge('osm-dam', 'overlays', 'dam'), 'source-layer': 'osm_dams', minzoom: 11 } as LayerSpecification, L);
-    add('fish_structures', { ...badge('fish-structures-pts', 'overlays', 'structure'), 'source-layer': 'fish_structures', minzoom: 11 } as LayerSpecification, L);
-    add('restrooms', { ...badge('restrooms-pts', 'overlays', 'restroom'), 'source-layer': 'restrooms', minzoom: 10 } as LayerSpecification, L);
   } else {
     sources['access-live'] = { ...EMPTY };
     add('access', accessLayer('access-pts', 'access-live'), L);
-    sources['fish-structures-live'] = { ...EMPTY };
-    add('fish_structures', { ...badge('fish-structures-pts', 'fish-structures-live', 'structure'), minzoom: 11 }, L);
-    sources['restrooms-live'] = { ...EMPTY };
-    add('restrooms', { ...badge('restrooms-pts', 'restrooms-live', 'restroom'), minzoom: 10 }, L);
   }
+
+  // Keep these catalog-backed point layers independent of the version of the
+  // downloadable overlays pack. Catalog JSON is precached with the app for offline use.
+  sources['fish-structures-live'] = { ...EMPTY };
+  add('fish_structures', { ...badge('fish-structures-pts', 'fish-structures-live', 'structure'), minzoom: 11 }, L);
+  sources['restrooms-live'] = { ...EMPTY };
+  add('restrooms', { ...badge('restrooms-pts', 'restrooms-live', 'restroom'), minzoom: 10 }, L);
 
   // ---------- live + curated GeoJSON ----------
   sources.waters = { ...EMPTY };
