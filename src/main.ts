@@ -5,7 +5,7 @@ import { initTheme } from './theme';
 import { installSymbols, symbolHtml, highlightLocation } from './symbols';
 import { addShareControl, clearIncomingShare, readIncomingShare, shareSpots, type SharePayload } from './share';
 import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick, useLaunchInTrip, useSpotInTrip, validateTripBackup, type Trip } from './trips';
-import { speciesForLabel, speciesHtml, speciesChoiceHtml } from './species';
+import { speciesForLabel, speciesHtml, speciesChoiceHtml, verifiedSpeciesPhoto } from './species';
 import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
@@ -47,6 +47,12 @@ const DEFAULT_ON: Record<string, boolean> = {
 };
 const ui: UiState = { basemap: 'topo', terrain3d: false, coordFmt: 'dd', ...store.get<UiState>('ui')?.v, on: { ...DEFAULT_ON, ...store.get<UiState>('ui')?.v?.on } };
 const saveUi = () => store.set('ui', ui);
+const updateOfflineDataLayer = (group: string, enabled: boolean) => {
+  ui.on[group] = enabled;
+  saveUi();
+  applyVisibility();
+  renderLayers();
+};
 const previousUi = store.get<UiState>('ui')?.v;
 if (!store.get<boolean>('map-profile-cleanup')?.v) {
   const oldNoisyDefaults = previousUi?.on && previousUi.on.fish_structures === true && previousUi.on.restrooms === true
@@ -113,20 +119,27 @@ map.addControl({
     const control = document.createElement('div');
     control.className = 'maplibregl-ctrl maplibregl-ctrl-group';
     const tools = [
-      ['Map layers', '<path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4"/>', false],
-      ['Map legend', '<path d="M10 5h11M10 12h11M10 19h11"/><circle cx="4" cy="5" r="2"/><path d="M2 10h4v4H2zM2 19h4"/>', true],
+      ['Map layers', '<path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4"/>', 'layers'],
+      ['Map legend', '<path d="M10 5h11M10 12h11M10 19h11"/><circle cx="4" cy="5" r="2"/><path d="M2 10h4v4H2zM2 19h4"/>', 'legend'],
+      ['Download this map area for offline use', '<path d="M12 3v12m0 0 5-5m-5 5-5-5M4 17v4h16v-4"/>', 'offline'],
     ] as const;
-    for (const [label, icon, legend] of tools) {
+    for (const [label, icon, action] of tools) {
       const button = document.createElement('button');
       button.type = 'button';
       button.title = label;
       button.setAttribute('aria-label', label);
-      button.setAttribute('aria-controls', 'tab-layers');
+      button.setAttribute('aria-controls', action === 'offline' ? 'tab-offline' : 'tab-layers');
       button.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="display:block;margin:auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round">${icon}</svg>`;
       button.onclick = () => {
-        showTab('layers');
+        showTab(action === 'offline' ? 'offline' : 'layers');
+        if (action === 'offline') {
+          const download = $('#tab-offline .save-area') as HTMLButtonElement | null;
+          download?.focus({ preventScroll: true });
+          download?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          return;
+        }
         const panel = $('#tab-layers');
-        if (legend) {
+        if (action === 'legend') {
           const key = panel.querySelector<HTMLDetailsElement>('.legend')!;
           key.open = true;
           key.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -221,7 +234,7 @@ function showTab(name: string) {
   } else setSheetSnap('full');
   if (name === 'destination') void destination();
   if (name === 'weather') renderWeather();
-  if (name === 'offline') renderOffline($('#tab-offline'), map, refreshAvailability);
+  if (name === 'offline') renderOffline($('#tab-offline'), map, refreshAvailability, ui.on, updateOfflineDataLayer);
   if (name === 'mine') renderMine();
   if (name === 'trips') renderTrips($('#tab-trips'), map, openTripDestination);
 }
@@ -384,7 +397,8 @@ function openTripDestination(id: string) {
 function openSpecies(label: string, back: () => void) {
   const matches = speciesForLabel(label);
   if (!matches.length) {
-    showInfo(`<button class="link fish-back">← Back</button><h3>${esc(label)}</h3><p>This species is reported in the agency's source inventory. A detailed Longleaf field-guide entry has not been added yet.</p><p>For identification, habitat and regulations, use the official agency resources linked on the water's information card.</p>`, (root) => { root.querySelector<HTMLButtonElement>('.fish-back')!.onclick = back; });
+    const photo = verifiedSpeciesPhoto(label);
+    showInfo(`<button class="link fish-back">← Back</button><h3>${esc(label)}</h3>${photo}<p>This species is reported in the agency source inventory. ${photo ? 'The photo source identifies this exact species; treat the image as a visual reference only.' : 'A species-specific image is not shown because a matching photo source has not been verified.'} A detailed Longleaf field-guide entry has not been added yet.</p><p>For identification and rules, use official agency resources linked on the water’s information card.</p>`, (root) => { root.querySelector<HTMLButtonElement>('.fish-back')!.onclick = back; });
     return;
   }
   const choice = matches.length > 1;

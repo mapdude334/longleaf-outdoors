@@ -63,6 +63,54 @@
     "file": "species/white-crappie.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:White_Crappie.jpg"
   },
+  "smallmouth-bass": {
+    "credit": "Duane Raver · U.S. Fish and Wildlife Service",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "changes": "Resized thumbnail; no content edits.",
+    "file": "species/smallmouth-bass.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Smallmouth_bass.jpg"
+  },
+  "walleye": {
+    "credit": "USFWS Mountain Prairie",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "changes": "Resized thumbnail; no content edits.",
+    "file": "species/walleye.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Walleye_(Sander_vitreus)_(1).jpg"
+  },
+  "sauger": {
+    "credit": "USFWS Mountain Prairie",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "changes": "Resized thumbnail; no content edits.",
+    "file": "species/sauger.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Sauger_(51246897698).jpg"
+  },
+  "yellow-perch": {
+    "credit": "U.S. Fish and Wildlife Service",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "changes": "Resized thumbnail; no content edits.",
+    "file": "species/yellow-perch.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Yellow_perch.jpg"
+  },
+  "southern-flounder": {
+    "credit": "SEFSC Pascagoula Laboratory · Brandi Noble · NOAA/NMFS",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "changes": "Resized thumbnail; no content edits.",
+    "file": "species/southern-flounder.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Paralichthys_lethostigma.jpg"
+  },
+  "red-snapper": {
+    "credit": "Geeklikepi",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "changes": "Resized thumbnail; no content edits.",
+    "file": "species/red-snapper.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Red_Snapper.jpg"
+  },
   "bluegill": {
     "credit": "USFWS Mountain Prairie",
     "license": "Public domain",

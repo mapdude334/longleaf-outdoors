@@ -1,17 +1,25 @@
-// Offline manager: whole-region PMTiles downloads + "save this area" raster/terrain tile caching.
+// Offline manager: whole-region PMTiles downloads + view-bounded map tile coverage.
 // Cache names must match the service worker runtime caches in vite.config.ts.
 import type { Map } from 'maplibre-gl';
 import { GLYPHS, SPRITE, PMTILES, RASTER_BASEMAPS, TERRAIN_URL, USGS_HYDRO_TILES, type PmKey } from './config';
 import { localFile, loadPackManifest, packStatus, remoteSize, removeFromDevice, saveToDevice } from './pmtiles';
-import { esc, toast } from './util';
+import { esc, store, toast } from './util';
 import { cacheName } from './environment';
 
 export const RASTER_CACHE = cacheName('vw-raster');
 export const STATIC_CACHE = cacheName('vw-static');
 const FONTS = ['Noto Sans Regular', 'Noto Sans Medium', 'Noto Sans Italic'];
 const RANGES = ['0-255', '256-511', '8192-8447'];
+type SavedArea = { bounds: [number, number, number, number]; maxZoom: number; mapLayers: string[]; dataLayers: string[]; savedAt: string; complete: boolean };
+const AREA_KEY = 'saved-map-areas';
+const DATA_LAYER_LABELS: Record<string, string> = {
+  waters: 'Water destinations & species profiles', access: 'Boat ramps & public access',
+  fish_structures: 'Fish structures & reefs', habitat: 'Aquatic habitat records',
+  restrooms: 'Public restrooms', dams: 'Dams & release locations', gauges: 'Gauge locations',
+};
 
 let moveHandler: (() => void) | null = null;
+let networkHandler: (() => void) | null = null;
 const mb = (n: number) => (n / 1048576).toFixed(n > 100 * 1048576 ? 0 : 1) + ' MB';
 
 function* tilesFor(bounds: [number, number, number, number], z: number): Generator<[number, number, number]> {
@@ -81,6 +89,7 @@ export async function cacheGlyphs(signal?: AbortSignal) {
 
 export async function clearAreaCache() {
   await caches.delete(RASTER_CACHE);
+  store.del(AREA_KEY);
 }
 
 export async function storageSummary() {
@@ -98,7 +107,8 @@ const PM_LABELS: Record<PmKey, string> = {
 };
 
 /** Renders the Offline panel. `onChanged` reloads the map style when archives are added/removed. */
-export async function renderOffline(root: HTMLElement, map: Map, onChanged: () => void) {
+export async function renderOffline(root: HTMLElement, map: Map, onChanged: () => void, visibleLayers: Record<string, boolean> = {}, onLayerVisibilityChange?: (group: string, enabled: boolean) => void) {
+  const rerender = () => renderOffline(root, map, onChanged, visibleLayers, onLayerVisibilityChange);
   const s = await storageSummary();
   root.innerHTML = `
     <h3>Offline maps</h3>
@@ -106,21 +116,29 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
       Used ${mb(s.used)} of ${mb(s.quota)}${s.persisted ? ' · storage is persistent' : ' · <b>storage may be cleared by the browser</b> (persistence will be requested)'}.</p>
     <h4>Region packs</h4>
     <p class="muted small region-summary" aria-live="polite">East Alabama / West Georgia · checking published map edition…</p>
-    <p class="muted small">These packs contain vector maps and overlays. Fish attractor and restroom points are bundled with the app for offline use. Save imagery, terrain and contours separately using “Save this area” below. Weather and river readings need a connection to update.</p>
+    <p class="muted small">Region packs cover their published footprint. The statewide water, access, structure, habitat, restroom and dam catalogs and species cards are packaged with the app for offline use. Save map tiles for the area in view below. Live weather, current readings and release updates still need a connection.</p>
     <div class="packs">${(Object.keys(PMTILES) as PmKey[]).map((k) => `
       <div class="pack" data-k="${k}"><div><b>${esc(PM_LABELS[k])}</b><br><span class="muted small status">checking…</span></div>
       <div class="pack-actions"></div><progress hidden max="1" value="0"></progress></div>`).join('')}
     </div>
-    <h4>Save this area (imagery / topo / terrain)</h4>
+    <h4>Save the map area in view</h4>
+    <p class="callout info">The download covers the map extent visible right now. Move and zoom the map to the area you need <b>before</b> starting. Map tiles are saved from overview through your chosen maximum zoom; areas beyond this view need their own download.</p>
+    <p class="muted small" data-area-extent aria-live="polite"></p>
+    <b>Available data layers</b>
+    <p class="muted small">These Alabama and Georgia catalogs, water profiles, species notes, and location cards are included with the app for offline use. Choose the layers you want visible on the downloaded map below; live weather, current readings and release updates still need a connection.</p>
+    <div class="offline-data-layers">${Object.entries(DATA_LAYER_LABELS).map(([id, label]) => `<label class="row"><input type="checkbox" data-area-data="${id}" ${visibleLayers[id] ? 'checked' : ''}>${label}</label>`).join('')}</div>
+    <h4>Map detail</h4>
     <div class="area">
+      <p class="muted small" data-area-network role="status" aria-live="polite"></p>
       <label><input type="checkbox" value="topo" checked> USGS Topo</label>
       <label><input type="checkbox" value="imagery"> Imagery</label>
-      <label><input type="checkbox" value="terrain" checked> Terrain (hillshade + contours)</label>
+      <label><input type="checkbox" value="terrain" checked> Terrain (hillshade + contours; terrain tiles through zoom 12)</label>
       <label><input type="checkbox" value="hydro"> USGS hydro overlay</label>
-      <label>Max zoom <select class="maxz"><option>13</option><option selected>14</option><option>15</option><option>16</option></select></label>
+      <label>Maximum offline zoom <select class="maxz"><option>13</option><option selected>14</option><option>15</option><option>16</option></select></label>
       <p class="muted small est"></p>
-      <button class="btn primary save-area">Save visible area</button> <button class="btn clear-area">Clear saved areas (${s.rasterCount.toLocaleString()} tiles)</button>
+      <button class="btn primary save-area">Download this view for offline use</button> <button class="btn clear-area">Clear saved areas (${s.rasterCount.toLocaleString()} tiles)</button>
       <progress class="area-prog" hidden max="1" value="0"></progress>
+      <p class="muted small" data-saved-areas></p>
     </div>`;
 
   void loadPackManifest().then((manifest) => {
@@ -141,7 +159,7 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
     if (local) {
       status.textContent = `${await packStatus(k)} · ${mb(local.size)}`;
       actions.innerHTML = `<button class="btn">Remove</button>`;
-      actions.querySelector('button')!.onclick = async () => { await removeFromDevice(k); toast('Removed'); onChanged(); renderOffline(root, map, onChanged); };
+      actions.querySelector('button')!.onclick = async () => { await removeFromDevice(k); toast('Removed'); onChanged(); rerender(); };
     } else if (size) {
       status.textContent = `Available · ${mb(size)}`;
       actions.innerHTML = `<button class="btn primary">Download</button>`;
@@ -158,7 +176,7 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
         } catch (e) {
           toast(ctl.signal.aborted ? 'Download cancelled' : 'Download failed: ' + (e as Error).message);
         }
-        renderOffline(root, map, onChanged);
+        rerender();
       };
     } else {
       status.textContent = navigator.onLine ? 'Download unavailable. Try again when connected; this pack may not be published yet.' : 'Not downloaded · connect to download';
@@ -170,33 +188,70 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
   const maxz = root.querySelector<HTMLSelectElement>('.maxz')!;
   const update = () => {
     const n = planArea(map, layersSel(), Number(maxz.value)).length;
-    est.textContent = n > 15000 ? 'More than 15,000 tiles — zoom in or lower max zoom' : `${n.toLocaleString()} tiles ≈ ${mb(n * 25_000)}`;
-    root.querySelector<HTMLButtonElement>('.save-area')!.disabled = n === 0 || n > 15000;
+    const b = map.getBounds();
+    root.querySelector<HTMLElement>('[data-area-extent]')!.textContent = `Current view: ${b.getSouth().toFixed(3)}° to ${b.getNorth().toFixed(3)}° latitude · ${b.getWest().toFixed(3)}° to ${b.getEast().toFixed(3)}° longitude · zoom ${map.getZoom().toFixed(1)}. Extent updates as you move the map.`;
+    est.textContent = n > 15000 ? 'More than 15,000 tiles — zoom in or lower max zoom' : n ? `${n.toLocaleString()} tiles ≈ ${mb(n * 25_000)} estimated` : 'Select at least one map layer to download map tiles.';
+    root.querySelector<HTMLElement>('[data-area-network]')!.textContent = navigator.onLine ? 'Connected · ready to prepare this view.' : 'You are offline. Previously saved areas and app data remain available; connect to download another area.';
+    root.querySelector<HTMLButtonElement>('.save-area')!.disabled = n === 0 || n > 15000 || !navigator.onLine;
+    const saved = store.get<SavedArea[]>(AREA_KEY)?.v ?? [];
+    const current = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] as [number, number, number, number];
+    const covered = saved.find((area) => area.complete && map.getZoom() <= area.maxZoom && current[0] >= area.bounds[0] && current[1] >= area.bounds[1] && current[2] <= area.bounds[2] && current[3] <= area.bounds[3]);
+    const label = root.querySelector<HTMLElement>('[data-saved-areas]')!;
+    label.textContent = covered
+      ? `This view is saved through zoom ${covered.maxZoom} (${new Date(covered.savedAt).toLocaleDateString()}). Data layers selected: ${covered.dataLayers.map((id) => DATA_LAYER_LABELS[id] ?? id).join(', ') || 'none'}.`
+      : saved.length ? `This view is outside saved coverage or above its saved zoom. ${saved.length} area${saved.length === 1 ? '' : 's'} saved on this device.`
+        : 'No custom map areas saved on this device yet.';
   };
+  root.querySelectorAll<HTMLInputElement>('[data-area-data]').forEach((input) => input.addEventListener('change', () => {
+    onLayerVisibilityChange?.(input.dataset.areaData!, input.checked);
+    update();
+  }));
   root.querySelectorAll('.area input, .maxz').forEach((el) => el.addEventListener('change', update));
   if (moveHandler) map.off('moveend', moveHandler);
   moveHandler = update;
   map.on('moveend', update);
+  if (networkHandler) { removeEventListener('online', networkHandler); removeEventListener('offline', networkHandler); }
+  networkHandler = update;
+  addEventListener('online', networkHandler);
+  addEventListener('offline', networkHandler);
   update();
 
   root.querySelector<HTMLButtonElement>('.save-area')!.onclick = async (ev) => {
+    // Freeze bounds at the moment of download; later map movement cannot change the package mid-flight.
+    const b = map.getBounds();
+    const savedBounds = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] as [number, number, number, number];
+    const maxZoom = Number(maxz.value);
     const urls = planArea(map, layersSel(), Number(maxz.value));
     if (urls.length > 15000) return toast('Area too large — zoom in or lower max zoom');
-    if (!urls.length) return toast('Select at least one map layer');
+    const chosenDataLayers = [...root.querySelectorAll<HTMLInputElement>('[data-area-data]:checked')].map((input) => input.dataset.areaData!).filter(Boolean);
+    if (!urls.length) return toast('Select a map layer to download tiles for this area');
     const btn = ev.currentTarget as HTMLButtonElement;
     const prog = root.querySelector<HTMLProgressElement>('.area-prog')!;
     const ctl = new AbortController();
+    const capturedMapLayers = layersSel();
+    const controls = [...root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('.area input, .area select, [data-area-data]')];
+    controls.forEach((control) => control.disabled = true);
+    root.querySelector<HTMLButtonElement>('.clear-area')!.disabled = true;
     btn.textContent = 'Cancel';
     btn.onclick = () => ctl.abort();
     prog.hidden = false;
     try {
       const r = await saveArea(urls, (d, f) => { prog.value = d / urls.length; est.textContent = `${d.toLocaleString()} / ${urls.length.toLocaleString()} tiles${f ? ` (${f} failed)` : ''}`; }, ctl.signal);
-      toast(`${r.cancelled ? 'Cancelled. Kept' : r.failed || r.missingAssets ? 'Incomplete download. Saved' : 'Saved'} ${(r.done - r.failed).toLocaleString()} of ${urls.length.toLocaleString()} tiles${r.missingAssets ? '; some labels or icons unavailable' : ''}`, 7000);
+      let coverageSaved = true;
+      if (!r.cancelled) {
+        const saved = store.get<SavedArea[]>(AREA_KEY)?.v ?? [];
+        const record: SavedArea = { bounds: savedBounds, maxZoom, mapLayers: capturedMapLayers, dataLayers: chosenDataLayers, savedAt: new Date().toISOString(), complete: r.failed === 0 && r.missingAssets === 0 };
+        const overlaps = (a: SavedArea) => a.bounds[0] <= savedBounds[2] && a.bounds[2] >= savedBounds[0] && a.bounds[1] <= savedBounds[3] && a.bounds[3] >= savedBounds[1];
+        coverageSaved = store.set(AREA_KEY, [...saved.filter((a) => !overlaps(a)), record].slice(-12));
+      }
+      toast(`${r.cancelled ? 'Cancelled. Kept' : r.failed || r.missingAssets ? 'Incomplete download. Saved' : 'Saved'} ${(r.done - r.failed).toLocaleString()} of ${urls.length.toLocaleString()} tiles${r.missingAssets ? '; some labels or icons unavailable' : ''}${!coverageSaved ? '; device could not save the area coverage record' : ''}`, 7000);
     } catch (e) {
       toast('Area download failed: ' + (e as Error).message, 7000);
     } finally {
-      void renderOffline(root, map, onChanged);
+      controls.forEach((control) => control.disabled = false);
+      root.querySelector<HTMLButtonElement>('.clear-area')!.disabled = false;
+      void rerender();
     }
   };
-  root.querySelector<HTMLButtonElement>('.clear-area')!.onclick = async () => { await clearAreaCache(); toast('Cleared'); renderOffline(root, map, onChanged); };
+  root.querySelector<HTMLButtonElement>('.clear-area')!.onclick = async () => { await clearAreaCache(); toast('Cleared'); rerender(); };
 }

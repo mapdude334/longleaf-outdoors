@@ -4,6 +4,10 @@ import { esc } from './util';
 
 type Photo = { file: string; credit: string; license: string; licenseUrl: string | null; page: string };
 const catalogue = photos as Record<string, Photo>;
+const verifiedCatalogPhoto: Record<string, string> = {
+  'smallmouth bass': 'smallmouth-bass', sauger: 'sauger', walleye: 'walleye',
+  'yellow perch': 'yellow-perch', 'red snapper': 'red-snapper',
+};
 export function speciesForLabel(label: string) {
   if (/crappie/i.test(label)) return SPECIES.filter((s) => s.id === 'black-crappie' || s.id === 'white-crappie');
   const normal = label.replace(/\s*\(seasonal\)/i, '').toLowerCase();
@@ -12,7 +16,18 @@ export function speciesForLabel(label: string) {
 
 export function speciesPhoto(id: string, name: string) {
   const p = catalogue[id];
-  return p ? `<figure class="fish-photo"><img src="${import.meta.env.BASE_URL}${esc(p.file)}" alt="Photograph of ${esc(name)}" width="800" height="500"><figcaption>${esc(p.credit)} · <a href="${esc(p.page)}" target="_blank" rel="noopener">Photo source</a> · ${p.licenseUrl ? `<a href="${esc(p.licenseUrl)}" target="_blank" rel="noopener">${esc(p.license)}</a>` : esc(p.license)} · resized for display</figcaption></figure>` : '';
+  return p ? photoMarkup(p, name) : '';
+}
+
+function photoMarkup(p: Photo, name: string) {
+  return `<figure class="fish-photo"><img src="${import.meta.env.BASE_URL}${esc(p.file)}" alt="Photograph of ${esc(name)}" width="800" height="500"><figcaption>${esc(p.credit)} · <a href="${esc(p.page)}" target="_blank" rel="noopener">Photo source</a> · ${p.licenseUrl ? `<a href="${esc(p.licenseUrl)}" target="_blank" rel="noopener">${esc(p.license)}</a>` : esc(p.license)} · resized for display</figcaption></figure>`;
+}
+
+/** Only labels matched to a checked scientific/common-name source get an image. */
+export function verifiedSpeciesPhoto(label: string) {
+  const key = verifiedCatalogPhoto[label.replace(/\s*\(seasonal\)/i, '').trim().toLowerCase()];
+  const photo = key ? catalogue[key] : undefined;
+  return photo ? photoMarkup(photo, label) : '';
 }
 
 export function speciesHtml(id: string) {
