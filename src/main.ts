@@ -1,6 +1,7 @@
 import { renderDestination, selectDestination } from './destination';
 import { initWelcome } from './welcome';
 import { initDonations } from './donate';
+import { initTheme } from './theme';
 import { installSymbols, symbolHtml, highlightLocation } from './symbols';
 import { addShareControl } from './share';
 import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick, useLaunchInTrip, useSpotInTrip } from './trips';
@@ -49,6 +50,7 @@ const map = new Map({
   attributionControl: false,
   hash: 'map',
 });
+initTheme();
 installSymbols(map);
 (window as unknown as { vwMap: unknown }).vwMap = map; // handy for debugging in devtools
 map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right');
