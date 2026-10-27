@@ -11,6 +11,7 @@ export type Water = {
   retrieved_at?: string;
   species_note?: string;
   location_label?: string;
+  county?: string;
 };
 export let waters: Water[] = [];
 export let regulations: { label: string; url: string }[] = [];
@@ -42,10 +43,35 @@ export const waterByName = (n?: string, at?: [number, number]) => {
   return at ? [...candidates].sort((a, b) => (a.center ? haversineKm(a.center, at) : Infinity) - (b.center ? haversineKm(b.center, at) : Infinity))[0] : candidates[0];
 };
 
+/** Build a consistent user-facing destination label without repeating state codes. */
+export function waterCountyLabel(w: Pick<Water, 'county' | 'location_label' | 'state'>): string {
+  const stateCodes = new Set(w.state.split(/[\/,]/).map((part) => part.trim().toUpperCase()).filter(Boolean));
+  const raw = (w.county ?? w.location_label ?? '').trim();
+  if (!raw) return '';
+
+  // Catalog location labels may include a state suffix, or may only repeat the
+  // state (for example "AL" or "GA/AL"). Keep only an actual county label.
+  const county = raw.split(',')[0].trim();
+  const codes = raw.split(/[\/,]/).map((part) => part.trim().toUpperCase()).filter(Boolean);
+  if (!county || codes.length && codes.every((code) => stateCodes.has(code))) return '';
+  if (/^[A-Z]{2}(\s*\/\s*[A-Z]{2})*$/.test(county)) return '';
+  return county;
+}
+
+export function waterDisplayLabel(w: Pick<Water, 'name' | 'county' | 'location_label' | 'state'>): string {
+  return `${w.name} · ${waterAdministrativeLabel(w)}`;
+}
+
+export function waterAdministrativeLabel(w: Pick<Water, 'county' | 'location_label' | 'state'>): string {
+  const county = waterCountyLabel(w);
+  return `${county ? `${county} · ` : ''}${w.state}`;
+}
+
 export function waterHtml(w: Water, nhd?: Record<string, unknown>): string {
   const acres = w.acres ? `${w.acres.toLocaleString()} acres · ` : '';
+  const location = waterAdministrativeLabel(w);
   return `<h3>${esc(w.name)}</h3>
-  <p class="muted">${acres}${esc(w.river ? w.river + ' basin · ' : '')}${esc(w.state)}${w.manager ? ' · ' + esc(w.manager) : ''}</p>
+  <p class="muted">${acres}${esc(w.river ? w.river + ' basin · ' : '')}${esc(location)}${w.manager ? ' · ' + esc(w.manager) : ''}</p>
   ${w.location_note ? `<p class="muted small">${esc(w.location_note)}</p>` : ''}
   <h4>Species</h4>
   <div class="chips">${w.species.map((s) => `<button class="chip species-chip" data-species="${esc(s.name)}" aria-label="Learn about ${esc(s.name)}">${esc(s.name)} ↗</button>`).join('')}</div>

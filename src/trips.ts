@@ -1,6 +1,6 @@
 import type { Map, MapMouseEvent } from 'maplibre-gl';
 import { symbolHtml, highlightLocation } from './symbols';
-import { waters } from './layers/waters';
+import { waters, waterDisplayLabel } from './layers/waters';
 import { getWpts } from './waypoints';
 import { loadAccessLive, accessLocation } from './layers/access';
 import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
@@ -115,14 +115,14 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     const destinationOptions = [...waters].sort((a, b) => a.state.localeCompare(b.state) || a.name.localeCompare(b.name));
     const destinationChoices = new globalThis.Map<string, string>();
     const destinationLabels = new globalThis.Map<string, string>();
-    const waterBaseLabels = (choice: (typeof destinationOptions)[number]) => `${choice.name}${choice.river ? ` · ${choice.river}` : ''} · ${choice.state}`;
+    const waterBaseLabels = (choice: (typeof destinationOptions)[number]) => waterDisplayLabel(choice);
     const waterLabelCounts = new globalThis.Map<string, number>();
     for (const choice of destinationOptions) waterLabelCounts.set(waterBaseLabels(choice), (waterLabelCounts.get(waterBaseLabels(choice)) ?? 0) + 1);
     for (const choice of destinationOptions) {
       const base = waterBaseLabels(choice);
       const peers = (waterLabelCounts.get(base) ?? 0) > 1 ? destinationOptions.filter((other) => waterBaseLabels(other) === base) : [];
-      let detail = choice.location_label?.trim();
-      if (detail && detail.toLowerCase() === choice.state.toLowerCase()) detail = '';
+      let detail = '';
+      if (peers.length > 1 && choice.river && peers.filter((peer) => peer.river === choice.river).length === 1) detail = choice.river;
       if (!detail && peers.length > 1 && choice.center) {
         const located = peers.flatMap((peer) => peer.center ? [peer.center] : []);
         const meanLat = located.reduce((sum, point) => sum + point[1], 0) / Math.max(1, located.length);

@@ -1,6 +1,6 @@
 import { symbolHtml } from './symbols';
 import type { Map } from 'maplibre-gl';
-import { waters, waterHtml } from './layers/waters';
+import { waters, waterAdministrativeLabel, waterDisplayLabel, waterHtml } from './layers/waters';
 import { gauges, gaugeHtml, fillTrend } from './layers/gauges';
 import { dams, damHtml, fillCwms } from './layers/dams';
 import { ACCESS_LABELS, accessHtml, accessLocation, accessFeatures } from './layers/access';
@@ -42,7 +42,7 @@ function regionPickerHtml() {
 }
 function destinationPickerHtml(choices: typeof waters, selected?: string) {
   const sorted = [...choices].sort((a, b) => a.name.localeCompare(b.name));
-  const options = sorted.map((water) => ({ value: water.id, label: `${water.name}${water.location_label ? ` · ${water.location_label}` : ''} · ${water.state}` }));
+  const options = sorted.map((water) => ({ value: water.id, label: waterDisplayLabel(water) }));
   return pickerHtml('destination-select', 'Choose your destination', sorted.length ? 'Search lakes, rivers, or coastal waters' : 'No cataloged waters in this area yet', options, selected, !sorted.length);
 }
 function wireSearchPicker(root: HTMLElement, id: string, choose: (value: string) => void) {
@@ -183,14 +183,14 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       ${water && !water.center ? '<p class="small">A single map location is not available for this destination. Browse its information below.</p>' : ''}
     </div>
     <div class="destination-body">
-      <div class="destination-meta">${esc(water?.river ? water.river + ' basin' : water?.state ?? '')}<span>${esc(water?.manager ?? '')}</span></div>
+      <div class="destination-meta">${esc(water ? waterAdministrativeLabel(water) : '')}<span>${esc(water?.manager ?? '')}</span></div>
       <div class="destination-actions" aria-label="Plan your visit">
         <button class="btn primary plan-trip" data-action="trips">Plan or edit a trip</button>
         <button class="btn" data-action="weather" ${water?.center ? '' : 'disabled'}>Check weather</button>
         <button class="btn" data-action="offline">Offline maps</button>
       </div>
       ${trip && trip.destination === water?.id ? `<details class="destination-card trip-summary" data-trip-summary><summary><b>Ready to head out?</b><span>${esc(trip.name)}</span><small>${esc(trip.ramp?.name ?? 'Choose a launch')} · ${esc(trip.date || 'Date not set')}</small></summary><p>Launch: ${esc(trip.ramp?.name ?? 'Not selected')}${trip.ramp ? ` · <a href="https://www.google.com/maps/dir/?api=1&destination=${trip.ramp.coords[1]},${trip.ramp.coords[0]}" target="_blank" rel="noopener">Directions ↗</a>` : ''}</p><p>Fishing spots: ${esc(trip.spots.map((s) => s.name).join(', ') || 'None selected')}</p><p style="white-space:pre-wrap">${esc(trip.notes)}</p><p data-trip-maps>Checking downloaded map packs…</p><div class="trip-actions"><button class="btn" data-trip-weather>Check trip weather</button><button class="btn" data-trip-maps>Review offline downloads</button></div><p class="muted small">Check the conditions below and official access rules before leaving. Launches use a boat symbol; your fishing spots use a rose fish symbol.</p></details>` : ''}
-      ${water ? `<details class="destination-section destination-overview" data-overview><summary>Lake details, species &amp; rules</summary><p class="muted small">${water.acres ? water.acres.toLocaleString() + ' acres · ' : ''}${esc(water.state)} · ${esc(water.type)}</p><p>${esc(water.notes ?? '')}</p><button class="btn" data-action="overview">Species, lake notes &amp; official links ↗</button></details>` : ''}
+      ${water ? `<details class="destination-section destination-overview" data-overview><summary>Lake details, species &amp; rules</summary><p class="muted small">${water.acres ? water.acres.toLocaleString() + ' acres · ' : ''}${esc(waterAdministrativeLabel(water))} · ${esc(water.type)}</p><p>${esc(water.notes ?? '')}</p><button class="btn" data-action="overview">Species, lake notes &amp; official links ↗</button></details>` : ''}
       <h4>01 / Before you launch</h4>
       <p class="muted small">Readings below come from nearby gauges; they may describe river conditions rather than the reservoir level. Check each station and observation time.</p>
       ${near.length ? near.slice(0, 2).map((g) => `<details class="destination-card"><summary>${esc(g.name)}</summary>${gaugeHtml(g)}</details>`).join('') : `<div class="destination-card">${actions.gaugeState === 'loading' ? 'Loading water readings…' : actions.gaugeState === 'unavailable' ? 'Water-reading service unavailable.' : 'No stations loaded near this destination.'}<p class="muted small">A missing reading does not establish current conditions.</p></div>`}
