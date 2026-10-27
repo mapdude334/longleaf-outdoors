@@ -3,6 +3,7 @@ import { symbolHtml, highlightLocation } from './symbols';
 import { waters } from './layers/waters';
 import { getWpts } from './waypoints';
 import { loadAccessLive, accessLocation } from './layers/access';
+import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
 import { esc, haversineKm, store, toast } from './util';
 
 export type Place = { id: string; name: string; coords: [number, number] };
@@ -129,8 +130,8 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       autosave(); showTripPlan(map, trip);
       if (!trip.ramp) return;
       highlightLocation(map, trip.ramp.coords);
-      if (innerWidth <= 800) document.getElementById('sheet')?.classList.remove('open');
-      map.flyTo({ center: trip.ramp.coords, zoom: Math.max(map.getZoom(), 14), padding: { left: innerWidth > 800 ? 410 : 20, right: 55, top: 60, bottom: innerWidth > 800 ? 40 : 160 } });
+      if (isCompactLayout()) setSheetSnap('peek');
+      map.flyTo({ center: trip.ramp.coords, zoom: Math.max(map.getZoom(), 14), padding: { left: !isCompactLayout() ? 410 : 20, right: 55, top: 60, bottom: !isCompactLayout() ? 40 : 160 } });
       toast(`Selected ${trip.ramp.name}`);
     };
     root.querySelectorAll<HTMLButtonElement>('[data-remove-spot]').forEach((button) => button.onclick = () => { collect(); trip.spots = trip.spots.filter((p) => p.id !== button.dataset.removeSpot); store.set('trip-draft', trip); edit(trip); showTripPlan(map, trip); });
@@ -160,8 +161,8 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       if (!name) { input('#trip-spot-name').focus(); toast('Name this fishing spot first.'); return; }
       collect(); cancelTripPick();
       const sheet = document.getElementById('sheet')!;
-      const wasOpen = sheet.classList.contains('open');
-      if (innerWidth <= 800) sheet.classList.remove('open');
+      const previousSnap = (sheet.dataset.snap || 'peek') as SheetSnap;
+      if (isCompactLayout()) setSheetSnap('peek');
       const cancel = root.querySelector<HTMLButtonElement>('[data-cancel-pin]')!;
       cancel.hidden = false;
       const status = root.querySelector('[data-trip-status]')!;
@@ -176,7 +177,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
         map.off('click', place); window.removeEventListener('keydown', escape);
         cancelPick = undefined; cancel.hidden = true; map.getCanvas().style.cursor = '';
         banner.remove();
-        if (wasOpen) sheet.classList.add('open');
+        if (isCompactLayout() && previousSnap !== 'peek') setSheetSnap(previousSnap);
       };
       const place = (event: MapMouseEvent) => {
         const coords: [number, number] = [event.lngLat.lng, event.lngLat.lat];
@@ -199,7 +200,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       const center = waters.find((w) => w.id === trip.destination)?.center;
       if (center) points.push(center);
       showTripPlan(map);
-      if (points.length) map.fitBounds([[Math.min(...points.map((p) => p[0])), Math.min(...points.map((p) => p[1]))], [Math.max(...points.map((p) => p[0])), Math.max(...points.map((p) => p[1]))]], { padding: { left: innerWidth > 800 ? 420 : 40, right: 55, top: 45, bottom: innerWidth > 800 ? 45 : 150 }, maxZoom: 13 });
+      if (points.length) map.fitBounds([[Math.min(...points.map((p) => p[0])), Math.min(...points.map((p) => p[1]))], [Math.max(...points.map((p) => p[0])), Math.max(...points.map((p) => p[1]))]], { padding: { left: !isCompactLayout() ? 420 : 40, right: 55, top: 45, bottom: !isCompactLayout() ? 45 : 150 }, maxZoom: 13 });
       else map.flyTo(trip.view);
     };
   }

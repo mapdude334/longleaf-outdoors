@@ -4,6 +4,7 @@ import { installSymbols, symbolHtml, highlightLocation } from './symbols';
 import { addShareControl } from './share';
 import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick, useLaunchInTrip, useSpotInTrip } from './trips';
 import { speciesForLabel, speciesHtml, speciesChoiceHtml } from './species';
+import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
@@ -65,9 +66,9 @@ map.addControl({
       const panel = document.getElementById('sheet')!;
       const open = panel.classList.contains('open');
       // Collapse the phone sheet so the full location extent has room to breathe.
-      if (innerWidth <= 800) panel.classList.remove('open');
+      if (isCompactLayout()) setSheetSnap('peek');
       const peek = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) || 116;
-      map.fitBounds(extent, { padding: { top: 45, right: 55, bottom: innerWidth <= 800 ? peek + 24 : 45, left: innerWidth > 800 && open ? panel.offsetWidth + 35 : 45 }, maxZoom: 11, bearing: 0, pitch: 0, duration: 700 });
+      map.fitBounds(extent, { padding: { top: 45, right: 55, bottom: isCompactLayout() ? peek + 24 : 45, left: !isCompactLayout() && open ? panel.offsetWidth + 35 : 45 }, maxZoom: 11, bearing: 0, pitch: 0, duration: 700 });
     };
     control.append(button);
     return control;
@@ -160,7 +161,13 @@ let currentTab = 'destination';
 let cancelWaypointPick: (() => void) | undefined;
 let placeWaypoint: ((lng: number, lat: number) => void) | undefined;
 let navigationRevision = 0;
-function destination() { showTripPlan(map); return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips'), downloadsChanged: refreshAvailability, gaugeState }); }
+function destination() {
+  showTripPlan(map);
+  const selected = waters.find((water) => water.id === store.get<string>('destination')?.v)?.name;
+  sheet.dataset.destination = selected ?? '';
+  setSheetSnap((sheet.dataset.snap || 'peek') as SheetSnap);
+  return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips'), downloadsChanged: refreshAvailability, gaugeState });
+}
 map.on('style.load', () => showTripPlan(map));
 map.on('moveend', () => { if (currentTab === 'destination') void destination(); });
 function showTab(name: string) {
@@ -170,25 +177,90 @@ function showTab(name: string) {
   currentTab = name;
   document.querySelectorAll<HTMLElement>('.tab').forEach((t) => (t.hidden = t.id !== 'tab-' + name));
   document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
-  sheet.classList.add('open');
+  if (isCompactLayout()) {
+    const previous = (sheet.dataset.snap || 'peek') as SheetSnap;
+    setSheetSnap(name === 'info' ? 'full' : previous === 'peek' ? 'half' : previous);
+  } else setSheetSnap('full');
   if (name === 'destination') void destination();
   if (name === 'weather') renderWeather();
   if (name === 'offline') renderOffline($('#tab-offline'), map, refreshAvailability);
   if (name === 'mine') renderMine();
-  if (name === 'trips') renderTrips($('#tab-trips'), map, (id) => { selectDestination(id); showTab('destination'); $('#tab-destination').scrollTop = 0; if (innerWidth <= 800) sheet.classList.remove('open'); });
+  if (name === 'trips') renderTrips($('#tab-trips'), map, (id) => { selectDestination(id); showTab('destination'); $('#tab-destination').scrollTop = 0; if (isCompactLayout()) setSheetSnap('peek'); });
 }
-document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((b) => (b.onclick = () => (currentTab === b.dataset.tab && sheet.classList.contains('open') ? sheet.classList.remove('open') : showTab(b.dataset.tab!))));
-$('#grab').onclick = () => sheet.classList.toggle('open');
+document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((b) => (b.onclick = () => {
+  if (currentTab === b.dataset.tab && sheet.classList.contains('open')) setSheetSnap('peek');
+  else showTab(b.dataset.tab!);
+}));
+const grab = $<HTMLButtonElement>('#grab');
+let suppressGrabClick = false;
+grab.onclick = () => {
+  if (suppressGrabClick) { suppressGrabClick = false; return; }
+  const snap = sheet.dataset.snap as SheetSnap;
+  setSheetSnap(snap === 'peek' ? 'half' : snap === 'half' ? 'full' : 'peek');
+};
+let drag: { pointer: number; startY: number; startOffset: number; lastY: number; lastAt: number; velocity: number; moved: boolean } | undefined;
+const handleSheetPointerDown = (event: PointerEvent) => {
+  if (event.button !== 0 || !isCompactLayout()) return;
+  const rect = sheet.getBoundingClientRect();
+  const top = parseFloat(getComputedStyle(sheet).top) || 0;
+  const offset = rect.top - top;
+  drag = { pointer: event.pointerId, startY: event.clientY, startOffset: offset, lastY: event.clientY, lastAt: event.timeStamp, velocity: 0, moved: false };
+  grab.setPointerCapture(event.pointerId);
+};
+const handleSheetPointerMove = (event: PointerEvent) => {
+  if (!drag || drag.pointer !== event.pointerId) return;
+  const delta = event.clientY - drag.startY;
+  if (Math.abs(delta) > 4) drag.moved = true;
+  if (!drag.moved) return;
+  const rect = sheet.getBoundingClientRect();
+  const peek = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) || 130;
+  const maxOffset = Math.max(0, rect.height - peek);
+  const offset = Math.max(0, Math.min(maxOffset, drag.startOffset + delta));
+  const elapsed = Math.max(1, event.timeStamp - drag.lastAt);
+  drag.velocity = (event.clientY - drag.lastY) / elapsed;
+  drag.lastY = event.clientY; drag.lastAt = event.timeStamp;
+  sheet.classList.add('dragging');
+  sheet.style.setProperty('--sheet-drag', `${offset}px`);
+};
+const handleSheetPointerUp = (event: PointerEvent) => {
+  if (!drag || drag.pointer !== event.pointerId) return;
+  const state = drag;
+  if (grab.hasPointerCapture(event.pointerId)) grab.releasePointerCapture(event.pointerId);
+  drag = undefined;
+  if (!state.moved) return;
+  suppressGrabClick = true;
+  window.setTimeout(() => { suppressGrabClick = false; }, 0);
+  const height = sheet.getBoundingClientRect().height;
+  const peek = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) || 130;
+  const middleOffset = height * (innerHeight <= 500 ? 0.5 : 0.35);
+  const stops = [0, middleOffset, Math.max(0, height - peek)];
+  const offset = Math.max(0, Math.min(stops[2], state.startOffset + event.clientY - state.startY));
+  let target = stops.reduce((best, value) => Math.abs(value - offset) < Math.abs(best - offset) ? value : best, stops[0]);
+  if (Math.abs(state.velocity) > 0.45) {
+    const current = stops.reduce((best, value, i) => Math.abs(value - state.startOffset) < Math.abs(stops[best] - state.startOffset) ? i : best, 0);
+    target = stops[Math.max(0, Math.min(stops.length - 1, current + (state.velocity < 0 ? -1 : 1)))];
+  }
+  sheet.classList.remove('dragging'); sheet.style.removeProperty('--sheet-drag');
+  setSheetSnap(target === stops[0] ? 'full' : target === stops[1] ? 'half' : 'peek');
+};
+grab.addEventListener('pointerdown', handleSheetPointerDown);
+grab.addEventListener('pointermove', handleSheetPointerMove);
+grab.addEventListener('pointerup', handleSheetPointerUp);
+grab.addEventListener('pointercancel', handleSheetPointerUp);
 // Keep the map's visual center clear of the side panel on desktop.
 let padOpen: boolean | null = null;
 const updatePadding = () => {
-  const open = sheet.classList.contains('open') && innerWidth > 800;
+  const open = sheet.classList.contains('open') && !isCompactLayout();
   if (open === padOpen) return;
   padOpen = open;
   map.easeTo({ padding: { left: open ? 400 : 0, top: 0, right: 0, bottom: 0 }, duration: 250 });
 };
 new MutationObserver(updatePadding).observe(sheet, { attributes: true, attributeFilter: ['class'] });
-addEventListener('resize', updatePadding);
+addEventListener('resize', () => {
+  if (isCompactLayout() && sheet.dataset.snap === 'full') setSheetSnap('half');
+  if (!isCompactLayout() && sheet.dataset.snap !== 'full') setSheetSnap('full');
+  updatePadding();
+});
 new ResizeObserver(() => {
   const peek = $('#grab').offsetHeight + $('.tabs').offsetHeight + parseFloat(getComputedStyle(sheet).paddingBottom);
   document.documentElement.style.setProperty('--sheet-peek', `${peek}px`);
@@ -335,8 +407,8 @@ function renderMine() {
   el.querySelector<HTMLButtonElement>('#my-trips')!.onclick = () => showTab('trips');
   el.querySelector<HTMLButtonElement>('#drop-waypoint')!.onclick = () => {
     cancelTripPick(); cancelWaypointPick?.();
-    const wasOpen = sheet.classList.contains('open');
-    if (innerWidth <= 800) sheet.classList.remove('open');
+    const previousSnap = (sheet.dataset.snap || 'peek') as SheetSnap;
+    if (isCompactLayout()) setSheetSnap('peek');
     const banner = document.createElement('div');
     banner.className = 'trip-pin-banner';
     banner.innerHTML = '<span>Tap or click the map to drop your pin</span><button class="btn">Cancel</button>';
@@ -346,7 +418,7 @@ function renderMine() {
     cancelWaypointPick = () => {
       banner.remove(); window.removeEventListener('keydown', escape);
       map.getCanvas().style.cursor = ''; placeWaypoint = undefined; cancelWaypointPick = undefined;
-      if (wasOpen) sheet.classList.add('open');
+      if (isCompactLayout() && previousSnap !== 'peek') setSheetSnap(previousSnap);
     };
     banner.querySelector('button')!.onclick = () => cancelWaypointPick?.();
     placeWaypoint = (lng, lat) => { cancelWaypointPick?.(); editWpt(addWpt(lng, lat).id); };
@@ -536,6 +608,6 @@ map.once('style.load', () => {
   reloadData();
   initWaypoints(map);
   refreshAvailability();
-  if (innerWidth > 800) sheet.classList.add('open');
+  setSheetSnap(isCompactLayout() ? 'peek' : 'full');
 });
 map.on('error', (e) => console.debug('map error', e.error?.message ?? e));
