@@ -41,7 +41,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,json,mjs}'],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         navigateFallback: 'index.html',
         // Never let the SW touch PMTiles range requests — they're served from OPFS or the network.
         navigateFallbackDenylist: [/\.pmtiles$/],

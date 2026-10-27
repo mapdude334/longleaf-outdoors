@@ -2,7 +2,7 @@
 // Primary: USGS Water Data OGC API (api.waterdata.usgs.gov). Fallback: legacy NWIS IV
 // (waterservices.usgs.gov, scheduled for retirement in early 2027).
 import type { GeoJSONSource, Map } from 'maplibre-gl';
-import { AOI, PARAMS, USGS_API_KEY, USGS_LEGACY_IV, USGS_OGC } from '../config';
+import { LIVE_BOUNDS, PARAMS, USGS_API_KEY, USGS_LEGACY_IV, USGS_OGC } from '../config';
 import { cachedLive, fetchJSON, sparkline, esc, ago } from '../util';
 
 export type Reading = { code: string; value: number; time: string; unit?: string };
@@ -25,14 +25,28 @@ export function gaugeName(g: Pick<Gauge, 'id' | 'name'>) {
     .replace(/\b(Ga|Al|Usgs)\b/g, (s) => s.toUpperCase());
 }
 
+async function pagedFeatures(url: string): Promise<any[]> {
+  const features: any[] = [], visited = new Set<string>();
+  let next: string | undefined = url;
+  while (next) {
+    if (visited.has(next) || visited.size >= 30) throw new Error('USGS pagination did not complete');
+    visited.add(next);
+    const page: any = await fetchJSON(next, { timeout: 25000 });
+    if (!Array.isArray(page.features)) throw new Error('USGS returned an invalid feature page');
+    features.push(...page.features);
+    const href: string | undefined = page.links?.find((link: any) => link.rel === 'next')?.href;
+    next = href ? new URL(href, next).href : undefined;
+  }
+  return features;
+}
+
 async function fromOgc(): Promise<Gauge[]> {
-  const bbox = AOI.join(',');
+  const bbox = LIVE_BOUNDS.join(',');
   const byId: Record<string, Gauge> = {};
   // One request per parameter keeps responses small and avoids relying on list-valued filters.
   await Promise.all(CODES.map(async (code) => {
     const url = `${USGS_OGC}/collections/latest-continuous/items?f=json&bbox=${bbox}&parameter_code=${code}&limit=5000${keyQS}`;
-    const fc = await fetchJSON<any>(url, { timeout: 25000 });
-    for (const f of fc.features ?? []) {
+    for (const f of await pagedFeatures(url)) {
       const p = f.properties ?? {};
       const id = String(p.monitoring_location_id ?? '').replace(/^USGS-/, '');
       if (!id || !f.geometry) continue;
@@ -44,21 +58,27 @@ async function fromOgc(): Promise<Gauge[]> {
   const ids = Object.keys(byId);
   if (!ids.length) throw new Error('OGC: no gauges');
   // Names
+  const inScope = new Set<string>();
   try {
-    const ml = await fetchJSON<any>(`${USGS_OGC}/collections/monitoring-locations/items?f=json&bbox=${bbox}&limit=10000&agency_code=USGS${keyQS}`, { timeout: 25000 });
-    for (const f of ml.features ?? []) {
+    const locations = await pagedFeatures(`${USGS_OGC}/collections/monitoring-locations/items?f=json&bbox=${bbox}&limit=10000&agency_code=USGS${keyQS}`);
+    for (const f of locations) {
       const id = String(f.properties?.monitoring_location_number ?? f.id ?? '').replace(/^USGS-/, '');
-      if (byId[id] && f.properties?.monitoring_location_name) byId[id].name = f.properties.monitoring_location_name;
+      const state = String(f.properties?.state_code ?? '');
+      if (byId[id] && ['01', '13'].includes(state) && f.properties?.agency_code === 'USGS') {
+        byId[id].name = f.properties.monitoring_location_name || byId[id].name;
+        inScope.add(id);
+      }
     }
+    if (!inScope.size) throw new Error('USGS station state metadata could not be verified');
   } catch (e) {
     console.warn('monitoring-locations lookup failed', e);
+    throw e; // The state-filtered legacy fallback supplies verified station names.
   }
-  return Object.values(byId);
+  return Object.values(byId).filter((g) => inScope.has(g.id));
 }
 
 async function fromLegacy(): Promise<Gauge[]> {
-  const [w, s, e, n] = AOI;
-  const url = `${USGS_LEGACY_IV}?format=json&bBox=${w},${s},${e},${n}&parameterCd=${CODES.join(',')}&siteStatus=active`;
+  const url = `${USGS_LEGACY_IV}?format=json&stateCd=al,ga&parameterCd=${CODES.join(',')}&siteStatus=active`;
   const j = await fetchJSON<any>(url, { timeout: 30000 });
   const byId: Record<string, Gauge> = {};
   for (const ts of j.value?.timeSeries ?? []) {
@@ -94,7 +114,7 @@ function summary(g: Gauge) {
 
 export async function loadGauges(map: Map): Promise<{ count: number; t: number; offline: boolean; source: string }> {
   let source = 'USGS Water Data API';
-  const res = await cachedLive('gauges-v2', 10 * 60_000, async () => {
+  const res = await cachedLive('gauges-al-ga-v2', 10 * 60_000, async () => {
     try {
       return await fromOgc();
     } catch (e) {

@@ -5,6 +5,9 @@ export const APP_NAME = 'Longleaf Atlas';
 
 /** AOI: East Alabama / West Georgia (Tallapoosa + Middle Chattahoochee basins). [w, s, e, n] */
 export const AOI: [number, number, number, number] = [-86.35, 31.55, -84.35, 33.85];
+/** Browsing and live data extend statewide and into associated Gulf/Atlantic waters. */
+export const MAP_BOUNDS: [[number, number], [number, number]] = [[-89, 28], [-79, 35.6]];
+export const LIVE_BOUNDS: [number, number, number, number] = [-88.6, 30.1, -80.7, 35.1];
 export const START_VIEW = { center: [-85.25, 32.7] as [number, number], zoom: 8.3 };
 
 const base = (import.meta.env.VITE_TILE_BASE as string | undefined)?.trim() || `${import.meta.env.BASE_URL}tiles/`;

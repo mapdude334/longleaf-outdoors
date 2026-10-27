@@ -1,5 +1,7 @@
 # Data sources
 
+For the current development preview's statewide Alabama / Georgia agency inventories, editions and coverage limitations, see [Statewide expansion](STATEWIDE_EXPANSION.md). The original regional pack sources below are retained as the archive baseline.
+
 | Layer | Source | Access | License / terms | Refresh |
 |---|---|---|---|---|
 | Vector basemap | [Protomaps](https://docs.protomaps.com/basemaps/downloads) daily build of OpenStreetMap (v4 schema) | `pmtiles extract` by bbox | ODbL. "© OpenStreetMap contributors" must be shown (it's in the map attribution) | Monthly (pipeline) |

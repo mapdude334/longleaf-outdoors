@@ -29,6 +29,8 @@ function Get-OptionalApi($Path) {
 $profile = Invoke-PreviewApi 'GET' 'user'
 if ($profile.login -ne $owner) { throw 'The authenticated account is not mapdude334.' }
 $productionBefore = (Invoke-PreviewApi 'GET' "repos/$owner/longleaf-outdoors/commits/main").sha
+npm.cmd run test:statewide
+if ($LASTEXITCODE -ne 0) { throw 'Statewide data integrity tests failed; nothing was published.' }
 npm.cmd run test:regions
 if ($LASTEXITCODE -ne 0) { throw 'Region zoom tests failed; nothing was published.' }
 npm.cmd run test:preview

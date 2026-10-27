@@ -23,6 +23,7 @@ const datasets = [
   ['access', 'public/data/access.json'],
   ['fish-structures', 'public/data/fish-structures.json'],
   ['restrooms', 'public/data/restrooms.json'],
+  ['habitat', 'public/data/habitat.json'],
 ];
 for (const [catalog, file] of datasets) {
   const data = JSON.parse(await readFile(resolve(root, file), 'utf8'));

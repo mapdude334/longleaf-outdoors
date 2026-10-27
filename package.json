@@ -8,6 +8,7 @@
     "validate:points": "node pipeline/scripts/validate-point-symbols.mjs",
     "test:preview": "node tools/test-preview-isolation.mjs",
     "test:regions": "node tools/test-region-bounds.mjs",
+    "test:statewide": "node tools/test-statewide-catalogs.mjs",
     "preview": "vite preview",
     "typecheck": "tsc"
   },

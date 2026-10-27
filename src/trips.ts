@@ -84,14 +84,15 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
   }
   function edit(trip: Trip) {
     const water = waters.find((w) => w.id === trip.destination);
+    const coastal = /coastal|reef/i.test(water?.type ?? '');
     const candidates = new globalThis.Map<string, Place>();
     const cached = store.get<any[]>('access-osm')?.v ?? [];
     const rendered = map.getLayer('access-pts') ? map.queryRenderedFeatures(undefined, { layers: ['access-pts'] }) : [];
     for (const f of [...cached, ...rendered]) {
       if (f.geometry?.type !== 'Point' || !['boat_ramp', 'paddle_launch'].includes(f.properties?.kind)) continue;
       const coords = f.geometry.coordinates.slice(0, 2) as [number, number];
-      if (!water?.center || haversineKm(coords, water.center) > 40) continue;
-      const id = String(f.properties.osm ?? coords.join(','));
+      if (!water?.center || (f.properties.waterbody_id !== water.id && haversineKm(coords, water.center) > (coastal ? 120 : 40)) || /closed|decommissioned/i.test(String(f.properties.status ?? ''))) continue;
+      const id = String(f.properties.osm ?? f.properties.record_id ?? coords.join(','));
       const name = String(f.properties.name ?? '').trim();
       candidates.set(id, { id, name: name && !/^(boat ramp|launch|paddle launch)$/i.test(name) ? name : `${f.properties.kind === 'paddle_launch' ? 'Paddle launch' : 'Boat ramp'} — ${accessLocation(f.properties, coords)}`, coords });
     }
@@ -109,7 +110,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       <label class="field">Trip date<input id="trip-date" type="date" value="${esc(trip.date ?? '')}"></label>
       <label class="field">Destination<select id="trip-destination">${waters.some((w) => w.id === trip.destination) ? '' : `<option value="${esc(trip.destination)}" selected>Choose a specific lake (previous group retired)</option>`}${waters.map((w) => `<option value="${esc(w.id)}" ${w.id === trip.destination ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label>
       <label class="field">${symbolHtml('boat_ramp')}Boat ramp / launch<select id="trip-ramp"><option value="">Choose a launch later</option>${ramps.map((r) => `<option value="${esc(r.id)}" ${trip.ramp?.id === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>
-      <p class="muted small">Launches within 25 miles of the destination’s mapped center, plus your saved launches. Confirm access before traveling.</p>
+      <p class="muted small">Agency-matched launches on this water, other launches within ${coastal ? '75' : '25'} miles of its overview point, and your saved launches. Distances are straight-line proximity, not boating routes; confirm access and suitability before traveling.</p>
       <button class="btn" data-refresh-launches>Refresh nearby launches</button>
       <h4>${symbolHtml('spot')}Fishing spots</h4>${[...spots.values()].map((s) => `<div class="trip-spot"><label class="row"><input type="checkbox" data-trip-spot="${esc(s.id)}" ${trip.spots.some((p) => p.id === s.id) ? 'checked' : ''}>Include this spot</label><label class="field">Spot name<input data-spot-name="${esc(s.id)}" maxlength="120" value="${esc(s.name)}"></label><span class="muted small">${s.coords[1].toFixed(5)}, ${s.coords[0].toFixed(5)}</span> <button class="link" data-remove-spot="${esc(s.id)}">Remove from trip</button></div>`).join('') || '<p class="muted small">Choose saved fishing waypoints from My Spots, or drop a pin anywhere on the map.</p>'}
       <label class="field">New fishing spot name<input id="trip-spot-name" maxlength="120" placeholder="Point, cove or brush pile"></label><button class="btn" data-add-spot>Drop a fishing pin</button><button class="btn" data-cancel-pin hidden>Cancel pin</button>

@@ -72,6 +72,8 @@ pipeline/ (Python + GDAL + tippecanoe + pmtiles)        app/ (Vite + TypeScript 
 
 ## Editing content
 
+The development preview now includes statewide AL/GA agency access catalogs, freshwater structures, coastal/Gulf/Atlantic reefs, habitat surveys and additional named waters. See [statewide data scope and integrity checks](docs/STATEWIDE_EXPANSION.md). The regional archive footprint remains unchanged; online browsing and separately saved map areas extend beyond it.
+
 - `public/data/waters.json` holds the species, notes and links for each water body. `gnis_names` controls how entries are joined to NHD features.
 - `public/data/dams.json` holds dams, operators, release-info links, the gauge search radius and CWMS name patterns.
 - `src/point-symbols.json` is the shared point-symbol registry. Map new source categories to an existing symbol there and add a matching SVG under `public/symbols/`; `npm run build` checks the point catalogs and symbol files before compiling.

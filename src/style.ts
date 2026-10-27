@@ -85,7 +85,8 @@ export function buildStyle(av: Availability): StyleSpecification {
       layout: { 'text-field': ['coalesce', ['get', 'Unit_Nm'], ['get', 'Loc_Nm']], 'text-size': 11, 'text-font': ['Noto Sans Italic'], 'text-max-width': 9, 'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'area'], 0]] },
       paint: { 'text-color': '#2f4f2f', 'text-halo-color': '#fff', 'text-halo-width': 1.2 },
     }, L);
-  } else {
+  }
+  {
     sources['padus-live'] = { type: 'raster', tiles: [arcgisExport(ARCGIS.padus.service)], tileSize: 512, attribution: 'USGS PAD-US 4.1' };
     add('public_lands', { id: 'pl-live', type: 'raster', source: 'padus-live', minzoom: 7, paint: { 'raster-opacity': 0.6 } }, L);
   }
@@ -111,7 +112,8 @@ export function buildStyle(av: Availability): StyleSpecification {
       layout: { 'symbol-placement': 'line', 'text-field': ['get', 'gnis_name'], 'text-size': 11, 'text-font': ['Noto Sans Italic'] },
       paint: { 'text-color': '#1f5f99', 'text-halo-color': '#fff', 'text-halo-width': 1 },
     }, L);
-  } else {
+  }
+  {
     sources['hydro-live'] = { type: 'raster', tiles: [USGS_HYDRO_TILES], tileSize: 256, maxzoom: 16, attribution: 'USGS NHD' };
     add('water', { id: 'hydro-live', type: 'raster', source: 'hydro-live', paint: { 'raster-opacity': 0.85 } }, L);
   }
@@ -134,12 +136,11 @@ export function buildStyle(av: Availability): StyleSpecification {
 
   // ---------- access points ----------
   if (av.overlays) {
-    add('access', accessLayer('access-pts', 'overlays', 'access'), L);
     add('dams_osm', { ...badge('osm-dam', 'overlays', 'dam'), 'source-layer': 'osm_dams', minzoom: 11 } as LayerSpecification, L);
-  } else {
-    sources['access-live'] = { ...EMPTY };
-    add('access', accessLayer('access-pts', 'access-live'), L);
   }
+  // The current statewide catalog must not be replaced by an older clipped archive.
+  sources['access-live'] = { ...EMPTY };
+  add('access', accessLayer('access-pts', 'access-live'), L);
 
   // Keep these catalog-backed point layers independent of the version of the
   // downloadable overlays pack. Catalog JSON is precached with the app for offline use.
@@ -147,13 +148,17 @@ export function buildStyle(av: Availability): StyleSpecification {
   add('fish_structures', { ...badge('fish-structures-pts', 'fish-structures-live', 'structure'), minzoom: 11 }, L);
   sources['restrooms-live'] = { ...EMPTY };
   add('restrooms', { ...badge('restrooms-pts', 'restrooms-live', 'restroom'), minzoom: 10 }, L);
+  sources['habitat-live'] = { ...EMPTY };
+  add('habitat', { ...badge('habitat-pts', 'habitat-live', 'habitat'), minzoom: 11 }, L);
+  sources['state-boundaries'] = { ...EMPTY };
+  add('state_boundaries', { id: 'state-boundaries-line', type: 'line', source: 'state-boundaries', paint: { 'line-color': '#746f55', 'line-width': 1.4, 'line-opacity': 0.65, 'line-dasharray': [3, 3] } }, L);
 
   // ---------- live + curated GeoJSON ----------
   sources.waters = { ...EMPTY };
   add('waters', badge('waters-pt', 'waters', 'water'), L);
   add('waters', {
-    id: 'waters-lbl', type: 'symbol', source: 'waters',
-    layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 11, 12, 15], 'text-font': ['Noto Sans Medium'], 'text-ignore-placement': true, 'text-allow-overlap': true, 'text-max-width': 8, 'text-offset': [0, 1.25], 'text-anchor': 'top' },
+    id: 'waters-lbl', type: 'symbol', source: 'waters', minzoom: 7,
+    layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 11, 12, 15], 'text-font': ['Noto Sans Medium'], 'text-ignore-placement': false, 'text-allow-overlap': false, 'symbol-sort-key': ['coalesce', ['get', 'priority'], 1], 'text-max-width': 8, 'text-offset': [0, 1.25], 'text-anchor': 'top' },
     paint: { 'text-color': '#0d47a1', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
   }, L);
 

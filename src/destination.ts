@@ -16,19 +16,22 @@ const BOUNDS: [[number, number], [number, number]] = [[-85.32, 32.86], [-85.02, 
 type Region = { id: string; label: string; bounds: [[number, number], [number, number]]; state?: 'AL' | 'GA'; };
 const REGIONS: Region[] = [
   { id: 'core', label: 'East Alabama & West Georgia · core map pack', bounds: [[-86.35, 31.55], [-84.35, 33.85]] },
-  { id: 'alabama', label: 'Alabama · cataloged destinations', state: 'AL', bounds: [[-88.6, 30.15], [-84.85, 35.1]] },
-  { id: 'georgia', label: 'Georgia · cataloged destinations', state: 'GA', bounds: [[-85.7, 30.25], [-80.75, 35.05]] },
-  { id: 'coastal', label: 'Gulf & Atlantic Coast · map bookmark', bounds: [[-88.55, 29.55], [-80.72, 32.12]] },
+  { id: 'alabama', label: 'Alabama · statewide & Gulf', state: 'AL', bounds: [[-88.65, 28.5], [-84.85, 35.1]] },
+  { id: 'georgia', label: 'Georgia · statewide & Atlantic', state: 'GA', bounds: [[-85.7, 30.25], [-79.5, 35.05]] },
+  { id: 'coastal', label: 'Gulf & Atlantic Coast', bounds: [[-88.65, 28.5], [-79.5, 32.5]] },
+  { id: 'gulf', label: 'Alabama Gulf & coast', bounds: [[-88.65, 28.5], [-87.25, 31.35]] },
+  { id: 'atlantic', label: 'Georgia Atlantic & coast', bounds: [[-82.35, 30.25], [-79.5, 32.5]] },
 ];
 const stateCodes = (state: string) => state.split(/[\/,]/).map((part) => part.trim());
 const regionWaters = (region: Region) => waters.filter((water) => {
   if (!water.center) return false;
-  if (region.id === 'coastal') {
+  if (['coastal', 'gulf', 'atlantic'].includes(region.id)) {
     const [lng, lat] = water.center;
     const codes = stateCodes(water.state);
-    return (codes.includes('AL') && lng >= -88.4 && lng <= -87.25 && lat <= 31.35)
-      || (codes.includes('GA') && lng >= -82.35 && lng <= -80.72 && lat <= 32.12);
+    return (region.id !== 'atlantic' && codes.includes('AL') && lng >= -88.65 && lng <= -87.25 && lat >= 28.5 && lat <= 31.35)
+      || (region.id !== 'gulf' && codes.includes('GA') && lng >= -82.35 && lng <= -79.5 && lat >= 30.25 && lat <= 32.5);
   }
+  if (region.state) return stateCodes(water.state).includes(region.state);
   const [west, south] = region.bounds[0], [east, north] = region.bounds[1];
   return water.center[0] >= west && water.center[0] <= east && water.center[1] >= south && water.center[1] <= north && (!region.state || stateCodes(water.state).includes(region.state));
 });
@@ -87,7 +90,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   const radius = Math.max(8, Math.sqrt((water?.acres ?? 5000) * 0.00404686 / Math.PI) * 2.4);
   const latSpan = radius / 111;
   const lngSpan = latSpan / Math.cos(CENTER[1] * Math.PI / 180);
-  const bounds: [[number, number], [number, number]] = water?.id === 'west-point' ? BOUNDS : [[CENTER[0] - lngSpan, CENTER[1] - latSpan], [CENTER[0] + lngSpan, CENTER[1] + latSpan]];
+  const bounds: [[number, number], [number, number]] = water?.id === 'west-point' ? BOUNDS : (water?.bounds && locationBounds(water.bounds)) || [[CENTER[0] - lngSpan, CENTER[1] - latSpan], [CENTER[0] + lngSpan, CENTER[1] + latSpan]];
   const inside = (p: number[]) => !!water?.center && p[0] >= bounds[0][0] && p[0] <= bounds[1][0] && p[1] >= bounds[0][1] && p[1] <= bounds[1][1];
   const near = gauges.filter((g) => inside(g.coords)).sort((a, b) => haversineKm(a.coords, CENTER) - haversineKm(b.coords, CENTER));
   const dam = dams.find((d) => d.lake === water?.id);
@@ -95,14 +98,16 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   const trip = activeTrip();
   const seen = new Set<string>();
   const catalog = accessFeatures();
-  const nearbyCatalog = catalog.filter((f) => inside(f.geometry.coordinates)).sort((a, b) => haversineKm(a.geometry.coordinates as [number, number], CENTER) - haversineKm(b.geometry.coordinates as [number, number], CENTER));
+  const coastal = /coastal|reef/i.test(water?.type ?? '');
+  const accessMatches = (f: { properties: Record<string, any>; geometry: { coordinates: number[] } }) => !!water?.center && (f.properties.waterbody_id === water.id || (coastal ? haversineKm(f.geometry.coordinates as [number, number], CENTER) <= 120 : inside(f.geometry.coordinates)));
+  const nearbyCatalog = catalog.filter(accessMatches).sort((a, b) => haversineKm(a.geometry.coordinates as [number, number], CENTER) - haversineKm(b.geometry.coordinates as [number, number], CENTER));
   const visibleCatalog = nearbyCatalog.filter((f) => map.getBounds().contains(f.geometry.coordinates as [number, number]));
   const showingNearby = catalog.length > 0 && visibleCatalog.length === 0 && nearbyCatalog.length > 0;
   const candidates = catalog.length ? (showingNearby ? nearbyCatalog : visibleCatalog) : map.queryRenderedFeatures(undefined, { layers: ['access-pts'].filter((id) => !!map.getLayer(id)) });
   const access = candidates
     .filter((f) => {
-      if (f.geometry.type !== 'Point' || !inside(f.geometry.coordinates)) return false;
-      const key = f.properties.osm ?? `${f.properties.name}:${f.geometry.coordinates.join(',')}`;
+      if (f.geometry.type !== 'Point' || !accessMatches(f as any)) return false;
+      const key = f.properties.osm ?? f.properties.record_id ?? `${f.properties.name}:${f.geometry.coordinates.join(',')}`;
       if (seen.has(key)) return false; seen.add(key); return true;
     });
   const accessCache = store.get('access-osm');
@@ -114,7 +119,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       <span class="destination-eyebrow">YOUR NEXT DAY OUT · ALABAMA / GEORGIA</span>
       ${regionPickerHtml(region)}
       <p class="small region-scope-note">Showing cataloged destinations in this area. Spatial layers and offline map coverage vary by source.</p>
-      <label class="destination-picker">Choose your destination<select id="destination-select">${choices.map((w) => `<option value="${esc(w.id)}" ${w.id === water?.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label>
+      <label class="destination-picker">Choose your destination<select id="destination-select">${choices.map((w) => `<option value="${esc(w.id)}" ${w.id === water?.id ? 'selected' : ''}>${esc(w.name)}${w.location_label ? ` · ${esc(w.location_label)}` : ''}</option>`).join('')}</select></label>
       <h2>${esc(water?.name ?? 'Choose your water')}</h2><p>Pick your launch. Check the water.<br>Keep the day yours.</p>
       <button class="btn destination-explore" ${water?.center ? '' : 'disabled'}>Explore this water ↗</button>
       ${water && !water.center ? '<p class="small">A single map location is not available for this destination. Browse its information below.</p>' : ''}
@@ -133,11 +138,11 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       ${near.length ? near.slice(0, 2).map((g) => `<details class="destination-card"><summary>${esc(g.name)}</summary>${gaugeHtml(g)}</details>`).join('') : `<div class="destination-card">${actions.gaugeState === 'loading' ? 'Loading water readings…' : actions.gaugeState === 'unavailable' ? 'Water-reading service unavailable.' : 'No stations loaded near this destination.'}<p class="muted small">A missing reading does not establish current conditions.</p></div>`}
       ${dam ? '<button class="btn" data-action="dam">Dam & release information ↗</button>' : ''}
       <h4>02 / Access points &amp; launches${access.length ? ` · ${access.length} nearby` : ''}</h4>
-      <p class="muted small">${water?.center ? 'Locations near this destination, selected by distance. They may serve a neighboring water body. Explore the water, then refresh to see more.' : 'Nearby access cannot be matched until a map location is available.'} Community locations do not confirm an open launch.</p>
+      <p class="muted small">${water?.center ? coastal ? 'Coastal access within 75 miles of this overview point, ranked by straight-line distance. These locations may serve neighboring waters; proximity is not a safe boating route or confirmation of marine access.' : 'Locations near this destination, selected by distance. They may serve a neighboring water body. Explore the water, then refresh to see more.' : 'Nearby access cannot be matched until a map location is available.'} A mapped location does not confirm an open launch.</p>
       <button class="link" data-action="refresh">Refresh visible access</button>
       ${showingNearby ? '<p class="muted small">No access locations in this map view. Showing nearby places outside the view; check each location before choosing a launch.</p>' : ''}
       <ul class="list">${access.slice(0, 8).map((f, i) => `<li><button class="destination-row" data-access="${i}"><b>${symbolHtml(f.properties.kind)}${esc(f.properties.name || ACCESS_LABELS[f.properties.kind] || 'Access point')}</b>${f.properties.description ? `<span>${esc(f.properties.description)}</span>` : ''}<span>${esc(accessLocation(f.properties, f.geometry.type === 'Point' ? f.geometry.coordinates as [number, number] : CENTER))}</span><span>${esc(ACCESS_LABELS[f.properties.kind] ?? 'Access')} · View details ↗</span></button></li>`).join('') || '<li class="muted">No access locations in this view. Explore this water or zoom out to see nearby places.</li>'}</ul>
-      ${accessCache ? `<p class="muted small">${accessEdition ? 'Published OpenStreetMap catalog dated ' + esc(new Date(accessEdition).toLocaleDateString()) : 'Live-service access cache saved ' + esc(new Date(accessCache.t).toLocaleString())}. Downloaded overlays may have a different date.</p>` : ''}
+      ${accessCache ? `<p class="muted small">${accessEdition ? 'Access catalog retrieved ' + esc(new Date(accessEdition).toLocaleDateString()) : 'Live-service access cache saved ' + esc(new Date(accessCache.t).toLocaleString())}. Agency and community sources are identified on each location card. Regional map packs have separate coverage and dates.</p>` : ''}
       <h4>03 / Make it your lake</h4>
       <ul class="list">${spots.map((p) => `<li><button class="destination-row" data-spot="${esc(p.id)}"><b>${esc(p.name)}</b><span>My saved spot ↗</span></button></li>`).join('') || '<li class="muted">Your lake spots will appear here. Long-press the map to save your first one.</li>'}</ul>
       <button class="btn" data-action="fish">Species & lake notes</button>

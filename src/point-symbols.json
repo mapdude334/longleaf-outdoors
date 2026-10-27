@@ -15,7 +15,8 @@
     "gauge": "#9b6107",
     "stale": "#697078",
     "spot": "#ad3867",
-    "hazard": "#b63b32"
+    "hazard": "#b63b32",
+    "habitat": "#386c42"
   },
   "catalogs": {
     "access": {
@@ -34,6 +35,9 @@
     },
     "restrooms": {
       "restroom": "restroom"
+    },
+    "habitat": {
+      "habitat": "habitat"
     }
   }
 }

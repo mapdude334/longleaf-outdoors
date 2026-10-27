@@ -9,5 +9,7 @@ python3 35_label_points.py
 python3 40_fetch_osm.py
 python3 50_nhd.py
 python3 60_enrich_waters.py
+python3 45_angler.py
+python3 46_expand_states.py
 ./70_build_tiles.sh
 ls -lh ../out/*.pmtiles

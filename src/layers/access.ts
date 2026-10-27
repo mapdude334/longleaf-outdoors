@@ -8,6 +8,7 @@ import { normalizePointKinds, symbolHtml } from '../symbols';
 import { cachedLive, esc, haversineKm, fetchJSON, store } from '../util';
 import { waters } from './waters';
 import { dams } from './dams';
+import { sourceMetadata } from '../data-metadata';
 
 export const ACCESS_LABELS: Record<string, string> = {
   boat_ramp: 'Boat ramp', paddle_launch: 'Kayak / canoe launch', fishing: 'Fishing pier / spot',
@@ -36,7 +37,7 @@ export async function loadAccessLive(map: Map) {
     store.set('access-osm', features);
     store.set('access-edition', snapshot.updated);
     (map.getSource('access-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
-    return { count: features.length, offline: !navigator.onLine, source: 'published OSM catalog' };
+    return { count: features.length, offline: !navigator.onLine, source: 'published agency / OSM catalog' };
   } catch { /* Older offline installations can still use their cached/live data. */ }
   const [w, s, e, n] = AOI;
   const bb = `(${s},${w},${n},${e})`;
@@ -59,12 +60,13 @@ export async function loadAccessLive(map: Map) {
   return { count: features.length, offline: res.offline, source: 'OSM live' };
 }
 
-const KEEP = ['name', 'operator', 'access', 'fee', 'opening_hours', 'surface', 'lanes', 'website', 'phone', 'description', 'parking', 'toilets', 'fishing', 'lit', 'addr:street', 'addr:city'];
+const KEEP = ['name', 'operator', 'access', 'status', 'waterbody', 'county', 'state', 'species_summary', 'fee', 'opening_hours', 'surface', 'lanes', 'website', 'phone', 'description', 'parking', 'toilets', 'fishing', 'lit', 'addr:street', 'addr:city'];
 
 /** Describe the mapped position without inventing a facility name or access conditions. */
 export function accessLocation(p: Record<string, any>, coords: [number, number]): string {
   const address = [p['addr:street'], p['addr:city']].filter(Boolean).join(', ');
   if (address) return address;
+  if (p.waterbody) return [p.waterbody, p.county ? `${p.county} County` : '', p.state].filter(Boolean).join(' · ');
   const anchors = [
     ...dams.map((d) => ({ name: d.name, coords: d.coords })),
     ...waters.flatMap((w) => w.center ? [{ name: `${w.name} (mapped center)`, coords: w.center }] : []),
@@ -91,9 +93,9 @@ export function accessHtml(p: Record<string, any>, coords: [number, number]): st
   <p>${symbolHtml(k)}${esc(ACCESS_LABELS[k])}</p>
   <p>${esc(accessLocation(p, coords))}</p>
   <p class="muted small">${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}</p>
-  ${['boat_ramp', 'paddle_launch'].includes(k) ? `<button class="btn primary" data-use-launch data-launch-id="${esc(p.osm ?? coords.join(','))}" data-launch-name="${esc(p.name || ACCESS_LABELS[k])}" data-launch-lng="${coords[0]}" data-launch-lat="${coords[1]}">Use as my launch</button>` : ''}
+  ${['boat_ramp', 'paddle_launch'].includes(k) ? `<button class="btn primary" data-use-launch data-launch-id="${esc(p.osm ?? p.record_id ?? coords.join(','))}" data-launch-name="${esc(p.name || ACCESS_LABELS[k])}" data-launch-lng="${coords[0]}" data-launch-lat="${coords[1]}" ${/closed|decommissioned/i.test(String(p.status ?? '')) ? 'disabled title="Agency lists this facility as closed"' : ''}>Use as my launch</button>` : ''}
   ${k === 'fishing' ? `<button class="btn primary" data-use-spot data-launch-id="${esc(p.osm ?? coords.join(','))}" data-launch-name="${esc(p.name || ACCESS_LABELS[k])}" data-launch-lng="${coords[0]}" data-launch-lat="${coords[1]}">Add fishing spot to trip</button>` : ''}
   ${rows ? `<table class="props">${rows}</table>` : ''}
   <p><a href="${nav}" target="_blank" rel="noopener">Driving directions ↗</a>${p.osm ? ` · <a href="https://www.openstreetmap.org/${esc(p.osm)}" target="_blank" rel="noopener">Fix/add info on OSM ↗</a>` : ''}</p>
-  <p class="muted small">Community data (OpenStreetMap). Confirm access rules on site.</p>`;
+  ${sourceMetadata(p.data_source ? p : { ...p, data_source: 'OpenStreetMap contributors' })}<p class="muted small">A mapped access point does not confirm current opening, permissions or launch conditions. Confirm access with the operator.</p>`;
 }

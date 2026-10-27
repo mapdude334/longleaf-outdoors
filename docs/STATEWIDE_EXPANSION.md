@@ -1,0 +1,33 @@
+# Alabama / Georgia preview expansion
+
+This preview expands the online map and agency catalogs beyond the original East Alabama / West Georgia map packs. It is an inventory of available mapped agency records, not a claim that every water, ramp, habitat feature or restroom has been surveyed. Production promotion requires the user's approval.
+
+## Sources and interpretation
+
+| Catalog | Agency source | Interpretation |
+| --- | --- | --- |
+| Alabama ramps | [DCNR-managed ramps](https://conservationgis.alabama.gov/adcnrweb/rest/services/DCNRBoatRamps/MapServer/0) | Agency facility inventory; source does not include every public ramp. Restroom reports identify the facility, not a surveyed restroom building. |
+| Georgia access and species | [WRD Water Access Points](https://services6.arcgis.com/9QlSLDqa0P1cHLhu/ArcGIS/rest/services/WRD_Water_Access_Points/FeatureServer/0) | Public facility records, access type, operator, status, amenities and explicit species flags. Unknown flags do not become affirmative statements. |
+| Alabama freshwater structures | [Fish attractors](https://conservationgis.alabama.gov/adcnrweb/rest/services/FishAttractors/MapServer/0) | Recorded installations, materials, quantity and installation dates. Not live sonar or current depth. |
+| Georgia structures and restoration | [Habitat Improvement public view](https://services6.arcgis.com/9QlSLDqa0P1cHLhu/ArcGIS/rest/services/Fish_Attractors_View/FeatureServer/0) | Agency activity codes distinguish attractors/trout structures from planting and spring/stream restoration. The latter use the habitat symbol. |
+| Alabama coastal/Gulf reefs | [AMRD Artificial Reefs](https://conservationgis.alabama.gov/adcnrweb/rest/services/ArtificialReefs/MapServer/0) | Public reef installation records. Navigational-aid markers are excluded from the structure catalog. |
+| Georgia Atlantic reefs | [CRD Artificial Offshore Reefs](https://services3.arcgis.com/r9yUQy2Mlp8XERvO/arcgis/rest/services/ArtificialOffshoreReefs/FeatureServer/0) | Agency organization verified as Georgia DNR Coastal Resources Division. The layer is named GA_OAR_12122016 and reports a 2017 layer edit date. Its legacy status is shown in every card; permitted-area corner markers are excluded. |
+| Aquatic vegetation | [Georgia DNR vegetation surveys](https://services6.arcgis.com/9QlSLDqa0P1cHLhu/ArcGIS/rest/services/Aquatic_Vegetation_view/FeatureServer/0) | Historical observations with vegetation type, observation date and source metadata. These do not establish current plant coverage, navigability or habitat condition. |
+| Additional waters | [Alabama public fishing lakes](https://conservationgis.alabama.gov/adcnrweb/rest/services/PublicFishingLakes/MapServer/0), [Georgia WRD water bodies](https://services6.arcgis.com/9QlSLDqa0P1cHLhu/ArcGIS/rest/services/WRD_Waterbodies/FeatureServer/0), and named agency access inventories | Use agency label points/centroids or the extent of associated point records. They are overview locations, not surveyed shorelines. Distant small waters sharing a name remain separate; aliases retain existing destination IDs. |
+| State outlines | [US Census TIGERweb states](https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0) | Generalized AL/GA state polygons for geographic context. Offshore agency records may lie beyond state outlines. |
+
+The original community access and restroom records remain as regional supplements. They have not been relabeled as a statewide OSM inventory. Freshwater and coastal records use the same map-card and trip flows. An explicitly closed agency ramp cannot be chosen as a new launch; a historical status is not proof of current opening.
+
+## Data integrity and refresh
+
+Run `python pipeline/scripts/46_expand_states.py` to fetch the public catalogs. Every source is read by its complete object-ID list in bounded batches. Missing pages or service failures stop the import before publication. Raw responses are cached in the ignored `pipeline/cache/statewide/` directory for one day. Relevant attribution, source URLs, record IDs, source-layer edit dates when supplied, installation/observation dates and retrieval timestamps are preserved. Personal surveyor/editor fields are not copied into the app catalog.
+
+`public/data/coverage.json` records source counts, accepted/excluded counts, edition information and final catalog totals. `pipeline/statewide-water-profiles.json` contains a small set of manually checked agency fishery profiles. Existing curated species and notes are preserved. Other species lists use explicit Georgia agency species flags; absent data receives an explanation, not a guessed species list. Species lacking a full field-guide entry open an honest source-information card instead of a dead control.
+
+Run `npm run test:statewide`, `npm run test:regions`, `npm run test:preview` and `npm run build` before publishing. Statewide tests verify original records and destination IDs remain, new points exist beyond the core area, source/category metadata is present, access points refer to valid destinations, and regional archives cannot suppress statewide access points. The preview publisher runs these checks.
+
+## Online and offline behavior
+
+The original PMTiles coverage and checksums are unchanged. Catalog JSON and symbols are included in the app's service-worker cache. Outside the archive footprint, the map uses online topo when the regional vector base was selected, and online land/water layers instead of clipped archive overlays. Saved imagery selection is respected. Public-land identify works there too. Use area downloads for basemap/terrain coverage beyond the original archives and verify on the device before departure. Parcel coverage remains limited to the previously configured counties.
+
+This expansion does not add marine navigation charts or automatic safe-water routing. Gulf/Atlantic reef coordinates, historical habitat records and terrain contours are not a marine depth survey.

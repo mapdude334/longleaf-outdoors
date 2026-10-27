@@ -12,14 +12,15 @@ import './styles.css';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { AttributionControl, GeolocateControl, Map, NavigationControl, ScaleControl, setWorkerUrl, type MapGeoJSONFeature } from 'maplibre-gl';
 import { registerSW } from 'virtual:pwa-register';
-import { AOI, START_VIEW } from './config';
+import { AOI, MAP_BOUNDS, START_VIEW } from './config';
+import { availableBasemap, overlayAvailable, viewInsideCore } from './coverage';
 import { resolvePm } from './pmtiles';
 import { buildStyle, groups, ACCESS_COLORS, type Availability, type BasemapId } from './style';
 import { loadGauges, gauges, gaugeHtml, fillTrend } from './layers/gauges';
 import { loadDams, dams, damHtml, fillCwms } from './layers/dams';
 import { loadWaters, waters, waterById, waterByName, waterHtml, regulations } from './layers/waters';
-import { loadAccessLive, accessHtml, ACCESS_LABELS } from './layers/access';
-import { loadAnglerData, fishStructures, restrooms, fishStructureHtml, restroomHtml } from './layers/angler';
+import { loadAccessLive, accessFeatures, accessHtml, ACCESS_LABELS } from './layers/access';
+import { loadAnglerData, fishStructures, restrooms, habitats, fishStructureHtml, restroomHtml, habitatHtml } from './layers/angler';
 import { identifyParcels, identifyPublicLands, publicLandHtml, MANAGER_TYPES } from './layers/identify';
 import { weatherHtml } from './weather';
 import { addWpt, deleteTrack, deleteWpt, downloadGpx, getTracks, getWpts, importGpx, importSharedWpts, initWaypoints, isRecording, toggleRecording, trackKm, updateWpt, WPT_TYPES } from './waypoints';
@@ -42,7 +43,7 @@ registerSW({ immediate: true, onOfflineReady: () => toast('App installed offline
 type UiState = { basemap: BasemapId; on: Record<string, boolean>; terrain3d: boolean; coordFmt: 'dd' | 'dm' };
 const DEFAULT_ON: Record<string, boolean> = {
   hillshade: true, public_lands: true, parcels: false, water: true, contours: false, radar: false,
-  access: true, fish_structures: false, restrooms: false, dams: true, dams_osm: true, gauges: true, waters: true, mine: true,
+  access: true, fish_structures: false, restrooms: false, habitat: false, state_boundaries: true, dams: true, dams_osm: true, gauges: true, waters: true, mine: true,
 };
 const ui: UiState = { basemap: 'topo', terrain3d: false, coordFmt: 'dd', ...store.get<UiState>('ui')?.v, on: { ...DEFAULT_ON, ...store.get<UiState>('ui')?.v?.on } };
 const saveUi = () => store.set('ui', ui);
@@ -60,7 +61,7 @@ const map = new Map({
   style: buildStyle(av),
   center: START_VIEW.center,
   zoom: START_VIEW.zoom,
-  maxBounds: [[AOI[0] - 1.5, AOI[1] - 1.5], [AOI[2] + 1.5, AOI[3] + 1.5]],
+  maxBounds: MAP_BOUNDS,
   attributionControl: false,
   hash: 'map',
 });
@@ -89,7 +90,7 @@ map.addControl({
     button.setAttribute('aria-label', 'Home · show all locations');
     button.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="display:block;margin:auto"><path d="m3 11 9-8 9 8M5 10v11h5v-7h4v7h5V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     button.onclick = () => {
-      const points = [...waters.flatMap((w) => w.center ? [w.center] : []), ...dams.map((d) => d.coords), ...gauges.map((g) => g.coords), ...fishStructures.map((f) => f.geometry.coordinates as [number, number]), ...restrooms.map((f) => f.geometry.coordinates as [number, number])];
+      const points = [...waters.flatMap((w) => w.center ? [w.center] : []), ...dams.map((d) => d.coords), ...gauges.map((g) => g.coords), ...accessFeatures().map((f) => f.geometry.coordinates as [number, number]), ...fishStructures.map((f) => f.geometry.coordinates as [number, number]), ...habitats.map((f) => f.geometry.coordinates as [number, number]), ...restrooms.map((f) => f.geometry.coordinates as [number, number])];
       const extent: [[number, number], [number, number]] = points.length
         ? [[Math.min(...points.map((p) => p[0])), Math.min(...points.map((p) => p[1]))], [Math.max(...points.map((p) => p[0])), Math.max(...points.map((p) => p[1]))]]
         : [[AOI[0], AOI[1]], [AOI[2], AOI[3]]];
@@ -161,11 +162,16 @@ async function refreshAvailability() {
 
 function applyVisibility() {
   radarLegend.hidden = !ui.on.radar;
+  const core = viewInsideCore(map);
+  const effectiveBase = availableBasemap(ui.basemap, core);
   for (const [g, ids] of Object.entries(groups)) {
     let visible: boolean;
-    if (g.startsWith('base:')) visible = g === 'base:' + ui.basemap;
+    if (g.startsWith('base:')) visible = g === 'base:' + effectiveBase;
     else visible = ui.on[g] ?? true;
-    for (const id of ids) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+    for (const id of ids) if (map.getLayer(id)) {
+      const shown = visible && overlayAvailable(g, id, !!av.overlays, core);
+      map.setLayoutProperty(id, 'visibility', shown ? 'visible' : 'none');
+    }
   }
   map.setTerrain(ui.terrain3d ? { source: 'dem', exaggeration: 1.4 } : null);
 }
@@ -179,7 +185,7 @@ async function reloadData() {
     loadDams(map).then(() => { if (currentTab === 'destination') void destination(); }),
     loadGauges(map).then((r) => { gaugeState = 'ready'; parts.push(`${r.count} gauges · ${r.source}${r.offline ? ' (cached ' + ago(r.t) + ')' : ''}`); if (currentTab === 'destination') void destination(); }).catch(() => { gaugeState = 'unavailable'; parts.push('Gauges unavailable'); if (currentTab === 'destination') void destination(); }),
     loadAccessLive(map).then((r) => { parts.push(`${r.count} access points (${r.source}${r.offline ? ', cached' : ''})`); if (currentTab === 'destination') void destination(); }).catch(() => parts.push('Access points unavailable')),
-    loadAnglerData(map).then((r) => parts.push(`${r.structureCount} fish structures · ${r.restroomCount} restroom records`)).catch(() => parts.push('Angler structure/restroom data unavailable')),
+    loadAnglerData(map).then((r) => parts.push(`${r.structureCount} fish structures · ${r.restroomCount} restroom records · ${r.habitatCount} habitat records`)).catch(() => parts.push('Angler structure/restroom/habitat data unavailable')),
   ]);
   dataStatus = parts.join(' · ');
   renderLayers();
@@ -201,7 +207,7 @@ function destination() {
   return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips'), downloadsChanged: refreshAvailability, gaugeState });
 }
 map.on('style.load', () => showTripPlan(map));
-map.on('moveend', () => { if (currentTab === 'destination') void destination(); });
+map.on('moveend', () => { if (map.getLayer('bg')) applyVisibility(); if (currentTab === 'destination') void destination(); if (currentTab === 'layers') renderLayers(); });
 function showTab(name: string) {
   cancelTripPick();
   cancelWaypointPick?.();
@@ -377,7 +383,10 @@ function openTripDestination(id: string) {
 
 function openSpecies(label: string, back: () => void) {
   const matches = speciesForLabel(label);
-  if (!matches.length) return;
+  if (!matches.length) {
+    showInfo(`<button class="link fish-back">← Back</button><h3>${esc(label)}</h3><p>This species is reported in the agency's source inventory. A detailed Longleaf field-guide entry has not been added yet.</p><p>For identification, habitat and regulations, use the official agency resources linked on the water's information card.</p>`, (root) => { root.querySelector<HTMLButtonElement>('.fish-back')!.onclick = back; });
+    return;
+  }
   const choice = matches.length > 1;
   showInfo(`<button class="link fish-back">← Back</button>${choice ? speciesChoiceHtml(label) : speciesHtml(matches[0].id)}`, (root) => {
     root.querySelector<HTMLButtonElement>('.fish-back')!.onclick = back;
@@ -395,8 +404,10 @@ function openSpecies(label: string, back: () => void) {
 const OVERLAY_ROWS: [string, string, string?][] = [
   ['public_lands', 'Public lands (PAD-US)', 'WMAs, national/state forests & parks, USACE lands, easements'],
   ['access', 'Boat ramps & access', 'Ramps, piers, paddle launches, marinas, campgrounds'],
-  ['fish_structures', 'Fish attractors & submerged structure', 'Alabama DCNR and USACE fish-attractor locations · zoom 11+'],
-  ['restrooms', 'Public restrooms', 'Mapped restroom points and recreation facilities tagged with toilets · zoom 10+'],
+  ['fish_structures', 'Fish attractors & reefs', 'AL/GA agency freshwater structures and coastal reefs · zoom 11+'],
+  ['habitat', 'Aquatic habitat surveys', 'Georgia DNR historical vegetation records · zoom 11+'],
+  ['state_boundaries', 'State boundaries', 'Census generalized outlines; offshore sites may lie beyond state borders'],
+  ['restrooms', 'Public restrooms', 'AL/GA agency facility reports and regional OSM points · zoom 10+'],
   ['waters', 'Lake & river fishing info', 'Species and notes for major waters'],
   ['gauges', 'Live river gauges & lake levels', 'USGS flow, stage, elevation, water temp'],
   ['dams', 'Dams & release schedules', 'Georgia Power, Alabama Power, USACE'],
@@ -408,7 +419,7 @@ const OVERLAY_ROWS: [string, string, string?][] = [
   ['mine', 'My waypoints & tracks'],
 ];
 const LAYER_PROFILES: Record<string, string[]> = {
-  fishing: ['public_lands', 'access', 'water', 'dams', 'dams_osm', 'gauges', 'waters', 'mine'],
+  fishing: ['public_lands', 'access', 'fish_structures', 'state_boundaries', 'water', 'dams', 'dams_osm', 'gauges', 'waters', 'mine'],
   facilities: ['public_lands', 'access', 'restrooms', 'water', 'waters', 'mine'],
   land: ['public_lands', 'water', 'contours', 'hillshade'],
   all: OVERLAY_ROWS.map(([group]) => group).concat('dams_osm'),
@@ -430,6 +441,7 @@ function renderLayers() {
     <h4>Quick map views</h4>
     <div class="seg layer-profiles"><button data-profile="fishing">Fishing</button><button data-profile="facilities">Facilities</button><button data-profile="land">Land &amp; water</button><button data-profile="all">All layers</button></div>
     <p class="muted small">Start with a focused map, then switch on extra detail when you need it.</p>
+    <p class="muted small">Agency point catalogs cover Alabama, Georgia and associated Gulf/Atlantic sites. The downloadable regional archives still cover East Alabama / West Georgia. Outside that footprint, online basemaps and land/water layers are used; save an area in Offline before traveling.</p>
     <h4>Basemap</h4>
     <div class="seg">${bases.map(([id, label, ok]) => `<button data-base="${id}" class="${ui.basemap === id ? 'active' : ''}" ${ok ? '' : 'disabled title="Install with the data pipeline"'}>${label}</button>`).join('')}</div>
     <label class="row"><input type="checkbox" id="t3d" ${ui.terrain3d ? 'checked' : ''}> 3D terrain (tilt with two fingers / right-drag)</label>
@@ -444,7 +456,7 @@ function renderLayers() {
       ${Object.entries(ACCESS_COLORS).filter(([k]) => k !== 'other').map(([k]) => `<div>${symbolHtml(k)}${ACCESS_LABELS[k]}</div>`).join('')}
       <div>${symbolHtml('gauge')}Water gauge ${symbolHtml('stale')}No recent data</div>
       <div>${symbolHtml('dam')}Dam / release information</div><div>${symbolHtml('spot')}My fishing spot · amber outline = selected location</div>
-      <div>${symbolHtml('structure')}Fish attractor / submerged structure</div><div>${symbolHtml('restroom')}Public restroom · facility-level reports may be approximate</div>
+      <div>${symbolHtml('structure')}Fish attractor / artificial reef</div><div>${symbolHtml('habitat')}Aquatic habitat survey · historical vegetation record</div><div>${symbolHtml('restroom')}Public restroom · facility-level reports may be approximate</div>
       <p class="muted small">Layer switches control what is shown. Access icons appear from zoom 9 and labels from zoom 12. Icons may be hidden where crowded; zoom in to separate them. Some layers appear only when zoomed in; live layers need a connection unless cached.</p>
     </details>
     <p class="muted small">Data: ${esc(dataStatus || 'loading…')}<br>
@@ -593,7 +605,9 @@ map.on('click', async (e) => {
   const a = by('access-pts');
   if (!sections.length && a) sections.push(accessHtml(a.properties, (a.geometry as { coordinates: number[] }).coordinates as [number, number]));
   const structure = by('fish-structures-pts');
-  if (!sections.length && structure) sections.push(fishStructureHtml(structure.properties));
+  if (!sections.length && structure) sections.push(fishStructureHtml(structure.properties, (structure.geometry as { coordinates: number[] }).coordinates as [number, number]));
+  const habitat = by('habitat-pts');
+  if (!sections.length && habitat) sections.push(habitatHtml(habitat.properties, (habitat.geometry as { coordinates: number[] }).coordinates as [number, number]));
   const restroom = by('restrooms-pts');
   if (!sections.length && restroom) sections.push(restroomHtml(restroom.properties));
   const od = by('osm-dam');
@@ -601,7 +615,7 @@ map.on('click', async (e) => {
 
   const wl = by('waters-lbl') ?? by('waters-pt');
   const wf: MapGeoJSONFeature | undefined = by('wb-fill') ?? by('stream-line');
-  const water = wl ? waterById(String(wl.properties.id)) : wf ? (wf.properties.water_id ? waterById(String(wf.properties.water_id)) : waterByName(wf.properties.gnis_name)) : undefined;
+  const water = wl ? waterById(String(wl.properties.id)) : wf ? (wf.properties.water_id ? waterById(String(wf.properties.water_id)) : waterByName(wf.properties.gnis_name, [e.lngLat.lng, e.lngLat.lat])) : undefined;
   if (water) sections.push(waterHtml(water, wf?.properties) + '<button class="btn primary" data-map-destination>Make it your destination</button>');
   else if (wf?.properties.gnis_name && !sections.length) sections.push(`<h3>${esc(wf.properties.gnis_name)}</h3><p class="muted">NHD ${wf.layer.id === 'wb-fill' ? 'water body' : 'stream'}${wf.properties.areasqkm ? ` · ${(wf.properties.areasqkm * 247.105).toFixed(0)} acres` : ''}</p>`);
 
@@ -613,7 +627,7 @@ map.on('click', async (e) => {
   // Live identify fallbacks (no offline overlays installed)
   const { lng, lat } = e.lngLat;
   const pending: Promise<string | null>[] = [];
-  if (!av.overlays && ui.on.public_lands && map.getZoom() >= 7) pending.push(identifyPublicLands(lng, lat));
+  if ((!av.overlays || !viewInsideCore(map)) && ui.on.public_lands && map.getZoom() >= 7) pending.push(identifyPublicLands(lng, lat));
   if (!av.parcels && ui.on.parcels && map.getZoom() >= 13) pending.push(identifyParcels(lng, lat));
 
   if (!sections.length && !pending.length) return;
@@ -688,7 +702,8 @@ q.oninput = () => {
   for (const w of waters) if (w.name.toLowerCase().includes(s) || w.species.some((x) => x.name.toLowerCase().includes(s))) hits.push({ label: w.name, sub: 'Water · ' + w.species.slice(0, 3).map((x) => x.name).join(', '), center: w.center ?? map.getCenter().toArray() as [number, number], zoom: 11, open: () => { selectDestination(w.id); showTab('destination'); } });
   for (const d of dams) if (d.name.toLowerCase().includes(s)) hits.push({ label: d.name, sub: 'Dam · ' + d.operator, center: d.coords, zoom: 13, open: () => showInfo(damHtml(d), (r) => fillCwms(r, d)) });
   for (const g of gauges) if (g.name.toLowerCase().includes(s) || g.id.includes(s)) hits.push({ label: g.name, sub: 'USGS gauge ' + g.id, center: g.coords, zoom: 13, open: () => showInfo(gaugeHtml(g), (r) => fillTrend(r, g)) });
-  for (const f of fishStructures) if ([f.properties.name, f.properties.waterbody, f.properties.structure].some((v) => String(v ?? '').toLowerCase().includes(s))) hits.push({ label: String(f.properties.name || 'Fish attractor'), sub: `${f.properties.waterbody || 'Fish structure'} · ${f.properties.data_source || 'agency data'}`, center: f.geometry.coordinates as [number, number], zoom: 14, open: () => showInfo(fishStructureHtml(f.properties)) });
+  for (const f of fishStructures) if ([f.properties.name, f.properties.waterbody, f.properties.structure].some((v) => String(v ?? '').toLowerCase().includes(s))) hits.push({ label: String(f.properties.name || 'Fish attractor'), sub: `${f.properties.waterbody || 'Fish structure'} · ${f.properties.data_source || 'agency data'}`, center: f.geometry.coordinates as [number, number], zoom: 14, open: () => showInfo(fishStructureHtml(f.properties, f.geometry.coordinates as [number, number])) });
+  for (const f of habitats) if ([f.properties.name, f.properties.waterbody, f.properties.habitat_type].some((v) => String(v ?? '').toLowerCase().includes(s))) hits.push({ label: String(f.properties.name), sub: `Habitat survey · ${f.properties.observed_at || 'date not supplied'}`, center: f.geometry.coordinates as [number, number], zoom: 14, open: () => showInfo(habitatHtml(f.properties, f.geometry.coordinates as [number, number])) });
   for (const f of restrooms) if (!['public restroom', 'restroom reported at recreation facility'].includes(String(f.properties.name || '').toLowerCase()) && String(f.properties.name || '').toLowerCase().includes(s)) hits.push({ label: String(f.properties.name), sub: `Restroom · ${f.properties.facility || 'recreation facility'}`, center: f.geometry.coordinates as [number, number], zoom: 15, open: () => showInfo(restroomHtml(f.properties)) });
   for (const p of getWpts()) if (p.name.toLowerCase().includes(s)) hits.push({ label: p.name, sub: 'My waypoint', center: [p.lng, p.lat], zoom: 15, open: () => editWpt(p.id) });
   const accessSrc = av.overlays ? map.querySourceFeatures('overlays', { sourceLayer: 'access' }) : map.querySourceFeatures('access-live');
