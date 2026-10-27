@@ -12,7 +12,7 @@ export type Trip = { id: string; name: string; destination: string; date?: strin
 const saved = () => store.get<Trip[]>('trips')?.v ?? [];
 const draft = () => store.get<Trip>('trip-draft')?.v;
 function draftForPlace(place: Place) {
-  const destination = store.get<string>('destination')?.v ?? 'west-point';
+  const destination = store.get<string>('destination')?.v ?? '';
   const current = draft();
   const active = activeTrip();
   const trip = structuredClone(current ?? (active?.destination === destination ? active : undefined) ?? { id: crypto.randomUUID(), name: '', destination, spots: [], notes: '', updated: Date.now(), view: { center: place.coords, zoom: 12 } });
@@ -59,7 +59,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       ${draft() ? '<p class="muted small">Resume and save your draft before starting another trip. Backups include saved trips.</p>' : ''}
       <p class="muted small">Saved on this browser, available offline. Map packs must be downloaded separately. Clearing browser data removes trips.</p>
       <ul class="list">${saved().map((t) => `<li><button class="destination-row" data-edit="${esc(t.id)}"><b>${esc(t.name)}</b><span>${esc(waters.find((w) => w.id === t.destination)?.name ?? t.destination)}</span><span>${esc(t.ramp?.name ?? 'No launch selected')} · ${t.spots.length} fishing spots</span></button><div class="row-btns"><button class="btn" data-share-trip="${esc(t.id)}">Share trip</button></div></li>`).join('') || '<li class="muted">Your saved trips will appear here.</li>'}</ul>`;
-    root.querySelector<HTMLButtonElement>('[data-new]')!.onclick = () => edit({ id: crypto.randomUUID(), name: '', destination: store.get<string>('destination')?.v ?? 'west-point', spots: [], notes: '', updated: Date.now(), view: { center: map.getCenter().toArray() as [number, number], zoom: map.getZoom() } });
+    root.querySelector<HTMLButtonElement>('[data-new]')!.onclick = () => edit({ id: crypto.randomUUID(), name: '', destination: store.get<string>('destination')?.v ?? '', spots: [], notes: '', updated: Date.now(), view: { center: map.getCenter().toArray() as [number, number], zoom: map.getZoom() } });
     const resume = root.querySelector<HTMLButtonElement>('[data-resume]');
     if (resume) resume.onclick = () => edit(structuredClone(draft()!));
     root.querySelector<HTMLButtonElement>('[data-export]')!.onclick = () => {
@@ -136,7 +136,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       destinationChoices.set(label, choice.id);
       destinationLabels.set(choice.id, label);
     }
-    const selectedDestination = destinationLabels.get(trip.destination) ?? 'Choose a current lake (previous destination retired)';
+    const selectedDestination = destinationLabels.get(trip.destination) ?? (trip.destination ? 'Choose a current lake (previous destination retired)' : '');
     const rampChoices = new globalThis.Map<string, Place>();
     const rampLabels = new globalThis.Map<string, string>();
     const rampLabelCounts = new globalThis.Map<string, number>();
