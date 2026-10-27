@@ -26,16 +26,21 @@ function regionPickerHtml(region: RegionDefinition) {
   return `<label class="destination-picker">Choose a region<select id="destination-region">${REGIONS.map((item) => `<option value="${item.id}" ${item.id === region.id ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}</select></label>`;
 }
 function wireRegionPicker(root: HTMLElement, map: Map, region: RegionDefinition, actions: Parameters<typeof renderDestination>[2]) {
-  root.querySelector<HTMLSelectElement>('#destination-region')?.addEventListener('change', (event) => {
+  root.querySelector<HTMLSelectElement>('#destination-region')?.addEventListener('change', async (event) => {
     const nextRegion = REGIONS.find((item) => item.id === (event.target as HTMLSelectElement).value) ?? REGIONS[0];
     store.set('destination-area', nextRegion.id);
     actions.regionChanged?.();
     const options = regionWaters(nextRegion);
     const current = store.get<string>('destination')?.v;
     if (options.length && !options.some((water) => water.id === current)) selectDestination(options[0].id);
-    zoomToRegion(map, nextRegion);
     root.scrollTop = 0;
-    void renderDestination(root, map, actions);
+    await renderDestination(root, map, actions);
+    // Recalculate the map viewport after the destination panel has refreshed.
+    // This keeps the selected region centered in the unobstructed map area.
+    requestAnimationFrame(() => {
+      map.resize();
+      zoomToRegion(map, nextRegion);
+    });
   });
 }
 export function selectDestination(id: string) {

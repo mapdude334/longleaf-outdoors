@@ -27,6 +27,7 @@ const waters = {
 assert.equal(regionContainsWater(region.alabama, waters.alCore), true);
 assert.equal(regionContainsWater(region.alabama, waters.gaCore), false);
 assert.equal(regionContainsWater(region.georgia, waters.dualState), true);
+assert.equal(regionContainsWater(region['south-carolina'], waters.dualState), false, 'A border-water label must not place its mapped point in another state');
 assert.equal(regionContainsWater(region['south-carolina'], waters.scInterior), true);
 assert.equal(regionContainsWater(region['south-carolina'], waters.alCore), false);
 assert.equal(regionContainsWater(region.coastal, waters.alGulf), true);

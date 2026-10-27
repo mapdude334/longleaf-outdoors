@@ -68,7 +68,7 @@ export function regionContainsWater(region: RegionDefinition, water: { state: st
   if (!water.center) return false;
   const codes = stateCodes(water.state);
   if (region.membership) return region.membership.some((area) => codes.some((code) => area.states.includes(code as StateCode)) && within(water.center!, area.bounds));
-  if (region.states) return codes.some((code) => region.states!.includes(code as StateCode));
+  if (region.states) return codes.some((code) => region.states!.includes(code as StateCode)) && within(water.center, region.bounds);
   return within(water.center, region.bounds);
 }
 
