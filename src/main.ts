@@ -1,5 +1,6 @@
 import { renderDestination, selectDestination } from './destination';
 import { initWelcome } from './welcome';
+import { initDonations } from './donate';
 import { installSymbols, symbolHtml, highlightLocation } from './symbols';
 import { addShareControl } from './share';
 import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick, useLaunchInTrip, useSpotInTrip } from './trips';
@@ -26,6 +27,7 @@ import { $, ago, esc, fmtCoord, store, toast } from './util';
 
 setWorkerUrl(workerUrl);
 initWelcome();
+initDonations();
 registerSW({ immediate: true, onOfflineReady: () => toast('App installed offline. Download map packs before your trip.') });
 
 // ---------------- state ----------------
