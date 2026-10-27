@@ -20,7 +20,9 @@ const selectedRegion = () => REGIONS.find((region) => region.id === store.get<st
 function zoomToRegion(map: Map, region: RegionDefinition) {
   if (isCompactLayout()) setSheetSnap('peek');
   const bottom = isCompactLayout() ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) + 20 : 45;
-  map.fitBounds(region.bounds, { padding: { top: 45, left: isCompactLayout() ? 35 : 410, right: 45, bottom }, duration: 900, maxZoom: 9 });
+  const padding = { top: 45, left: isCompactLayout() ? 35 : 410, right: 45, bottom };
+  const camera = map.cameraForBounds(region.bounds, { padding, maxZoom: 9, bearing: 0, pitch: 0 });
+  if (camera) map.flyTo({ ...camera, duration: 900, essential: true });
 }
 function regionPickerHtml(region: RegionDefinition) {
   return `<label class="destination-picker">Choose a region<select id="destination-region">${REGIONS.map((item) => `<option value="${item.id}" ${item.id === region.id ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}</select></label>`;
