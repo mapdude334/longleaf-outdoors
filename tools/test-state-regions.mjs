@@ -5,6 +5,7 @@ import { stripTypeScriptTypes } from 'node:module';
 const source = await readFile(new URL('../src/state-regions.ts', import.meta.url), 'utf8');
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source)).toString('base64')}`;
 const { STATES, REGIONS, regionContainsPoint, regionContainsWater } = await import(moduleUrl);
+const boundaryData = JSON.parse(await readFile(new URL('../public/data/state-boundaries.json', import.meta.url), 'utf8'));
 
 assert.deepEqual(STATES.map(({ code, coverage }) => [code, coverage]), [
   ['AL', 'available'], ['GA', 'available'], ['SC', 'available'], ['NC', 'planned'], ['VA', 'planned'],
@@ -12,6 +13,22 @@ assert.deepEqual(STATES.map(({ code, coverage }) => [code, coverage]), [
 assert.deepEqual(REGIONS.map(({ id }) => id), ['core', 'alabama', 'georgia', 'south-carolina', 'coastal', 'gulf', 'atlantic']);
 
 const region = Object.fromEntries(REGIONS.map((item) => [item.id, item]));
+function geometryBounds(coords, bounds = [Infinity, Infinity, -Infinity, -Infinity]) {
+  if (Array.isArray(coords) && typeof coords[0] === 'number') {
+    bounds[0] = Math.min(bounds[0], coords[0]); bounds[1] = Math.min(bounds[1], coords[1]);
+    bounds[2] = Math.max(bounds[2], coords[0]); bounds[3] = Math.max(bounds[3], coords[1]);
+  } else if (Array.isArray(coords)) for (const child of coords) geometryBounds(child, bounds);
+  return bounds;
+}
+for (const state of STATES.filter(({ coverage }) => coverage === 'available')) {
+  const stateRegion = REGIONS.find(({ states }) => states?.includes(state.code));
+  const feature = boundaryData.features.find(({ properties }) => properties.STUSAB === state.code);
+  assert.ok(stateRegion?.viewBounds, `${state.code} statewide view needs an explicit fit extent`);
+  assert.ok(feature, `${state.code} needs a maintained boundary outline`);
+  const [west, south, east, north] = geometryBounds(feature.geometry.coordinates);
+  assert.ok(stateRegion.viewBounds[0][0] <= west && stateRegion.viewBounds[0][1] <= south, `${state.code} view omits its western or southern border`);
+  assert.ok(stateRegion.viewBounds[1][0] >= east && stateRegion.viewBounds[1][1] >= north, `${state.code} view omits its eastern or northern border`);
+}
 const waters = {
   alCore: { state: 'AL', center: [-85.16, 33] },
   gaCore: { state: 'GA', center: [-85.1, 32.71] },
