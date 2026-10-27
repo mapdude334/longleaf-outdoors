@@ -48,3 +48,22 @@ export function highlightLocation(map: Map, coords: [number, number]) {
   (map.getSource('selected-location') as import('maplibre-gl').GeoJSONSource).setData({ type: 'Feature', geometry: { type: 'Point', coordinates: coords }, properties: {} });
 }
 
+/** Highlight an identified map feature independently from the chosen destination. */
+export function setIdentifyHighlight(map: Map, feature?: unknown) {
+  if (!map.isStyleLoaded()) return;
+  const source = map.getSource('identify-selection') as import('maplibre-gl').GeoJSONSource | undefined;
+  if (source) source.setData(feature
+    ? { type: 'FeatureCollection', features: [feature] } as never
+    : { type: 'FeatureCollection', features: [] });
+  const geometry = (feature as { geometry?: { type?: string; coordinates?: number[] } } | undefined)?.geometry;
+  const coordinates = geometry?.coordinates;
+  if (geometry?.type === 'Point' && coordinates && coordinates.length >= 2) {
+    highlightLocation(map, coordinates.slice(0, 2) as [number, number]);
+  } else clearLocationHighlight(map);
+}
+
+export function clearLocationHighlight(map: Map) {
+  if (!map.isStyleLoaded()) return;
+  (map.getSource('selected-location') as import('maplibre-gl').GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: [] });
+}
+
