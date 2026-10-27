@@ -108,6 +108,9 @@ header#top {
 .donate-header:focus-visible { outline: 3px solid #d7e4c7; outline-offset: 3px; }
 .donate-dialog p { font-size: 14px; line-height: 1.55; }
 .donate-dialog a:not(.btn) { color: var(--accent); text-underline-offset: 2px; }
+.donate-charity { margin: 14px 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--chip); }
+.donate-charity h3 { margin: 0 0 5px; font-size: 13px; }
+.donate-charity p { margin: 0; font-size: 13px; }
 .donate-quote { margin: 18px 0; padding: 12px 14px; border-left: 3px solid #729276; background: var(--chip); border-radius: 0 8px 8px 0; font: italic 15px/1.5 Georgia, serif; }
 .donate-quote cite { display: block; margin-top: 7px; color: var(--muted); font: 12px system-ui, sans-serif; }
 .donate-recipient { color: var(--muted); font-size: 12px !important; }
