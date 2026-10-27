@@ -12,7 +12,7 @@ import './styles.css';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { AttributionControl, GeolocateControl, Map, NavigationControl, Popup, ScaleControl, setWorkerUrl, type GeoJSONSource, type MapGeoJSONFeature } from 'maplibre-gl';
 import { registerSW } from 'virtual:pwa-register';
-import { AOI, MAP_BOUNDS, START_VIEW } from './config';
+import { ALL_REGION, MAP_BOUNDS, START_VIEW } from './config';
 import { availableBasemap, overlayAvailable, viewInsideCore } from './coverage';
 import { resolvePm } from './pmtiles';
 import { buildStyle, groups, ACCESS_COLORS, type Availability, type BasemapId } from './style';
@@ -49,6 +49,7 @@ const DEFAULT_ON: Record<string, boolean> = {
 const ui: UiState = { basemap: 'topo', terrain3d: false, coordFmt: 'dd', ...store.get<UiState>('ui')?.v, on: { ...DEFAULT_ON, ...store.get<UiState>('ui')?.v?.on } };
 const saveUi = () => store.set('ui', ui);
 const updateOfflineDataLayer = (group: string, enabled: boolean) => {
+  resumeHomeCleanView();
   ui.on[group] = enabled;
   saveUi();
   applyVisibility();
@@ -62,6 +63,7 @@ if (!store.get<boolean>('map-profile-cleanup')?.v) {
   store.set('map-profile-cleanup', true);
 }
 let av: Availability = { basemap: null, overlays: null, parcels: null };
+let homeCleanView = false;
 
 const map = new Map({
   container: 'map',
@@ -104,20 +106,31 @@ map.addControl({
     control.className = 'maplibregl-ctrl maplibregl-ctrl-group';
     const button = document.createElement('button');
     button.type = 'button';
-    button.title = 'Home · show all locations';
-    button.setAttribute('aria-label', 'Home · show all locations');
+    button.title = 'Home · full map extent';
+    button.setAttribute('aria-label', 'Home · full map extent');
     button.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="display:block;margin:auto"><path d="m3 11 9-8 9 8M5 10v11h5v-7h4v7h5V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     button.onclick = () => {
-      const points = [...waters.flatMap((w) => w.center ? [w.center] : []), ...dams.map((d) => d.coords), ...gauges.map((g) => g.coords), ...accessFeatures().map((f) => f.geometry.coordinates as [number, number]), ...fishStructures.map((f) => f.geometry.coordinates as [number, number]), ...habitats.map((f) => f.geometry.coordinates as [number, number]), ...restrooms.map((f) => f.geometry.coordinates as [number, number])];
-      const extent: [[number, number], [number, number]] = points.length
-        ? [[Math.min(...points.map((p) => p[0])), Math.min(...points.map((p) => p[1]))], [Math.max(...points.map((p) => p[0])), Math.max(...points.map((p) => p[1]))]]
-        : [[AOI[0], AOI[1]], [AOI[2], AOI[3]]];
+      cancelTripPick();
+      cancelWaypointPick?.();
+      navigationRevision++;
+      store.del('destination-area');
+      store.del('destination');
+      sheet.dataset.destination = '';
+      homeCleanView = true;
+      clearMapSelection();
+      applyVisibility();
+      applyRegionPointVisibility(true);
+      void destination();
       const panel = document.getElementById('sheet')!;
       const open = panel.classList.contains('open');
-      // Collapse the phone sheet so the full location extent has room to breathe.
+      // Collapse the phone sheet so the full regional extent has room to breathe.
       if (isCompactLayout()) setSheetSnap('peek');
       const peek = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) || 116;
-      map.fitBounds(extent, { padding: { top: 45, right: 55, bottom: isCompactLayout() ? peek + 24 : 45, left: !isCompactLayout() && open ? panel.offsetWidth + 35 : 45 }, maxZoom: 11, bearing: 0, pitch: 0, duration: 700 });
+      requestAnimationFrame(() => {
+        map.resize();
+        map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+        map.fitBounds(MAP_BOUNDS, { padding: { top: 45, right: 55, bottom: isCompactLayout() ? peek + 24 : 45, left: !isCompactLayout() && open ? panel.offsetWidth + 35 : 45 }, bearing: 0, pitch: 0, duration: 700 });
+      });
     };
     control.append(button);
     return control;
@@ -219,19 +232,25 @@ async function refreshAvailability() {
 }
 
 function applyVisibility() {
-  radarLegend.hidden = !ui.on.radar;
+  radarLegend.hidden = homeCleanView || !ui.on.radar;
   const core = viewInsideCore(map);
   const effectiveBase = availableBasemap(ui.basemap, core);
   for (const [g, ids] of Object.entries(groups)) {
     let visible: boolean;
     if (g.startsWith('base:')) visible = g === 'base:' + effectiveBase;
-    else visible = ui.on[g] ?? true;
+    else visible = !homeCleanView && (ui.on[g] ?? true);
     for (const id of ids) if (map.getLayer(id)) {
       const shown = visible && overlayAvailable(g, id, !!av.overlays, core);
       map.setLayoutProperty(id, 'visibility', shown ? 'visible' : 'none');
     }
   }
-  map.setTerrain(ui.terrain3d ? { source: 'dem', exaggeration: 1.4 } : null);
+  map.setTerrain(!homeCleanView && ui.terrain3d ? { source: 'dem', exaggeration: 1.4 } : null);
+}
+
+function resumeHomeCleanView() {
+  if (!homeCleanView) return;
+  homeCleanView = false;
+  applyVisibility();
 }
 
 let dataStatus = '';
@@ -256,7 +275,7 @@ const sheet = $('#sheet');
 let currentTab = 'destination';
 let regionalPointScope = '';
 function activeMapRegion() {
-  return REGIONS.find((item) => item.id === store.get<string>('destination-area')?.v) ?? REGIONS[0];
+  return REGIONS.find((item) => item.id === store.get<string>('destination-area')?.v) ?? ALL_REGION;
 }
 function applyRegionPointVisibility(force = false) {
   const region = activeMapRegion();
@@ -291,7 +310,7 @@ function destination() {
   const selected = waters.find((water) => water.id === store.get<string>('destination')?.v)?.name;
   sheet.dataset.destination = selected ?? '';
   setSheetSnap((sheet.dataset.snap || 'peek') as SheetSnap);
-  return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips'), downloadsChanged: refreshAvailability, gaugeState, regionChanged: () => applyRegionPointVisibility(true) });
+  return renderDestination($('#tab-destination'), map, { weather: (at) => { showTab('weather'); renderWeather(at); }, offline: () => showTab('offline'), info: showInfo, spot: editWpt, trips: () => showTab('trips'), downloadsChanged: refreshAvailability, gaugeState, regionChanged: () => { resumeHomeCleanView(); applyRegionPointVisibility(true); } });
 }
 map.on('style.load', () => showTripPlan(map));
 map.on('style.load', restoreMapSelection);
@@ -476,6 +495,8 @@ function handleIncomingShare() {
 
 function openTripDestination(id: string) {
   selectDestination(id);
+  resumeHomeCleanView();
+  applyRegionPointVisibility(true);
   showTab('destination');
   $('#tab-destination').scrollTop = 0;
   if (isCompactLayout()) setSheetSnap('peek');
@@ -528,6 +549,7 @@ const LAYER_PROFILES: Record<string, string[]> = {
 function useLayerProfile(profile: string) {
   const enabled = LAYER_PROFILES[profile];
   if (!enabled) return;
+  resumeHomeCleanView();
   for (const [group] of OVERLAY_ROWS) ui.on[group] = enabled.includes(group);
   ui.on.dams_osm = enabled.includes('dams_osm');
   saveUi(); applyVisibility(); renderLayers();
@@ -565,6 +587,7 @@ function renderLayers() {
   el.querySelectorAll<HTMLButtonElement>('[data-base]').forEach((b) => (b.onclick = () => { ui.basemap = b.dataset.base as BasemapId; saveUi(); applyVisibility(); renderLayers(); }));
   el.querySelectorAll<HTMLButtonElement>('[data-profile]').forEach((b) => (b.onclick = () => useLayerProfile(b.dataset.profile!)));
   el.querySelectorAll<HTMLInputElement>('[data-g]').forEach((c) => (c.onchange = () => {
+    resumeHomeCleanView();
     ui.on[c.dataset.g!] = c.checked;
     if (c.dataset.g === 'dams') ui.on.dams_osm = c.checked;
     saveUi(); applyVisibility();
@@ -593,6 +616,8 @@ function renderWaters(filter = '') {
       root.querySelector<HTMLButtonElement>('.close')!.onclick = back;
       root.querySelector<HTMLButtonElement>('[data-make-destination]')!.onclick = () => {
         selectDestination(w.id);
+        resumeHomeCleanView();
+        applyRegionPointVisibility(true);
         if (w.center) map.flyTo({ center: w.center, zoom: 11 });
         showTab('destination');
         $('#tab-destination').scrollTop = 0;
@@ -744,7 +769,7 @@ map.on('click', async (e) => {
   const detailsAfter = (root: HTMLElement) => {
     after?.(root);
     const choose = root.querySelector<HTMLButtonElement>('[data-map-destination]');
-    if (choose && water) choose.onclick = () => { selectDestination(water.id); showTab('destination'); $('#tab-destination').scrollTop = 0; };
+    if (choose && water) choose.onclick = () => { selectDestination(water.id); resumeHomeCleanView(); applyRegionPointVisibility(true); showTab('destination'); $('#tab-destination').scrollTop = 0; };
     root.querySelector<HTMLButtonElement>('#drop-here')!.onclick = () => editWpt(addWpt(lng, lat).id);
     root.querySelector<HTMLButtonElement>('#wx-here2')!.onclick = () => { showTab('weather'); renderWeather([lng, lat]); };
   };
@@ -843,7 +868,7 @@ q.oninput = () => {
     if (Math.abs(a) > 60) [a, b] = [b, a]; // accept lon,lat too
     hits.push({ label: `Go to ${a}, ${b}`, sub: 'Coordinates', center: [b, a], zoom: 14 });
   }
-  for (const w of waters) if (w.name.toLowerCase().includes(s) || w.species.some((x) => x.name.toLowerCase().includes(s))) hits.push({ label: w.name, sub: 'Water · ' + w.species.slice(0, 3).map((x) => x.name).join(', '), center: w.center ?? map.getCenter().toArray() as [number, number], zoom: 11, open: () => { selectDestination(w.id); showTab('destination'); } });
+  for (const w of waters) if (w.name.toLowerCase().includes(s) || w.species.some((x) => x.name.toLowerCase().includes(s))) hits.push({ label: w.name, sub: 'Water · ' + w.species.slice(0, 3).map((x) => x.name).join(', '), center: w.center ?? map.getCenter().toArray() as [number, number], zoom: 11, open: () => { selectDestination(w.id); resumeHomeCleanView(); applyRegionPointVisibility(true); showTab('destination'); } });
   const region = activeMapRegion();
   for (const d of dams) if (regionContainsPoint(region, d.coords) && d.name.toLowerCase().includes(s)) hits.push({ label: d.name, sub: 'Dam · ' + d.operator, center: d.coords, zoom: 13, open: () => showInfo(damHtml(d), (r) => fillCwms(r, d)) });
   for (const g of gauges) if (regionContainsPoint(region, g.coords) && (g.name.toLowerCase().includes(s) || g.id.includes(s))) hits.push({ label: g.name, sub: 'USGS gauge ' + g.id, center: g.coords, zoom: 13, open: () => showInfo(gaugeHtml(g), (r) => fillTrend(r, g)) });

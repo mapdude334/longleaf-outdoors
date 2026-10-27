@@ -12,11 +12,12 @@ import { esc, haversineKm, store } from './util';
 import { isCompactLayout, setSheetSnap } from './sheet';
 import { locationBounds } from './region-bounds';
 import { showSelectedWaterOutline } from './water-outline';
+import { ALL_REGION } from './config';
 import { REGIONS, regionContainsWater, type RegionDefinition } from './state-regions';
 
 const BOUNDS: [[number, number], [number, number]] = [[-85.32, 32.86], [-85.02, 33.22]];
 const regionWaters = (region: RegionDefinition) => waters.filter((water) => regionContainsWater(region, water));
-const selectedRegion = () => REGIONS.find((region) => region.id === store.get<string>('destination-area')?.v) ?? REGIONS[0];
+const selectedRegion = () => REGIONS.find((region) => region.id === store.get<string>('destination-area')?.v) ?? ALL_REGION;
 export function zoomToRegion(map: Map, region: RegionDefinition) {
   const compact = isCompactLayout();
   if (compact) setSheetSnap('peek');
@@ -111,7 +112,7 @@ function wireRegionPicker(root: HTMLElement, map: Map, region: RegionDefinition,
 export function selectDestination(id: string) {
   store.set('destination', id);
   const current = selectedRegion();
-  if (regionWaters(current).some((water) => water.id === id)) return;
+  if (store.get<string>('destination-area')?.v && regionWaters(current).some((water) => water.id === id)) return;
   const matching = REGIONS.find((region) => regionWaters(region).some((water) => water.id === id));
   if (matching) store.set('destination-area', matching.id);
 }
@@ -147,6 +148,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       const chosen = choices.find((item) => item.id === id);
       if (!chosen) return;
       selectDestination(chosen.id);
+      actions.regionChanged?.();
       if (chosen.center) map.flyTo({ center: chosen.center, zoom: 10 });
       root.scrollTop = 0; void renderDestination(root, map, actions);
     });
@@ -237,6 +239,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
     const next = waters.find((item) => item.id === id);
     if (!next) return;
     selectDestination(id);
+    actions.regionChanged?.();
     if (next?.center) map.flyTo({ center: next.center, zoom: 10 });
     root.scrollTop = 0;
     void renderDestination(root, map, actions);

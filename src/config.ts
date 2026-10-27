@@ -7,6 +7,8 @@ export const APP_NAME = 'Longleaf Atlas';
 export const AOI: [number, number, number, number] = [-86.35, 31.55, -84.35, 33.85];
 /** Browsing and live data extend statewide and into associated Gulf/Atlantic waters. */
 export const MAP_BOUNDS: [[number, number], [number, number]] = [[-89, 28], [-78.25, 35.6]];
+/** Unfiltered browse scope used when the region picker is left at its placeholder. */
+export const ALL_REGION = { id: 'all-available', label: 'All available map area', bounds: MAP_BOUNDS };
 export const LIVE_BOUNDS: [number, number, number, number] = [-88.6, 28.5, -78.25, 35.4];
 export const START_VIEW = { center: [-85.25, 32.7] as [number, number], zoom: 8.3 };
 
