@@ -12,7 +12,7 @@ import './styles.css';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { AttributionControl, GeolocateControl, Map, NavigationControl, Popup, ScaleControl, setWorkerUrl, type GeoJSONSource, type MapGeoJSONFeature } from 'maplibre-gl';
 import { registerSW } from 'virtual:pwa-register';
-import { ALL_REGION, MAP_BOUNDS, START_VIEW } from './config';
+import { ALL_REGION, HOME_DATA_ZOOM, MAP_BOUNDS, START_VIEW } from './config';
 import { availableBasemap, overlayAvailable, viewInsideCore } from './coverage';
 import { resolvePm } from './pmtiles';
 import { buildStyle, groups, ACCESS_COLORS, type Availability, type BasemapId } from './style';
@@ -232,19 +232,20 @@ async function refreshAvailability() {
 }
 
 function applyVisibility() {
-  radarLegend.hidden = homeCleanView || !ui.on.radar;
+  const homeScaleAllowsData = !homeCleanView || map.getZoom() >= HOME_DATA_ZOOM;
+  radarLegend.hidden = !homeScaleAllowsData || !ui.on.radar;
   const core = viewInsideCore(map);
   const effectiveBase = availableBasemap(ui.basemap, core);
   for (const [g, ids] of Object.entries(groups)) {
     let visible: boolean;
     if (g.startsWith('base:')) visible = g === 'base:' + effectiveBase;
-    else visible = !homeCleanView && (ui.on[g] ?? true);
+    else visible = homeScaleAllowsData && (ui.on[g] ?? true);
     for (const id of ids) if (map.getLayer(id)) {
       const shown = visible && overlayAvailable(g, id, !!av.overlays, core);
       map.setLayoutProperty(id, 'visibility', shown ? 'visible' : 'none');
     }
   }
-  map.setTerrain(!homeCleanView && ui.terrain3d ? { source: 'dem', exaggeration: 1.4 } : null);
+  map.setTerrain(homeScaleAllowsData && ui.terrain3d ? { source: 'dem', exaggeration: 1.4 } : null);
 }
 
 function resumeHomeCleanView() {

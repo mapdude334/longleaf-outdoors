@@ -2,7 +2,7 @@ import type { LayerSpecification, SourceSpecification, StyleSpecification, Expre
 import { layers as pmLayers, namedFlavor } from '@protomaps/basemaps';
 import mlcontour from 'maplibre-contour';
 import { addProtocol } from 'maplibre-gl';
-import { ARCGIS, GLYPHS, RADAR_TILES, RASTER_BASEMAPS, SPRITE, TERRAIN_URL, USGS_HYDRO_TILES, arcgisExport } from './config';
+import { ARCGIS, GLYPHS, POINT_SYMBOL_MIN_ZOOM, RADAR_TILES, RASTER_BASEMAPS, SPRITE, TERRAIN_URL, USGS_HYDRO_TILES, arcgisExport } from './config';
 import type { Resolved } from './pmtiles';
 import { SYMBOL_COLORS } from './symbols';
 
@@ -147,7 +147,7 @@ export function buildStyle(av: Availability): StyleSpecification {
 
   // ---------- access points ----------
   if (av.overlays) {
-    add('dams_osm', { ...badge('osm-dam', 'overlays', 'dam'), 'source-layer': 'osm_dams', minzoom: 11 } as LayerSpecification, L);
+    add('dams_osm', { ...badge('osm-dam', 'overlays', 'dam'), 'source-layer': 'osm_dams', minzoom: POINT_SYMBOL_MIN_ZOOM.osmDams } as LayerSpecification, L);
   }
   // The current statewide catalog must not be replaced by an older clipped archive.
   sources['access-live'] = { ...EMPTY };
@@ -156,17 +156,17 @@ export function buildStyle(av: Availability): StyleSpecification {
   // Keep these catalog-backed point layers independent of the version of the
   // downloadable overlays pack. Catalog JSON is precached with the app for offline use.
   sources['fish-structures-live'] = { ...EMPTY };
-  add('fish_structures', { ...badge('fish-structures-pts', 'fish-structures-live', 'structure'), minzoom: 11 }, L);
+  add('fish_structures', { ...badge('fish-structures-pts', 'fish-structures-live', 'structure'), minzoom: POINT_SYMBOL_MIN_ZOOM.fishStructures }, L);
   sources['restrooms-live'] = { ...EMPTY };
-  add('restrooms', { ...badge('restrooms-pts', 'restrooms-live', 'restroom'), minzoom: 10 }, L);
+  add('restrooms', { ...badge('restrooms-pts', 'restrooms-live', 'restroom'), minzoom: POINT_SYMBOL_MIN_ZOOM.restrooms }, L);
   sources['habitat-live'] = { ...EMPTY };
-  add('habitat', { ...badge('habitat-pts', 'habitat-live', 'habitat'), minzoom: 11 }, L);
+  add('habitat', { ...badge('habitat-pts', 'habitat-live', 'habitat'), minzoom: POINT_SYMBOL_MIN_ZOOM.habitat }, L);
   sources['state-boundaries'] = { ...EMPTY };
   add('state_boundaries', { id: 'state-boundaries-line', type: 'line', source: 'state-boundaries', paint: { 'line-color': '#746f55', 'line-width': 1.4, 'line-opacity': 0.65, 'line-dasharray': [3, 3] } }, L);
 
   // ---------- live + curated GeoJSON ----------
   sources.waters = { ...EMPTY };
-  add('waters', badge('waters-pt', 'waters', 'water'), L);
+  add('waters', { ...badge('waters-pt', 'waters', 'water'), minzoom: POINT_SYMBOL_MIN_ZOOM.destinations }, L);
   add('waters', {
     id: 'waters-lbl', type: 'symbol', source: 'waters', minzoom: 7,
     layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 11, 12, 15], 'text-font': ['Noto Sans Medium'], 'text-ignore-placement': false, 'text-allow-overlap': false, 'symbol-sort-key': ['coalesce', ['get', 'priority'], 1], 'text-max-width': 8, 'text-offset': [0, 1.25], 'text-anchor': 'top' },
@@ -174,18 +174,18 @@ export function buildStyle(av: Availability): StyleSpecification {
   }, L);
 
   sources.dams = { ...EMPTY };
-  add('dams', badge('dams-pt', 'dams', 'dam'), L);
+  add('dams', { ...badge('dams-pt', 'dams', 'dam'), minzoom: POINT_SYMBOL_MIN_ZOOM.dams }, L);
   add('dams', { id: 'dams-lbl', type: 'symbol', source: 'dams', minzoom: 9, layout: { 'text-ignore-placement': true, 'text-allow-overlap': true, 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.3], 'text-anchor': 'top', 'text-font': ['Noto Sans Medium'] }, paint: { 'text-color': '#263238', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
 
   sources.gauges = { ...EMPTY };
-  add('gauges', { id: 'gauges-pt', type: 'symbol', source: 'gauges', layout: { 'icon-image': ['case', ['get', 'stale'], 'll-stale', 'll-gauge'], 'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.65, 9, 0.8, 13, 0.95], 'icon-padding': 3, 'icon-allow-overlap': true, 'icon-ignore-placement': true } }, L);
+  add('gauges', { id: 'gauges-pt', type: 'symbol', source: 'gauges', minzoom: POINT_SYMBOL_MIN_ZOOM.gauges, layout: { 'icon-image': ['case', ['get', 'stale'], 'll-stale', 'll-gauge'], 'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.65, 9, 0.8, 13, 0.95], 'icon-padding': 3, 'icon-allow-overlap': true, 'icon-ignore-placement': true } }, L);
   add('gauges', { id: 'gauges-lbl', type: 'symbol', source: 'gauges', minzoom: 10, layout: { 'text-ignore-placement': true, 'text-allow-overlap': true, 'text-field': ['get', 'summary'], 'text-size': 10, 'text-offset': [0, 1.6], 'text-anchor': 'top', 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': '#704700', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
 
   sources.track = { ...EMPTY };
   add('mine', { id: 'track-line', type: 'line', source: 'track', paint: { 'line-color': '#d81b60', 'line-width': 3, 'line-opacity': 0.85 } }, L);
   sources.waypoints = { ...EMPTY };
-  add('mine', { id: 'wpt-pt', type: 'symbol', source: 'waypoints', layout: { 'icon-image': ['match', ['get', 'type'], 'fish', 'll-spot', 'ramp', 'll-boat_ramp', 'camp', 'll-campground', 'hazard', 'll-hazard', 'parking', 'll-parking', 'll-other'], 'icon-size': 0.95, 'icon-allow-overlap': true } }, L);
-  add('mine', { id: 'wpt-lbl', type: 'symbol', source: 'waypoints', layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.6], 'text-anchor': 'top', 'text-font': ['Noto Sans Medium'] }, paint: { 'text-color': '#880e4f', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
+  add('mine', { id: 'wpt-pt', type: 'symbol', source: 'waypoints', minzoom: POINT_SYMBOL_MIN_ZOOM.waypoints, layout: { 'icon-image': ['match', ['get', 'type'], 'fish', 'll-spot', 'ramp', 'll-boat_ramp', 'camp', 'll-campground', 'hazard', 'll-hazard', 'parking', 'll-parking', 'll-other'], 'icon-size': 0.95, 'icon-allow-overlap': true } }, L);
+  add('mine', { id: 'wpt-lbl', type: 'symbol', source: 'waypoints', minzoom: POINT_SYMBOL_MIN_ZOOM.waypoints, layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.6], 'text-anchor': 'top', 'text-font': ['Noto Sans Medium'] }, paint: { 'text-color': '#880e4f', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
 
   // ESRI-style identify feedback: emphasize the selected shape above all data.
   L.push(
@@ -205,7 +205,7 @@ export function buildStyle(av: Availability): StyleSpecification {
 
 function accessLayer(id: string, source: string, sourceLayer?: string): LayerSpecification {
   return {
-    id, type: 'symbol', source, ...(sourceLayer ? { 'source-layer': sourceLayer } : {}), minzoom: 9,
+    id, type: 'symbol', source, ...(sourceLayer ? { 'source-layer': sourceLayer } : {}), minzoom: POINT_SYMBOL_MIN_ZOOM.access,
     layout: {
       'icon-image': ['match', ['get', 'kind'], ...Object.keys(ACCESS_COLORS).flatMap((kind) => [kind, 'll-' + kind]), 'll-other'] as unknown as ExpressionSpecification,
       'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.7, 13, 0.9, 15, 1],

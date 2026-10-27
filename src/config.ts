@@ -9,6 +9,20 @@ export const AOI: [number, number, number, number] = [-86.35, 31.55, -84.35, 33.
 export const MAP_BOUNDS: [[number, number], [number, number]] = [[-89, 28], [-78.25, 35.6]];
 /** Unfiltered browse scope used when the region picker is left at its placeholder. */
 export const ALL_REGION = { id: 'all-available', label: 'All available map area', bounds: MAP_BOUNDS };
+/** Hide app overlays at the full-region home extent; reveal them as the user zooms in. */
+export const HOME_DATA_ZOOM = 8;
+/** Shared Maki point visibility thresholds to reduce crowding at regional scales. */
+export const POINT_SYMBOL_MIN_ZOOM = {
+  dams: 8,
+  destinations: 8.5,
+  gauges: 8.5,
+  waypoints: 8.5,
+  access: 9,
+  restrooms: 10,
+  fishStructures: 11,
+  habitat: 11,
+  osmDams: 11,
+} as const;
 export const LIVE_BOUNDS: [number, number, number, number] = [-88.6, 28.5, -78.25, 35.4];
 export const START_VIEW = { center: [-85.25, 32.7] as [number, number], zoom: 8.3 };
 
