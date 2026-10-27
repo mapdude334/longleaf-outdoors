@@ -13,6 +13,13 @@ assert.deepEqual(STATES.map(({ code, coverage }) => [code, coverage]), [
 assert.deepEqual(REGIONS.map(({ id }) => id), ['core', 'alabama', 'georgia', 'south-carolina', 'coastal', 'gulf', 'atlantic']);
 
 const region = Object.fromEntries(REGIONS.map((item) => [item.id, item]));
+// Bounds of the user-supplied AL_GA_SC polygons after projection to WGS84.
+// This reference is used for statewide camera fitting only; the polygons are not rendered.
+const suppliedShapeBounds = {
+  AL: [-88.47296, 30.23360, -84.89401, 35.01604],
+  GA: [-85.60897, 30.36129, -80.89475, 35.00037],
+  SC: [-83.35069, 32.06817, -78.57945, 35.20836],
+};
 function geometryBounds(coords, bounds = [Infinity, Infinity, -Infinity, -Infinity]) {
   if (Array.isArray(coords) && typeof coords[0] === 'number') {
     bounds[0] = Math.min(bounds[0], coords[0]); bounds[1] = Math.min(bounds[1], coords[1]);
@@ -26,8 +33,11 @@ for (const state of STATES.filter(({ coverage }) => coverage === 'available')) {
   assert.ok(stateRegion?.viewBounds, `${state.code} statewide view needs an explicit fit extent`);
   assert.ok(feature, `${state.code} needs a maintained boundary outline`);
   const [west, south, east, north] = geometryBounds(feature.geometry.coordinates);
+  const [shapeWest, shapeSouth, shapeEast, shapeNorth] = suppliedShapeBounds[state.code];
   assert.ok(stateRegion.viewBounds[0][0] <= west && stateRegion.viewBounds[0][1] <= south, `${state.code} view omits its western or southern border`);
   assert.ok(stateRegion.viewBounds[1][0] >= east && stateRegion.viewBounds[1][1] >= north, `${state.code} view omits its eastern or northern border`);
+  assert.ok(stateRegion.viewBounds[0][0] <= shapeWest && stateRegion.viewBounds[0][1] <= shapeSouth, `${state.code} view omits part of the supplied polygon extent`);
+  assert.ok(stateRegion.viewBounds[1][0] >= shapeEast && stateRegion.viewBounds[1][1] >= shapeNorth, `${state.code} view omits part of the supplied polygon extent`);
 }
 const waters = {
   alCore: { state: 'AL', center: [-85.16, 33] },
