@@ -51,6 +51,17 @@ const map = new Map({
   hash: 'map',
 });
 initTheme();
+const radarLegend = document.createElement('section');
+radarLegend.className = 'maplibregl-ctrl radar-map-legend';
+radarLegend.hidden = true;
+radarLegend.setAttribute('aria-label', 'Weather radar legend');
+radarLegend.innerHTML = `
+  <strong>Radar reflectivity</strong>
+  <span>Echo strength · dBZ</span>
+  <div class="radar-ramp" aria-hidden="true"></div>
+  <div class="radar-ramp-labels"><span>−30</span><span>0</span><span>20</span><span>40</span><span>60+</span></div>
+  <small>Latest NEXRAD image · updates about every 5 min<br>Source: <a href="https://mesonet.agron.iastate.edu/ogc/" target="_blank" rel="noopener">Iowa State Mesonet ↗</a></small>`;
+map.addControl({ onAdd: () => radarLegend, onRemove: () => radarLegend.remove() }, 'top-right');
 installSymbols(map);
 (window as unknown as { vwMap: unknown }).vwMap = map; // handy for debugging in devtools
 map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right');
@@ -135,6 +146,7 @@ async function refreshAvailability() {
 }
 
 function applyVisibility() {
+  radarLegend.hidden = !ui.on.radar;
   for (const [g, ids] of Object.entries(groups)) {
     let visible: boolean;
     if (g.startsWith('base:')) visible = g === 'base:' + ui.basemap;

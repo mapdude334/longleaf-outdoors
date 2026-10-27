@@ -238,6 +238,50 @@ details summary { cursor: pointer; padding: 4px 0; }
 .toast { position: fixed; z-index: 20; left: 50%; bottom: 110px; transform: translate(-50%, 20px); background: #222; color: #fff; padding: 10px 16px; border-radius: 20px; opacity: 0; transition: all .25s; font-size: 14px; max-width: 90vw; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .maplibregl-ctrl-top-right { top: 4px; }
+.maplibregl-ctrl-group {
+  --map-control-bg: #fff;
+  --map-control-fg: #24332f;
+  --map-control-line: #d7dfdc;
+  border-radius: 8px;
+  background: var(--map-control-bg);
+  color: var(--map-control-fg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .24);
+}
+.maplibregl-ctrl-group button { color: var(--map-control-fg); forced-color-adjust: none; }
+.maplibregl-ctrl-group button + button { border-top-color: var(--map-control-line); }
+.maplibregl-ctrl-group button:hover { background-color: color-mix(in srgb, var(--map-control-fg) 9%, var(--map-control-bg)); }
+.maplibregl-ctrl-group button:focus-visible { outline: 2px solid #1688e8; outline-offset: -2px; }
+.maplibregl-ctrl-group button svg { color: var(--map-control-fg); }
+.maplibregl-ctrl-group .maplibregl-ctrl-icon { filter: none; }
+:root[data-theme="dark"] .maplibregl-ctrl-group {
+  --map-control-bg: #182724;
+  --map-control-fg: #f0f5f3;
+  --map-control-line: #40514d;
+}
+:root[data-theme="dark"] .maplibregl-ctrl-group .maplibregl-ctrl-icon { filter: invert(1); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .maplibregl-ctrl-group { --map-control-bg: #182724; --map-control-fg: #f0f5f3; --map-control-line: #40514d; }
+  :root:not([data-theme]) .maplibregl-ctrl-group .maplibregl-ctrl-icon { filter: invert(1); }
+}
+@media (forced-colors: active) {
+  /* MapLibre's forced-colors sprites are white unless the OS itself is light;
+     invert only the white sprite when the app explicitly shows its light theme. */
+  :root[data-theme="light"] .maplibregl-ctrl-group .maplibregl-ctrl-icon { filter: invert(1); }
+  :root[data-theme="dark"] .maplibregl-ctrl-group .maplibregl-ctrl-icon { filter: none; }
+  :root:not([data-theme]) .maplibregl-ctrl-group { forced-color-adjust: none; }
+}
+@media (forced-colors: active) and (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .maplibregl-ctrl-group .maplibregl-ctrl-icon { filter: none; }
+}
+.maplibregl-ctrl.radar-map-legend { width: 220px; margin-top: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--bg) 94%, transparent); color: var(--fg); box-shadow: var(--shadow); font-size: 11px; line-height: 1.35; pointer-events: auto; }
+.maplibregl-ctrl.radar-map-legend[hidden] { display: none; }
+.radar-map-legend strong, .radar-map-legend > span { display: block; }
+.radar-map-legend strong { font-size: 12px; }
+.radar-map-legend > span, .radar-map-legend small { color: var(--muted); }
+.radar-map-legend small { display: block; margin-top: 6px; font-size: 10px; }
+.radar-map-legend a { color: var(--accent); text-underline-offset: 2px; pointer-events: auto; }
+.radar-ramp { height: 9px; margin-top: 8px; border-radius: 999px; background: linear-gradient(90deg, #45a8e3 0%, #42bd65 24%, #e4d43c 46%, #f39a2f 65%, #d94335 83%, #a82e9a 100%); }
+.radar-ramp-labels { display: flex; justify-content: space-between; color: var(--muted); font: 9px/1.3 ui-monospace, monospace; }
 @media (max-width: 900px), (max-height: 600px) {
   .maplibregl-ctrl-bottom-right { bottom: var(--sheet-peek); }
   .sheet .tabs button, .btn, .seg button, .ctx button, .destination-row, .close { min-height: 44px; }
