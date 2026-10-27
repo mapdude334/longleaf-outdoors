@@ -24,6 +24,22 @@ let moveHandler: (() => void) | null = null;
 let networkHandler: (() => void) | null = null;
 const mb = (n: number) => (n / 1048576).toFixed(n > 100 * 1048576 ? 0 : 1) + ' MB';
 
+/** Explain a rejected extent at the point the user tries to start the download. */
+export function showAreaLimitDialog(tileCount: number) {
+  const dialog = document.createElement('dialog');
+  dialog.className = 'share-dialog offline-limit-dialog';
+  dialog.setAttribute('aria-labelledby', 'offline-limit-title');
+  dialog.innerHTML = `<h2 id="offline-limit-title">This map area is too large</h2>
+    <p>The selected view exceeds the ${MAX_AREA_TILES.toLocaleString()}-tile limit (at least ${tileCount.toLocaleString()} tiles estimated). No download has started.</p>
+    <p>Zoom in to a smaller area or lower the maximum map detail, then try again. Water, access, structure, habitat, restroom, dam and species records are already bundled with the app; this limit applies to downloaded map tiles.</p>
+    <button class="btn primary" data-close-limit>Got it</button>`;
+  dialog.querySelector<HTMLButtonElement>('[data-close-limit]')!.onclick = () => dialog.close();
+  dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', () => dialog.remove(), { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
 function* tilesFor(bounds: [number, number, number, number], z: number): Generator<[number, number, number]> {
   const n = 2 ** z;
   const x = (lon: number) => Math.max(0, Math.min(n - 1, Math.floor(((lon + 180) / 360) * n)));
@@ -216,7 +232,7 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
     const tileEstimate = layersSel().reduce((sum, layer) => sum + n / Math.max(1, layersSel().length) * ({ topo: 28_000, imagery: 85_000, terrain: 14_000, hydro: 22_000 }[layer] ?? 35_000), 0);
     est.textContent = !hasBaseMap ? 'Choose a base map (USGS Topo or Imagery) so the saved area can be viewed offline.' : n > MAX_AREA_TILES ? `More than ${MAX_AREA_TILES.toLocaleString()} tiles — zoom in or lower max zoom` : n ? `${n.toLocaleString()} tiles · roughly ${mb(tileEstimate)} · device limit ${mb(MAX_AREA_BYTES)} per download` : 'Select at least one map layer to download map tiles for this area.';
     root.querySelector<HTMLElement>('[data-area-network]')!.textContent = navigator.onLine ? 'Connected · ready to prepare this view.' : 'You are offline. Previously saved areas and app data remain available; connect to download another area.';
-    root.querySelector<HTMLButtonElement>('.save-area')!.disabled = !hasBaseMap || n === 0 || n > MAX_AREA_TILES || !navigator.onLine;
+    root.querySelector<HTMLButtonElement>('.save-area')!.disabled = !hasBaseMap || n === 0 || !navigator.onLine;
     const saved = store.get<SavedArea[]>(AREA_KEY)?.v ?? [];
     const current = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] as [number, number, number, number];
     const requiredLayers = layersSel();
@@ -250,7 +266,7 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
     const selectedMapLayers = layersSel();
     if (!selectedMapLayers.includes('topo') && !selectedMapLayers.includes('imagery')) return toast('Choose USGS Topo or Imagery as the offline base map');
     const urls = planArea(map, selectedMapLayers, Number(maxz.value));
-    if (urls.length > MAX_AREA_TILES) return toast(`Area too large — zoom in or lower max zoom (${MAX_AREA_TILES.toLocaleString()} tile limit)`);
+    if (urls.length > MAX_AREA_TILES) return showAreaLimitDialog(urls.length);
     const chosenDataLayers = [...root.querySelectorAll<HTMLInputElement>('[data-area-data]:checked')].map((input) => input.dataset.areaData!).filter(Boolean);
     if (!urls.length) return toast('Select a map layer to download tiles for this area');
     const btn = ev.currentTarget as HTMLButtonElement;

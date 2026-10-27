@@ -1,7 +1,7 @@
 import type { Map } from 'maplibre-gl';
 import { type PmKey } from './config';
 import { packStatus, remoteSize, saveToDevice } from './pmtiles';
-import { cacheGlyphs, MAX_AREA_TILES, planArea, recordAreaCoverage, saveArea } from './offline';
+import { cacheGlyphs, MAX_AREA_TILES, planArea, recordAreaCoverage, saveArea, showAreaLimitDialog } from './offline';
 
 const chosen = new Set<string>(['topo', 'terrain']);
 let zoom = 12;
@@ -42,7 +42,7 @@ export function renderDestinationDownloads(root: HTMLElement, map: Map, onChange
     root.querySelector('[data-download-estimate]')!.textContent = noBase ? 'Select USGS Topo or Satellite imagery to make a custom area viewable offline.' : `${count.toLocaleString()} area tiles${count > MAX_AREA_TILES ? ` — zoom in or lower detail (${MAX_AREA_TILES.toLocaleString()} tile limit).` : ` · size varies by layer · up to 160 MB per area.`}`;
     const b = map.getBounds();
     root.querySelector<HTMLElement>('[data-download-extent]')!.textContent = `View now: ${b.getSouth().toFixed(3)}°–${b.getNorth().toFixed(3)}° latitude · ${b.getWest().toFixed(3)}°–${b.getEast().toFixed(3)}° longitude · zoom ${map.getZoom().toFixed(1)}.`;
-    start.disabled = busy || (!count && !region().length) || count > MAX_AREA_TILES || noBase || !navigator.onLine;
+    start.disabled = busy || (!count && !region().length) || noBase || !navigator.onLine;
   };
   root.querySelectorAll<HTMLInputElement>('[data-download]').forEach((input) => input.onchange = () => { if (input.checked) chosen.add(input.dataset.download!); else chosen.delete(input.dataset.download!); estimate(); });
   root.querySelector<HTMLSelectElement>('[data-download-zoom]')!.onchange = (event) => { zoom = Number((event.target as HTMLSelectElement).value); estimate(); };
@@ -73,7 +73,8 @@ export function renderDestinationDownloads(root: HTMLElement, map: Map, onChange
     const selectedPacks = region();
     const selectedRaster = raster();
     const noBase = selectedRaster.length > 0 && !selectedRaster.includes('topo') && !selectedRaster.includes('imagery');
-    if (busy || noBase || area.length > MAX_AREA_TILES || (!area.length && !selectedPacks.length)) return;
+    if (busy || noBase || (!area.length && !selectedPacks.length)) return;
+    if (area.length > MAX_AREA_TILES) return showAreaLimitDialog(area.length);
     const bounds = map.getBounds();
     const savedBounds: [number, number, number, number] = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
     const maxZoom = zoom;
