@@ -1,6 +1,6 @@
 import { symbolHtml } from './symbols';
 import type { Map } from 'maplibre-gl';
-import { waters, waterAdministrativeLabel, waterDisplayLabel, waterHtml } from './layers/waters';
+import { waters, waterAdministrativeLabel, waterDisplayLabel, waterDisplayName, waterHtml } from './layers/waters';
 import { gauges, gaugeHtml, fillTrend } from './layers/gauges';
 import { dams, damHtml, fillCwms } from './layers/dams';
 import { ACCESS_LABELS, accessHtml, accessLocation, accessFeatures } from './layers/access';
@@ -177,7 +177,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       ${regionPickerHtml()}
       <p class="small region-scope-note">Map points and destination choices are scoped to this area. Choose another region to switch the map data shown here.</p>
       ${destinationPickerHtml(choices, water.id)}
-      <h2>${esc(water?.name ?? 'Choose your water')}</h2><p>Pick your launch. Check the water.<br>Keep the day yours.</p>
+      <h2>${esc(water ? waterDisplayName(water) : 'Choose your water')}</h2><p>Pick your launch. Check the water.<br>Keep the day yours.</p>
       <p class="muted small water-outline-status" data-water-outline-status role="status" aria-live="polite"></p>
       <button class="btn destination-explore" ${water?.center ? '' : 'disabled'}>Explore this water ↗</button>
       ${water && !water.center ? '<p class="small">A single map location is not available for this destination. Browse its information below.</p>' : ''}

@@ -55,11 +55,29 @@ export function waterCountyLabel(w: Pick<Water, 'county' | 'location_label' | 's
   const codes = raw.split(/[\/,]/).map((part) => part.trim().toUpperCase()).filter(Boolean);
   if (!county || codes.length && codes.every((code) => stateCodes.has(code))) return '';
   if (/^[A-Z]{2}(\s*\/\s*[A-Z]{2})*$/.test(county)) return '';
-  return county;
+  return placeTitleCase(county);
+}
+
+const PLACE_ACRONYMS = new Set(['ALT', 'BSF', 'CAT', 'CCA', 'CDH', 'DRH', 'DUA', 'HLHA', 'ICW', 'JL', 'KBY', 'KTK', 'MRY', 'NHD', 'PFA', 'SFC', 'USGS', 'WMA']);
+
+/** Normalize catalog place names while keeping acronyms and state codes readable. */
+export function placeTitleCase(value: string): string {
+  return value.replace(/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu, (word) => {
+    if (PLACE_ACRONYMS.has(word.toLocaleUpperCase())) return word.toLocaleUpperCase();
+    if (word.length > 1 && word[0] === word[0].toLocaleUpperCase() && word.slice(1) !== word.slice(1).toLocaleLowerCase()) return word;
+    const lower = word.toLocaleLowerCase();
+    if (/^mc[\p{L}]/u.test(lower)) return `Mc${lower[2].toLocaleUpperCase()}${lower.slice(3)}`;
+    if (/^dekalb$/i.test(lower)) return 'DeKalb';
+    return word.split(/(['’])/).map((part) => part === "'" || part === '’' ? part : part ? part[0].toLocaleUpperCase() + part.slice(1).toLocaleLowerCase() : part).join('');
+  });
+}
+
+export function waterDisplayName(w: Pick<Water, 'name'>): string {
+  return placeTitleCase(w.name);
 }
 
 export function waterDisplayLabel(w: Pick<Water, 'name' | 'county' | 'location_label' | 'state'>): string {
-  return `${w.name} · ${waterAdministrativeLabel(w)}`;
+  return `${waterDisplayName(w)} · ${waterAdministrativeLabel(w)}`;
 }
 
 export function waterAdministrativeLabel(w: Pick<Water, 'county' | 'location_label' | 'state'>): string {
@@ -70,7 +88,7 @@ export function waterAdministrativeLabel(w: Pick<Water, 'county' | 'location_lab
 export function waterHtml(w: Water, nhd?: Record<string, unknown>): string {
   const acres = w.acres ? `${w.acres.toLocaleString()} acres · ` : '';
   const location = waterAdministrativeLabel(w);
-  return `<h3>${esc(w.name)}</h3>
+  return `<h3>${esc(waterDisplayName(w))}</h3>
   <p class="muted">${acres}${esc(w.river ? w.river + ' basin · ' : '')}${esc(location)}${w.manager ? ' · ' + esc(w.manager) : ''}</p>
   ${w.location_note ? `<p class="muted small">${esc(w.location_note)}</p>` : ''}
   <h4>Species</h4>

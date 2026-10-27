@@ -18,7 +18,7 @@ import { resolvePm } from './pmtiles';
 import { buildStyle, groups, ACCESS_COLORS, type Availability, type BasemapId } from './style';
 import { loadGauges, gauges, gaugeHtml, fillTrend, setGaugePoints } from './layers/gauges';
 import { loadDams, dams, damHtml, fillCwms } from './layers/dams';
-import { loadWaters, waters, waterById, waterByName, waterAdministrativeLabel, waterHtml, regulations } from './layers/waters';
+import { loadWaters, waters, waterById, waterByName, waterAdministrativeLabel, waterDisplayName, waterHtml, regulations } from './layers/waters';
 import { loadAccessLive, accessFeatures, accessHtml, ACCESS_LABELS } from './layers/access';
 import { loadAnglerData, fishStructures, restrooms, habitats, fishStructureHtml, restroomHtml, habitatHtml } from './layers/angler';
 import { identifyParcels, identifyPublicLands, publicLandHtml, MANAGER_TYPES } from './layers/identify';
@@ -568,7 +568,7 @@ function renderWaters(filter = '') {
   const f = filter.toLowerCase();
   const list = waters.filter((w) => !f || w.name.toLowerCase().includes(f) || w.species.some((s) => s.name.toLowerCase().includes(f)));
   el.innerHTML = `<input class="filter" placeholder="Filter by lake or species (e.g. shoal bass)" value="${esc(filter)}">
-    <ul class="list">${list.map((w) => `<li><button class="destination-row" data-water-id="${esc(w.id)}"><b>${esc(w.name)}</b><span>${esc(waterAdministrativeLabel(w))}</span><span>${esc(w.species.slice(0, 5).map((s) => s.name).join(', '))}</span><span>View water information ↗</span></button></li>`).join('')}</ul>
+    <ul class="list">${list.map((w) => `<li><button class="destination-row" data-water-id="${esc(w.id)}"><b>${esc(waterDisplayName(w))}</b><span>${esc(waterAdministrativeLabel(w))}</span><span>${esc(w.species.slice(0, 5).map((s) => s.name).join(', '))}</span><span>View water information ↗</span></button></li>`).join('')}</ul>
     <h4>Regulations & advisories</h4><ul class="links">${regulations.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul>`;
   const input = el.querySelector<HTMLInputElement>('.filter')!;
   input.oninput = () => { renderWaters(input.value); const i = $<HTMLInputElement>('#tab-waters .filter'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };

@@ -1,6 +1,6 @@
 import type { Map, MapMouseEvent } from 'maplibre-gl';
 import { symbolHtml, highlightLocation } from './symbols';
-import { waters, waterDisplayLabel } from './layers/waters';
+import { waters, waterDisplayLabel, waterDisplayName } from './layers/waters';
 import { getWpts } from './waypoints';
 import { loadAccessLive, accessLocation } from './layers/access';
 import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
@@ -58,7 +58,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       <p class="muted small" data-import-status role="status"></p>
       ${draft() ? '<p class="muted small">Resume and save your draft before starting another trip. Backups include saved trips.</p>' : ''}
       <p class="muted small">Saved on this browser, available offline. Map packs must be downloaded separately. Clearing browser data removes trips.</p>
-      <ul class="list">${saved().map((t) => `<li><button class="destination-row" data-edit="${esc(t.id)}"><b>${esc(t.name)}</b><span>${esc(waters.find((w) => w.id === t.destination)?.name ?? t.destination)}</span><span>${esc(t.ramp?.name ?? 'No launch selected')} · ${t.spots.length} fishing spots</span></button><div class="row-btns"><button class="btn" data-share-trip="${esc(t.id)}">Share trip</button></div></li>`).join('') || '<li class="muted">Your saved trips will appear here.</li>'}</ul>`;
+      <ul class="list">${saved().map((t) => { const destination = waters.find((w) => w.id === t.destination); return `<li><button class="destination-row" data-edit="${esc(t.id)}"><b>${esc(t.name)}</b><span>${esc(destination ? waterDisplayName(destination) : t.destination)}</span><span>${esc(t.ramp?.name ?? 'No launch selected')} · ${t.spots.length} fishing spots</span></button><div class="row-btns"><button class="btn" data-share-trip="${esc(t.id)}">Share trip</button></div></li>`; }).join('') || '<li class="muted">Your saved trips will appear here.</li>'}</ul>`;
     root.querySelector<HTMLButtonElement>('[data-new]')!.onclick = () => edit({ id: crypto.randomUUID(), name: '', destination: store.get<string>('destination')?.v ?? '', spots: [], notes: '', updated: Date.now(), view: { center: map.getCenter().toArray() as [number, number], zoom: map.getZoom() } });
     const resume = root.querySelector<HTMLButtonElement>('[data-resume]');
     if (resume) resume.onclick = () => edit(structuredClone(draft()!));
