@@ -1,4 +1,4 @@
-import { renderDestination, selectDestination } from './destination';
+import { renderDestination, selectDestination, zoomToRegion } from './destination';
 import { initWelcome } from './welcome';
 import { initDonations } from './donate';
 import { initTheme } from './theme';
@@ -71,6 +71,17 @@ const map = new Map({
   maxBounds: MAP_BOUNDS,
   attributionControl: false,
   hash: 'map',
+});
+const persistedRegion = REGIONS.find((region) => region.id === store.get<string>('destination-area')?.v);
+if (persistedRegion) map.once('load', () => {
+  const center = map.getCenter();
+  // A saved region owns the initial view when a prior map hash points outside
+  // it; otherwise a stale Southeast-wide camera can make a statewide choice
+  // appear truncated (especially behind the open desktop panel).
+  if (!regionContainsPoint(persistedRegion, [center.lng, center.lat])) requestAnimationFrame(() => {
+    map.resize();
+    zoomToRegion(map, persistedRegion);
+  });
 });
 initTheme();
 const radarLegend = document.createElement('section');

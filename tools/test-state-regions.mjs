@@ -26,6 +26,9 @@ const waters = {
 
 assert.equal(regionContainsWater(region.alabama, waters.alCore), true);
 assert.equal(regionContainsWater(region.alabama, waters.gaCore), false);
+assert.equal(regionContainsPoint(region.alabama, [-88.47323, 32]), true, 'Alabama scope must include the western state boundary');
+assert.equal(regionContainsPoint(region.alabama, [-88.2, 32.5]), true, 'Alabama scope must include West Alabama');
+assert.equal(regionContainsPoint(region.alabama, [-84.88825, 34.9]), true, 'Alabama scope must include the eastern and northern state extent');
 assert.equal(regionContainsWater(region.georgia, waters.dualState), true);
 assert.equal(regionContainsWater(region['south-carolina'], waters.dualState), false, 'A border-water label must not place its mapped point in another state');
 assert.equal(regionContainsWater(region['south-carolina'], waters.scInterior), true);

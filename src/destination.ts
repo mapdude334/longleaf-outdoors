@@ -17,7 +17,7 @@ import { REGIONS, regionContainsWater, type RegionDefinition } from './state-reg
 const BOUNDS: [[number, number], [number, number]] = [[-85.32, 32.86], [-85.02, 33.22]];
 const regionWaters = (region: RegionDefinition) => waters.filter((water) => regionContainsWater(region, water));
 const selectedRegion = () => REGIONS.find((region) => region.id === store.get<string>('destination-area')?.v) ?? REGIONS[0];
-function zoomToRegion(map: Map, region: RegionDefinition) {
+export function zoomToRegion(map: Map, region: RegionDefinition) {
   const compact = isCompactLayout();
   if (compact) setSheetSnap('peek');
   const bottom = compact ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-peek')) + 20 : 45;
