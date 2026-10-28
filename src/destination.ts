@@ -1,6 +1,6 @@
 import { symbolHtml } from './symbols';
 import type { Map } from 'maplibre-gl';
-import { waters, placeTitleCase, waterAdministrativeLabel, waterDisplayLabel, waterDisplayName, waterHtml } from './layers/waters';
+import { waters, placeTitleCase, waterAdministrativeLabel, waterDisplayLabel, waterDisplayName, waterHtml, waterRecordStatus } from './layers/waters';
 import { gauges, gaugeHtml, fillTrend } from './layers/gauges';
 import { dams, damHtml, fillCwms } from './layers/dams';
 import { ACCESS_LABELS, accessHtml, accessLocation, accessFeatures, accessCatalogInfo } from './layers/access';
@@ -50,10 +50,10 @@ function showFullRegionMap(map: Map, region: RegionDefinition) {
     zoomToRegion(map, region);
   });
 }
-type PickerOption = { value: string; label: string; search?: string };
+type PickerOption = { value: string; label: string; detail?: string; search?: string };
 const PICKER_RESULT_LIMIT = 100;
 function pickerOptionHtml(option: PickerOption, selected?: string) {
-  return `<button type="button" class="destination-option" role="option" data-picker-option data-value="${esc(option.value)}" aria-selected="${option.value === selected ? 'true' : 'false'}">${esc(option.label)}</button>`;
+  return `<button type="button" class="destination-option" role="option" data-picker-option data-value="${esc(option.value)}" aria-selected="${option.value === selected ? 'true' : 'false'}"><span>${esc(option.label)}</span>${option.detail ? `<small class="destination-option-detail">${esc(option.detail)}</small>` : ''}</button>`;
 }
 function pickerHtml(id: string, title: string, placeholder: string, options: PickerOption[], selected?: string, disabled = false) {
   const selectedOption = options.find((option) => option.value === selected);
@@ -65,7 +65,10 @@ function regionPickerHtml() {
 }
 function destinationOptions(choices: typeof waters): PickerOption[] {
   const sorted = [...choices].sort((a, b) => a.name.localeCompare(b.name));
-  return sorted.map((water) => ({ value: water.id, label: waterDisplayLabel(water), search: [water.name, ...(water.gnis_names ?? []), water.county, water.state].filter(Boolean).join(' ') }));
+  return sorted.map((water) => {
+    const status = waterRecordStatus(water);
+    return { value: water.id, label: waterDisplayLabel(water), detail: status.label, search: [water.name, ...(water.gnis_names ?? []), water.county, water.state, status.label, status.detail].filter(Boolean).join(' ') };
+  });
 }
 function destinationPickerHtml(options: PickerOption[], selected?: string) {
   return pickerHtml('destination-select', 'Choose your destination', options.length ? 'Search lakes, rivers, or coastal waters' : 'No cataloged waters in this area yet', options, selected, !options.length);
@@ -171,6 +174,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
     return;
   }
   const CENTER = water?.center ?? [-85.16, 33.0] as [number, number];
+  const recordStatus = water ? waterRecordStatus(water) : undefined;
   const radius = Math.max(8, Math.sqrt((water?.acres ?? 5000) * 0.00404686 / Math.PI) * 2.4);
   const latSpan = radius / 111;
   const lngSpan = latSpan / Math.cos(CENTER[1] * Math.PI / 180);
@@ -204,6 +208,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       <p class="small region-scope-note">Map points and destination choices are scoped to this area. Choose another region to switch the map data shown here.</p>
       ${destinationPickerHtml(choiceOptions, water.id)}
       <h2>${esc(water ? waterDisplayName(water) : 'Choose your water')}</h2><p>Pick your launch. Check the water.<br>Keep the day yours.</p>
+      ${recordStatus ? `<p class="water-record-status"><b>${esc(recordStatus.label)}</b><span>${esc(recordStatus.detail)}</span></p>` : ''}
       <p class="muted small water-outline-status" data-water-outline-status role="status" aria-live="polite"></p>
       <button class="btn destination-explore" ${water?.center ? '' : 'disabled'}>Explore this water ↗</button>
       ${water && !water.center ? '<p class="small">A single map location is not available for this destination. Browse its information below.</p>' : ''}

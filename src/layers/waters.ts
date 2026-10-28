@@ -16,6 +16,8 @@ export type Water = {
   location_label?: string;
   county?: string;
 };
+export type WaterRecordKind = 'public-fishing-lake' | 'agency-access-data' | 'fishing-info' | 'agency-waterbody' | 'nhd-reference' | 'other-water';
+export type WaterRecordStatus = { kind: WaterRecordKind; label: string; detail: string };
 export let waters: Water[] = [];
 export let regulations: { label: string; url: string }[] = [];
 
@@ -121,11 +123,48 @@ export function waterAdministrativeLabel(w: Pick<Water, 'county' | 'location_lab
   return `${county ? `${county} · ` : ''}${w.state}`;
 }
 
+/** Describe what a water record actually establishes, without treating a map feature as open fishing access. */
+export function waterRecordStatus(w: Pick<Water, 'id' | 'species' | 'catalog_sources'>): WaterRecordStatus {
+  const sources = (w.catalog_sources ?? []).map((source) => `${source.label} ${source.url}`.toLocaleLowerCase());
+  if (w.id.startsWith('nhd-')) return {
+    kind: 'nhd-reference',
+    label: 'NHD mapped water · access unverified',
+    detail: 'Legacy USGS NHD mapping identifies this waterbody. It does not confirm public access, fishing suitability, fish species, or current shoreline.',
+  };
+  if (sources.some((source) => source.includes('/publicfishinglakes/'))) return {
+    kind: 'public-fishing-lake',
+    label: 'ADCNR public fishing lake',
+    detail: 'Listed in Alabama DCNR public fishing lake data. Check current hours, fees, permits, and site rules before traveling.',
+  };
+  if (sources.some((source) => /south_carolina_public_water_access|wrd_water_access_points|dcnrboatramps/.test(source))) return {
+    kind: 'agency-access-data',
+    label: 'Agency access data linked · verify location',
+    detail: 'An agency access-data source is linked to this water record. Confirm the exact access location and its current status before traveling.',
+  };
+  if (w.species.length) return {
+    kind: 'fishing-info',
+    label: 'Fishing information available · access unverified',
+    detail: 'Species or fishing notes are available for this water. This record does not confirm public access; check the linked agency information and nearby access locations.',
+  };
+  if (sources.length) return {
+    kind: 'agency-waterbody',
+    label: 'Agency-mapped water · access unverified',
+    detail: 'An agency source maps this waterbody. Public access and fishing suitability are not confirmed by this record.',
+  };
+  return {
+    kind: 'other-water',
+    label: 'Water information · access unverified',
+    detail: 'This water has descriptive information in Longleaf, but public access and fishing suitability are not verified here.',
+  };
+}
+
 export function waterHtml(w: Water, nhd?: Record<string, unknown>): string {
   const acres = w.acres ? `${w.acres.toLocaleString()} ${w.area_note ? 'approx. mapped acres' : 'acres'} · ` : '';
   const location = waterAdministrativeLabel(w);
+  const status = waterRecordStatus(w);
   return `<h3>${esc(waterDisplayName(w))}</h3>
   <p class="muted">${acres}${esc(w.river ? w.river + ' basin · ' : '')}${esc(location)}${w.manager ? ' · ' + esc(w.manager) : ''}</p>
+  <div class="water-record-status" data-record-kind="${status.kind}"><b>${esc(status.label)}</b><span>${esc(status.detail)}</span></div>
   ${w.location_note ? `<p class="muted small">${esc(w.location_note)}</p>` : ''}
   <h4>Species</h4>
   <div class="chips">${w.species.map((s) => `<button class="chip species-chip" data-species="${esc(s.name)}" data-state="${esc(w.state)}" data-water-id="${esc(w.id)}" aria-label="Learn about ${esc(s.name)} at ${esc(w.name)}">${esc(s.name)} ↗</button>`).join('')}</div>

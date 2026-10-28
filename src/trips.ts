@@ -1,6 +1,6 @@
 import type { Map, MapMouseEvent } from 'maplibre-gl';
 import { symbolHtml, highlightLocation } from './symbols';
-import { waters, waterDisplayLabel, waterDisplayName } from './layers/waters';
+import { waters, waterDisplayLabel, waterDisplayName, waterRecordStatus } from './layers/waters';
 import { getWpts } from './waypoints';
 import { loadAccessLive, accessLocation, accessFeatures } from './layers/access';
 import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
@@ -264,8 +264,9 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     const destinationPickerOptions: TripPickerOption[] = destinationOptions.map((choice) => {
       const group = choice.id === trip.destination && currentWaterOutsideRegion ? 'Current trip destination' : stateGroup(choice);
       const counties = String(choice.county ?? '').split(/[\/,]/).map((county) => county.trim()).filter(Boolean);
-      const detail = [...counties.map((county) => /county$/i.test(county) ? county : `${county} County`), choice.river ? `${choice.river} basin` : ''].join(' · ');
-      return { value: choice.id, label: destinationLabels.get(choice.id) ?? waterDisplayName(choice), group, detail, search: [choice.name, choice.state, choice.county, choice.river, waterDisplayLabel(choice), group].filter(Boolean).join(' ') };
+      const status = waterRecordStatus(choice);
+      const detail = [...counties.map((county) => /county$/i.test(county) ? county : `${county} County`), choice.river ? `${choice.river} basin` : '', status.label].filter(Boolean).join(' · ');
+      return { value: choice.id, label: destinationLabels.get(choice.id) ?? waterDisplayName(choice), group, detail, search: [choice.name, choice.state, choice.county, choice.river, waterDisplayLabel(choice), status.label, status.detail, group].filter(Boolean).join(' ') };
     });
     const rampGroup = (ramp: Place) => namedRampIds.has(ramp.id) ? 'Named mapped launches' : savedRampIds.has(ramp.id) ? 'Your saved launches' : currentTripRampIds.has(ramp.id) ? 'Current trip launch' : 'Nearby unnamed launches';
     const rampPickerOptions: TripPickerOption[] = [

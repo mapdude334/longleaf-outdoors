@@ -19,7 +19,7 @@ import { resolvePm } from './pmtiles';
 import { buildStyle, groups, ACCESS_COLORS, type Availability, type BasemapId } from './style';
 import { loadGauges, gauges, gaugeHtml, fillTrend, setGaugePoints } from './layers/gauges';
 import { loadDams, dams, damHtml, fillCwms } from './layers/dams';
-import { loadWaters, waters, waterById, waterByName, waterAdministrativeLabel, waterDisplayName, waterHtml, regulations } from './layers/waters';
+import { loadWaters, waters, waterById, waterByName, waterAdministrativeLabel, waterDisplayName, waterHtml, waterRecordStatus, regulations } from './layers/waters';
 import { loadAccessLive, accessFeatures, accessHtml, ACCESS_LABELS } from './layers/access';
 import { loadAnglerData, fishStructures, restrooms, habitats, fishStructureHtml, restroomHtml, habitatHtml } from './layers/angler';
 import { identifyParcels, identifyPublicLands, publicLandHtml, MANAGER_TYPES } from './layers/identify';
@@ -605,26 +605,42 @@ function renderLayers() {
 }
 
 // ---------------- Waters tab ----------------
-function renderWaters(filter = '') {
+function renderWaters(filter = '', recordFilter = 'all') {
   const el = $('#tab-waters');
   const f = filter.trim().toLocaleLowerCase();
-  const matches = waters.filter((w) => !f || [w.name, w.state, w.county, w.location_label, w.type, ...(w.gnis_names ?? []), ...w.species.map((s) => s.name)].some((value) => String(value ?? '').toLocaleLowerCase().includes(f)));
+  const matches = waters.filter((w) => {
+    const status = waterRecordStatus(w);
+    const matchesRecord = recordFilter === 'all' || status.kind === recordFilter;
+    const matchesSearch = !f || [w.name, w.state, w.county, w.location_label, w.type, status.label, status.detail, ...(w.gnis_names ?? []), ...w.species.map((s) => s.name)].some((value) => String(value ?? '').toLocaleLowerCase().includes(f));
+    return matchesRecord && matchesSearch;
+  });
   const list = matches.slice(0, 100);
-  const nhdCount = waters.filter((water) => water.id.startsWith('nhd-')).length;
+  const statusKinds: [ReturnType<typeof waterRecordStatus>['kind'], string][] = [
+    ['public-fishing-lake', 'Agency public fishing lakes'],
+    ['agency-access-data', 'Agency access data'],
+    ['fishing-info', 'Fishing information listed'],
+    ['agency-waterbody', 'Agency-mapped waters · access unverified'],
+    ['nhd-reference', 'NHD map references · access unverified'],
+    ['other-water', 'Other water records · access unverified'],
+  ];
+  const statusCounts = new globalThis.Map(statusKinds.map(([kind]) => [kind, waters.filter((water) => waterRecordStatus(water).kind === kind).length]));
   const resultNote = matches.length > list.length
     ? `Showing ${list.length} of ${matches.length.toLocaleString()} matches. Type more to narrow the list.`
     : `${matches.length.toLocaleString()} ${matches.length === 1 ? 'water' : 'waters'} found.`;
-  el.innerHTML = `<p class="muted small">${nhdCount.toLocaleString()} reference waters are mapped from legacy USGS NHD; those records do not verify current shorelines, public access, or fish species.</p><p class="muted small">${resultNote}</p><input class="filter" placeholder="Search water, county, state, or species" value="${esc(filter)}">
-    <ul class="list">${list.map((w) => `<li><button class="destination-row" data-water-id="${esc(w.id)}"><b>${esc(waterDisplayName(w))}</b><span>${esc(waterAdministrativeLabel(w))}</span><span>${esc(w.species.slice(0, 5).map((s) => s.name).join(', '))}</span><span>View water information ↗</span></button></li>`).join('') || '<li class="muted">No matching waters. Try another search.</li>'}</ul>
+  const statusOptions = statusKinds.map(([kind, label]) => `<option value="${kind}" ${recordFilter === kind ? 'selected' : ''}>${esc(label)} (${(statusCounts.get(kind) ?? 0).toLocaleString()})</option>`).join('');
+  el.innerHTML = `<p class="muted small">Record labels describe what the source supports. “Access unverified” means this record does not confirm current public access.</p><label class="field">Water record type<select class="filter" id="waters-record-filter"><option value="all" ${recordFilter === 'all' ? 'selected' : ''}>All water records (${waters.length.toLocaleString()})</option>${statusOptions}</select></label><p class="muted small">${resultNote}</p><input class="filter" placeholder="Search water, county, state, or species" value="${esc(filter)}">
+    <ul class="list">${list.map((w) => { const status = waterRecordStatus(w); return `<li><button class="destination-row" data-water-id="${esc(w.id)}"><b>${esc(waterDisplayName(w))}</b><span>${esc(waterAdministrativeLabel(w))}</span><span>${esc(status.label)}</span><span>${esc(w.species.slice(0, 5).map((s) => s.name).join(', '))}</span><span>View water information ↗</span></button></li>`; }).join('') || '<li class="muted">No matching waters. Try another search.</li>'}</ul>
     <h4>Regulations & advisories</h4><ul class="links">${regulations.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul>`;
-  const input = el.querySelector<HTMLInputElement>('.filter')!;
-  input.oninput = () => { renderWaters(input.value); const i = $<HTMLInputElement>('#tab-waters .filter'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };
+  const recordType = el.querySelector<HTMLSelectElement>('#waters-record-filter')!;
+  const searchInput = el.querySelector<HTMLInputElement>('input.filter')!;
+  searchInput.oninput = () => { renderWaters(searchInput.value, recordType.value); const i = $<HTMLInputElement>('#tab-waters input.filter'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };
+  recordType.onchange = () => renderWaters(searchInput.value, recordType.value);
   el.querySelectorAll<HTMLButtonElement>('[data-water-id]').forEach((button) => (button.onclick = () => {
     const w = waterById(button.dataset.waterId!)!;
     showInfo(`<button class="link" data-back-waters>← Back to waters</button>${waterHtml(w)}
       <button class="btn primary" data-make-destination>Make it your destination</button>
       <p class="muted small">Plan your visit with nearby access, water readings, weather, saved spots and offline maps.</p>`, (root) => {
-      const back = () => { showTab('waters'); renderWaters(filter); };
+      const back = () => { showTab('waters'); renderWaters(filter, recordFilter); };
       root.querySelector<HTMLButtonElement>('[data-back-waters]')!.onclick = back;
       root.querySelector<HTMLButtonElement>('.close')!.onclick = back;
       root.querySelector<HTMLButtonElement>('[data-make-destination]')!.onclick = () => {
