@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+from coverage_manifest import build_coverage_manifest
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / 'public/data'
@@ -112,17 +113,20 @@ def distance(a,b):
 SPECIES = {'Largemouth':'Largemouth bass','Smallmouth':'Smallmouth bass','ShoalBass':'Shoal bass','SpotBass':'Spotted bass','WhiteBass':'White bass','StripBass':'Striped bass','HybStrpBas':'Hybrid striped bass','ChannelCat':'Channel catfish','Flathead':'Flathead catfish','BlueCat':'Blue catfish','WhiteCrap':'White crappie','BlackCrap':'Black crappie','Bluegill':'Bluegill','Redbreast':'Redbreast sunfish','RedearSun':'Redear sunfish','Warmouth':'Warmouth','BrownTrout':'Brown trout','RbwTrout':'Rainbow trout','BrookTrout':'Brook trout','Walleye':'Walleye','Yell_Perch':'Yellow perch','ChainPick':'Chain pickerel','Redfish':'Red drum','SeaTrout':'Spotted seatrout','Flounder':'Flounder','Sheepshead':'Sheepshead','ChattBass':'Chattahoochee bass','Bartrams':'Bartrams bass','Tallapoosa':'Tallapoosa bass','AltamahaBass':'Altamaha bass'}
 
 def main():
-    old = {name:json.loads((DATA/(name+'.json')).read_text(encoding='utf-8-sig')) for name in ['access','fish-structures','restrooms','waters']}
+    old = {name:json.loads((DATA/(name+'.json')).read_text(encoding='utf-8-sig')) for name in ['access','fish-structures','restrooms','habitat','waters','state-boundaries','coverage']}
     sources = dict(concurrent.futures.ThreadPoolExecutor(6).map(layer,SOURCES.items()))
     # Official generalized state outlines are for display, not a survey or jurisdiction ruling.
     boundaries = get('https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0/query',{'f':'geojson','where':"STUSAB IN ('AL','GA')",'outFields':'STUSAB,NAME','outSR':4326,'returnGeometry':'true','maxAllowableOffset':0.003,'geometryPrecision':5})
     if len(boundaries.get('features',[])) != 2:raise RuntimeError('State boundary download incomplete')
+    refreshed_states = {'AL', 'GA'}
+    preserved_boundaries = [feature for feature in old['state-boundaries'].get('features', []) if feature.get('properties', {}).get('STUSAB') not in refreshed_states]
+    boundaries['features'] = boundaries['features'] + preserved_boundaries
     boundaries['source_url']='https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0'
     boundaries['retrieved_at']=NOW
     access = [f for f in old['access']['features'] if not str(f.get('id','')).startswith(('ga-access-','al-access-'))]
     structures = {str(f.get('id')):f for f in old['fish-structures']['features'] if not str(f.get('id','')).startswith(('ga-structures-','al-reefs-','ga-reefs-'))}
     toilets = {str(f.get('id')):f for f in old['restrooms']['features']}
-    habitat = []
+    habitat = [f for f in old['habitat'].get('features', []) if not str(f.get('id','')).startswith(('ga-habitat-','ga-improvement-'))]
     groups = defaultdict(lambda:{'points':[],'species':set(),'links':{},'state':set(),'types':set(),'access':[]})
     group_keys = defaultdict(list)
     stats = {}
@@ -268,10 +272,12 @@ def main():
             water['links']=[link for link in water['links'] if link['url']!=profile['url']]+[{'label':'Official agency fishery profile','url':profile['url']}]
 
     def collection(features,source):
-        return {'type':'FeatureCollection','updated':NOW,'source':source,'coverage':'Alabama and Georgia agency catalogs, including associated coastal/offshore waters; OSM supplementation retains its original regional coverage.','features':features}
-    products={'access':collection(access,'Alabama DCNR; Georgia DNR; OpenStreetMap contributors'),'fish-structures':collection(list(structures.values()),'Alabama DCNR; Georgia DNR Wildlife and Coastal Resources; USACE'),'restrooms':collection(list(toilets.values()),'Agency facility inventories; OpenStreetMap contributors'),'habitat':collection(habitat,'Georgia DNR aquatic vegetation survey'),'state-boundaries':boundaries}
+        return {'type':'FeatureCollection','updated':NOW,'source':source,'coverage':'Alabama and Georgia agency catalogs refreshed here; previously integrated South Carolina catalog records are preserved but not refreshed by this job. OSM supplementation retains its original regional coverage.','features':features}
+    products={'access':collection(access,'Alabama DCNR; Georgia DNR; South Carolina DNR; OpenStreetMap contributors'),'fish-structures':collection(list(structures.values()),'Alabama DCNR; Georgia DNR Wildlife and Coastal Resources; South Carolina DNR; USACE'),'restrooms':collection(list(toilets.values()),'Alabama DCNR; Georgia DNR; South Carolina DNR; OpenStreetMap contributors'),'habitat':collection(habitat,'Georgia DNR aquatic vegetation survey; South Carolina DNR historical projects'),'state-boundaries':boundaries}
     old['waters']['updated']=NOW[:10];old['waters']['waters']=waters;products['waters']=old['waters']
-    summary={'updated':NOW,'scope':'AL and GA state land areas and adjacent agency-mapped coastal/Gulf/Atlantic sites','offline_packs':'Existing regional archives are unchanged. Online maps and catalog points extend beyond them. Save map areas separately for expanded geography.','sources':{key:{**stats.get(key,{}),'url':s['url'],'agency':s['agency'],'source_updated':s['source_updated']} for key,s in sources.items()},'counts':{name:len(p.get('features',p.get('waters',[]))) for name,p in products.items()}}
+    source_updates={key:{**stats.get(key,{}),'url':s['url'],'agency':s['agency'],'source_updated':s['source_updated']} for key,s in sources.items()}
+    summary=build_coverage_manifest(products,old['coverage'],updated=NOW,scope='Alabama and Georgia statewide agency catalogs, plus selected South Carolina agency catalogs; records are source-limited and not an exhaustive inventory. Adjacent coastal and offshore sources are included where documented.',source_updates=source_updates)
+    summary['offline_packs']='Existing regional archives are unchanged. Online maps and catalog points extend beyond them. Save map areas separately for expanded geography.'
     products['coverage']=summary
     for name,value in products.items():
         temp=DATA/(name+'.json.pending');temp.write_text(json.dumps(value,ensure_ascii=False,separators=(',',':')),encoding='utf8')

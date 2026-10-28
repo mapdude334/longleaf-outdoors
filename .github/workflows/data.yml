@@ -30,26 +30,32 @@ jobs:
         uses: actions/cache@v4
         with: { path: pipeline/cache, key: nhd-v1 }
       - name: Run pipeline
+        id: run_pipeline
         env:
           PIPELINE_STEPS: ${{ inputs.steps }}
         working-directory: pipeline/scripts
         run: |
           S=${PIPELINE_STEPS:-"basemap arcgis osm nhd angler tiles"}
+          CHECK_CATALOGS=0
           for step in $S; do
             case "$step" in
               basemap) ./10_basemap.sh ;;
               arcgis) python3 30_fetch_arcgis.py; python3 35_label_points.py ;;
               osm) python3 40_fetch_osm.py ;;
               nhd) python3 50_nhd.py; python3 60_enrich_waters.py ;;
-              angler) python3 45_angler.py; python3 46_expand_states.py ;;
+              angler) python3 45_angler.py; python3 46_expand_states.py; CHECK_CATALOGS=1 ;;
               tiles) ./70_build_tiles.sh ;;
               *) echo "Unknown build step: $step"; exit 1 ;;
             esac
           done
+          echo "catalogs_changed=$CHECK_CATALOGS" >> "$GITHUB_OUTPUT"
           ls -lh ../out
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
+      - name: Verify refreshed statewide catalogs and state boundaries
+        if: steps.run_pipeline.outputs.catalogs_changed == '1'
+        run: npm run test:statewide && npm run test:regions
       - name: Validate packs and create download manifest
         run: node tools/validate-packs.mjs
       - name: Publish GitHub release

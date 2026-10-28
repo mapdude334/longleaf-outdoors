@@ -14,6 +14,7 @@ import re
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+from coverage_manifest import build_coverage_manifest
 
 ROOT = Path(__file__).resolve().parents[2]
 STAGE = ROOT / "pipeline/staging/south-carolina"
@@ -139,6 +140,7 @@ def main():
     old_access, old_structures, old_restrooms = (read(DATA / f"{name}.json") for name in ("access", "fish-structures", "restrooms"))
     old_waters = read(DATA / "waters.json")
     old_habitat = read(DATA / "habitat.json")
+    old_coverage = read(DATA / "coverage.json")
     # Remove the previous generated slice before rebuilding so this can safely
     # refresh from new staging without duplicating points or destinations.
     old_access["features"] = [f for f in old_access["features"] if not str(f.get("id", "")).startswith("sc-access-")]
@@ -269,6 +271,31 @@ def main():
         "waters": {**old_waters, "waters": waters + new_waters},
         "state-boundaries": bounds,
     }
+    access_audit = AUDIT.get("layers", {}).get("access", {})
+    attractor_audit = AUDIT.get("layers", {}).get("fish_attractors", {})
+    source_updates = {
+        "sc_access": {
+            "source_count": access_audit.get("record_count_reported", len(access)),
+            "accepted": len(access), "url": ACCESS_URL,
+            "agency": "South Carolina Department of Natural Resources",
+            "source_updated": access_audit.get("source_edited_at"),
+            "reuse_terms_reviewed": bool(access_audit.get("reuse_terms_reviewed", False)),
+        },
+        "sc_attractors": {
+            "source_count": attractor_audit.get("record_count_reported", len(structures) + len(habitat)),
+            "accepted": len(structures) + len(habitat), "url": HABITAT_URL,
+            "agency": "South Carolina Department of Natural Resources",
+            "source_updated": attractor_audit.get("source_edited_at"),
+            "data_vintage": "2023-06", "reuse_terms_reviewed": bool(attractor_audit.get("reuse_terms_reviewed", False)),
+        },
+        "state-boundaries": {"url": BOUNDARY_URL, "agency": "U.S. Census Bureau TIGERweb", "states_in_catalog": len(bounds["features"])},
+    }
+    products["coverage"] = build_coverage_manifest(
+        products, old_coverage, updated=NOW,
+        scope="Alabama and Georgia statewide agency catalogs, plus selected South Carolina agency catalogs; records are source-limited and not an exhaustive inventory. Adjacent coastal and offshore sources are included where documented.",
+        source_updates=source_updates,
+    )
+    products["coverage"]["offline_packs"] = old_coverage.get("offline_packs", "Existing regional archives are unchanged. Save map areas separately for expanded geography.")
     # Validate stable IDs, explicit links, statewide map bounds, and references.
     for name, collection in (("access", products["access"]), ("restrooms", products["restrooms"]), ("fish-structures", products["fish-structures"]), ("habitat", products["habitat"])):
         ids = [f.get("properties", {}).get("record_id") or f.get("properties", {}).get("osm") or f.get("id") for f in collection["features"]]

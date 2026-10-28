@@ -1,6 +1,6 @@
 # Data sources
 
-For the current development preview's statewide Alabama / Georgia agency inventories, editions and coverage limitations, see [Statewide expansion](STATEWIDE_EXPANSION.md). The original regional pack sources below are retained as the archive baseline.
+For the current Alabama and Georgia statewide agency catalogs and the source-limited South Carolina pilot, including editions, reuse-review status, and coverage limitations, see [Statewide expansion](STATEWIDE_EXPANSION.md) and [South Carolina pilot status](SOUTHEAST_EXPANSION_PHASE_1_SOUTH_CAROLINA.md). The original regional pack sources below are retained as the archive baseline.
 
 | Layer | Source | Access | License / terms | Refresh |
 |---|---|---|---|---|

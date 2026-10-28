@@ -13,6 +13,18 @@
 
 On both an iPhone/Safari and Android/Chrome: install the PWA; save a trip, launch and pin; download a small topo/terrain area; then enable airplane mode, close and reopen the app. Verify the saved trip, map tiles, labels and icons across the downloaded zoom levels. Confirm failed/incomplete downloads remain clearly labeled. Separately verify GPS recording with the screen locked and the app backgrounded before claiming background recording support.
 
+#### Repeatable area-download acceptance
+
+1. Start online with a clean test area and confirm the app reports the selected map extent and requested layers/maximum zoom before downloading. Use a small area first to stay within browser storage limits.
+2. Download the area and wait for a clear completed state. Open Saved Maps, confirm the area appears with its layer, zoom, size and status details, then reopen it once while still online.
+3. Enable airplane mode and confirm cellular and Wi-Fi are both disabled. Fully close the app, relaunch it, and open the saved area from Saved Maps.
+4. Pan to every edge of the saved extent and inspect each downloaded zoom. Confirm the basemap, terrain, labels, app symbols, cached catalog cards, selected destination polygon, and saved trip points render. Use a layer toggle and verify it does not imply unavailable live data is current.
+5. Pan outside the saved extent and zoom above the downloaded maximum. The app should make the coverage limit clear and should not present missing tiles as a complete offline map.
+6. Return online. Confirm the app recovers, retains the saved area and user data, and reports whether any live data refreshed. Repeat the full sequence separately on iPhone/Safari and Android/Chrome.
+7. Attempt one deliberately interrupted or rejected download. Confirm it is marked incomplete/failed, cannot be mistaken for a ready offline area, and does not replace a previously valid saved area.
+
+Record device model, OS/browser version, app build, download extent/layers/zoom, storage estimate, and any missing tiles or labels. Do not mark physical-device acceptance complete from desktop viewport emulation or a server-unavailable reload.
+
 Tested October 26, 2026 in the desktop app's Chromium browser. These results do not establish physical iPhone or Android compatibility.
 
 ## Results

@@ -5,6 +5,27 @@ import { stripTypeScriptTypes } from 'node:module';
 
 const json = async (name) => JSON.parse(await readFile(new URL(`../public/data/${name}.json`, import.meta.url), 'utf8'));
 const original = (name) => JSON.parse(execFileSync('git', ['show', `origin/main:public/data/${name}.json`], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }));
+const coverageManifest = await json('coverage');
+const expectedCounts = {};
+const expectedStateCounts = {};
+for (const [name, property] of [['access', 'features'], ['fish-structures', 'features'], ['restrooms', 'features'], ['habitat', 'features'], ['state-boundaries', 'features'], ['waters', 'waters']]) {
+  const data = await json(name);
+  const records = data[property];
+  expectedCounts[name] = records.length;
+  for (const record of records) {
+    const p = record.properties ?? record;
+    const value = name === 'state-boundaries' ? p.STUSAB : p.state;
+    for (const state of String(value ?? '').split(/[\/,;]/).map((code) => code.trim().toUpperCase()).filter(Boolean)) {
+      expectedStateCounts[state] ??= {};
+      expectedStateCounts[state][name] = (expectedStateCounts[state][name] ?? 0) + 1;
+    }
+  }
+}
+assert.deepEqual(coverageManifest.counts, expectedCounts, 'Coverage manifest totals must match the packaged catalogs');
+assert.deepEqual(coverageManifest.state_counts, expectedStateCounts, 'Per-state coverage must match packaged feature state fields');
+assert.match(coverageManifest.scope, /South Carolina/i, 'Coverage scope must acknowledge the current SC pilot');
+assert.equal(coverageManifest.sources.sc_access?.reuse_terms_reviewed, false, 'Open South Carolina access-layer reuse review must remain visible');
+assert.equal(coverageManifest.sources.sc_attractors?.reuse_terms_reviewed, false, 'Open South Carolina attractor-layer reuse review must remain visible');
 const moduleUrl = (source) => `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source)).toString('base64')}`;
 const configSource = (await readFile(new URL('../src/config.ts', import.meta.url), 'utf8')).replaceAll('import.meta.env', JSON.stringify({ BASE_URL: '/' }));
 const configUrl = moduleUrl(configSource);

@@ -1,1 +1,126 @@
-{"updated":"2026-10-27T05:46:39Z","scope":"AL and GA state land areas and adjacent agency-mapped coastal/Gulf/Atlantic sites","offline_packs":"Existing regional archives are unchanged. Online maps and catalog points extend beyond them. Save map areas separately for expanded geography.","sources":{"al_access":{"source_count":134,"accepted":134,"url":"https://conservationgis.alabama.gov/adcnrweb/rest/services/DCNRBoatRamps/MapServer/0","agency":"Alabama DCNR","source_updated":null},"ga_access":{"source_count":899,"accepted":897,"url":"https://services6.arcgis.com/9QlSLDqa0P1cHLhu/ArcGIS/rest/services/WRD_Water_Access_Points/FeatureServer/0","agency":"Georgia DNR Wildlife Resources","source_updated":"2026-10-08T14:18:08.698000+00:00"},"al_structures":{"source_count":1286,"accepted":1286,"non_structure_markers_excluded":0,"url":"https://conservationgis.alabama.gov/adcnrweb/rest/services/FishAttractors/MapServer/0","agency":"Alabama DCNR","source_updated":null},"ga_structures":{"source_count":2272,"accepted":1801,"non_structure_markers_excluded":295,"url":"https://services6.arcgis.com/9QlSLDqa0P1cHLhu/ArcGIS/rest/services/Fish_Attractors_View/FeatureServer/0","agency":"Georgia DNR Wildlife Resources","source_updated":"2026-10-26T17:51:45.217000+00:00"},"al_reefs":{"source_count":1637,"accepted":1633,"non_structure_markers_excluded":4,"url":"https://conservationgis.alabama.gov/adcnrweb/rest/services/ArtificialReefs/MapServer/0","agency":"Alabama Marine Resources Division","source_updated":null},"ga_reefs":{"source_count":524,"accepted":412,"non_structure_markers_excluded":112,"url":"https://services3.arcgis.com/r9yUQy2Mlp8XERvO/arcgis/rest/services/ArtificialOffshoreReefs/FeatureServer/0","agency":"Georgia DNR Coastal Resources","source_updated":"2017-07-28T20:04:14.985000+00:00"},"ga_habitat":{"source_count":7109,"accepted":7109,"invalid_or_out_of_area_rejected":0,"url":"https://services6.arcgis.com/9QlSLDqa0P1cHLhu/ArcGIS/rest/services/Aquatic_Vegetation_view/FeatureServer/0","agency":"Georgia DNR Wildlife Resources","source_updated":"2025-12-22T15:14:56.420000+00:00"},"al_waters":{"url":"https://conservationgis.alabama.gov/adcnrweb/rest/services/PublicFishingLakes/MapServer/0","agency":"Alabama DCNR","source_updated":null},"ga_waters":{"url":"https://services6.arcgis.com/9QlSLDqa0P1cHLhu/ArcGIS/rest/services/WRD_Waterbodies/FeatureServer/0","agency":"Georgia DNR Wildlife Resources","source_updated":"2016-10-28T13:20:36.467000+00:00"}},"counts":{"access":1790,"fish-structures":5160,"restrooms":621,"habitat":7403,"state-boundaries":2,"waters":497}}
+{
+  "offline_packs": "Existing regional archives are unchanged. Online maps and catalog points extend beyond them. Save map areas separately for expanded geography.",
+  "updated": "2026-10-28T01:31:39Z",
+  "scope": "Alabama and Georgia statewide agency catalogs, plus selected South Carolina agency catalogs; records are source-limited and not an exhaustive inventory. Adjacent coastal and offshore sources are included where documented.",
+  "sources": {
+    "al_access": {
+      "source_count": 134,
+      "accepted": 134,
+      "url": "https://conservationgis.alabama.gov/adcnrweb/rest/services/DCNRBoatRamps/MapServer/0",
+      "agency": "Alabama DCNR",
+      "source_updated": null
+    },
+    "ga_access": {
+      "source_count": 899,
+      "accepted": 897,
+      "url": "https://services6.arcgis.com/9QlSLDqa0P1cHLhu/ArcGIS/rest/services/WRD_Water_Access_Points/FeatureServer/0",
+      "agency": "Georgia DNR Wildlife Resources",
+      "source_updated": "2026-10-08T14:18:08.698000+00:00"
+    },
+    "al_structures": {
+      "source_count": 1286,
+      "accepted": 1286,
+      "non_structure_markers_excluded": 0,
+      "url": "https://conservationgis.alabama.gov/adcnrweb/rest/services/FishAttractors/MapServer/0",
+      "agency": "Alabama DCNR",
+      "source_updated": null
+    },
+    "ga_structures": {
+      "source_count": 2272,
+      "accepted": 1801,
+      "non_structure_markers_excluded": 295,
+      "url": "https://services6.arcgis.com/9QlSLDqa0P1cHLhu/ArcGIS/rest/services/Fish_Attractors_View/FeatureServer/0",
+      "agency": "Georgia DNR Wildlife Resources",
+      "source_updated": "2026-10-26T17:51:45.217000+00:00"
+    },
+    "al_reefs": {
+      "source_count": 1637,
+      "accepted": 1633,
+      "non_structure_markers_excluded": 4,
+      "url": "https://conservationgis.alabama.gov/adcnrweb/rest/services/ArtificialReefs/MapServer/0",
+      "agency": "Alabama Marine Resources Division",
+      "source_updated": null
+    },
+    "ga_reefs": {
+      "source_count": 524,
+      "accepted": 412,
+      "non_structure_markers_excluded": 112,
+      "url": "https://services3.arcgis.com/r9yUQy2Mlp8XERvO/arcgis/rest/services/ArtificialOffshoreReefs/FeatureServer/0",
+      "agency": "Georgia DNR Coastal Resources",
+      "source_updated": "2017-07-28T20:04:14.985000+00:00"
+    },
+    "ga_habitat": {
+      "source_count": 7109,
+      "accepted": 7109,
+      "invalid_or_out_of_area_rejected": 0,
+      "url": "https://services6.arcgis.com/9QlSLDqa0P1cHLhu/ArcGIS/rest/services/Aquatic_Vegetation_view/FeatureServer/0",
+      "agency": "Georgia DNR Wildlife Resources",
+      "source_updated": "2025-12-22T15:14:56.420000+00:00"
+    },
+    "al_waters": {
+      "url": "https://conservationgis.alabama.gov/adcnrweb/rest/services/PublicFishingLakes/MapServer/0",
+      "agency": "Alabama DCNR",
+      "source_updated": null
+    },
+    "ga_waters": {
+      "url": "https://services6.arcgis.com/9QlSLDqa0P1cHLhu/ArcGIS/rest/services/WRD_Waterbodies/FeatureServer/0",
+      "agency": "Georgia DNR Wildlife Resources",
+      "source_updated": "2016-10-28T13:20:36.467000+00:00"
+    },
+    "sc_access": {
+      "source_count": 1030,
+      "accepted": 1030,
+      "url": "https://services.arcgis.com/acgZYxoN5Oj8pDLa/ArcGIS/rest/services/South_Carolina_Public_Water_Access_PUBLIC_VIEW/FeatureServer/0",
+      "agency": "South Carolina Department of Natural Resources",
+      "source_updated": "2026-03-17T15:33:39Z",
+      "reuse_terms_reviewed": false
+    },
+    "sc_attractors": {
+      "source_count": 386,
+      "accepted": 386,
+      "url": "https://services.arcgis.com/acgZYxoN5Oj8pDLa/ArcGIS/rest/services/SCDNR_Freshwater_Fish_Attractors_Public_Web_App/FeatureServer/0",
+      "agency": "South Carolina Department of Natural Resources",
+      "source_updated": "2026-03-13T16:57:57Z",
+      "data_vintage": "2023-06",
+      "reuse_terms_reviewed": false
+    },
+    "state-boundaries": {
+      "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0",
+      "agency": "U.S. Census Bureau TIGERweb",
+      "states_in_catalog": 3
+    }
+  },
+  "counts": {
+    "access": 2820,
+    "fish-structures": 5289,
+    "restrooms": 886,
+    "habitat": 7660,
+    "state-boundaries": 3,
+    "waters": 784
+  },
+  "state_counts": {
+    "GA": {
+      "access": 897,
+      "fish-structures": 2213,
+      "restrooms": 379,
+      "habitat": 7403,
+      "state-boundaries": 1,
+      "waters": 440
+    },
+    "AL": {
+      "access": 130,
+      "fish-structures": 2919,
+      "restrooms": 25,
+      "state-boundaries": 1,
+      "waters": 65
+    },
+    "SC": {
+      "access": 1030,
+      "fish-structures": 129,
+      "restrooms": 265,
+      "habitat": 257,
+      "state-boundaries": 1,
+      "waters": 292
+    }
+  }
+}
