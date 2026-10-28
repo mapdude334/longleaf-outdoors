@@ -437,7 +437,7 @@ function showInfo(html: string, after?: (root: HTMLElement) => void) {
     if (coords.every(Number.isFinite) && add({ id: button.dataset.launchId!, name: button.dataset.launchName!, coords })) { showTab('trips'); $('#tab-trips').querySelector<HTMLButtonElement>('[data-resume]')?.click(); toast('Location added to your autosaved trip draft.'); }
   });
   el.querySelectorAll<HTMLButtonElement>('[data-species]').forEach((button) => {
-    button.onclick = () => openSpecies(button.dataset.species!, () => showInfo(html, after));
+    button.onclick = () => openSpecies(button.dataset.species!, () => showInfo(html, after), button.dataset.state);
   });
 }
 
@@ -503,7 +503,7 @@ function openTripDestination(id: string) {
   if (isCompactLayout()) setSheetSnap('peek');
 }
 
-function openSpecies(label: string, back: () => void) {
+function openSpecies(label: string, back: () => void, state?: string) {
   const matches = speciesForLabel(label);
   if (!matches.length) {
     const photo = verifiedSpeciesPhoto(label);
@@ -511,12 +511,12 @@ function openSpecies(label: string, back: () => void) {
     return;
   }
   const choice = matches.length > 1;
-  showInfo(`<button class="link fish-back">← Back</button>${choice ? speciesChoiceHtml(label) : speciesHtml(matches[0].id)}`, (root) => {
+  showInfo(`<button class="link fish-back">← Back</button>${choice ? speciesChoiceHtml(label) : speciesHtml(matches[0].id, state)}`, (root) => {
     root.querySelector<HTMLButtonElement>('.fish-back')!.onclick = back;
     root.querySelectorAll<HTMLButtonElement>('[data-fish-id]').forEach((button) => {
       button.onclick = () => {
-        showInfo(`<button class="link fish-back">← Back to crappie</button>${speciesHtml(button.dataset.fishId!)}`, (detail) => {
-          detail.querySelector<HTMLButtonElement>('.fish-back')!.onclick = () => openSpecies(label, back);
+        showInfo(`<button class="link fish-back">← Back to choices</button>${speciesHtml(button.dataset.fishId!, state)}`, (detail) => {
+          detail.querySelector<HTMLButtonElement>('.fish-back')!.onclick = () => openSpecies(label, back, state);
         });
       };
     });

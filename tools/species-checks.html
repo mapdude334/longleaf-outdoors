@@ -2,18 +2,36 @@
 import { SPECIES } from '/src/species-data.ts';
 import { speciesForLabel, speciesHtml } from '/src/species.ts';
 import { gaugeName } from '/src/layers/gauges.ts';
+import { waterHtml } from '/src/layers/waters.ts';
 const lines=[],check=(v,msg)=>{if(!v)throw Error(msg);lines.push('PASS: '+msg);};
 try {
   const waters=await (await fetch('/data/waters.json')).json();
   const labels=[...new Set(waters.waters.flatMap(w=>w.species.map(s=>s.name)))];
-  check(labels.every(n=>speciesForLabel(n).length>0),'All '+labels.length+' lake species labels resolve to fact cards');
-  check(speciesForLabel('Black & white crappie').length===2,'Combined crappie label provides two distinct species');
+  const scLabels=[...new Set(waters.waters.filter(w=>String(w.state).split(/[\/,;]/).some(x=>x.trim().toUpperCase()==='SC')).flatMap(w=>w.species.map(s=>s.name)))];
+  check(scLabels.length===25,'SC destination inventory has the expected 25 distinct species labels');
+  check(scLabels.every(n=>speciesForLabel(n).length>0),'All '+scLabels.length+' South Carolina species labels resolve to a field guide or species choice');
+  const establishedLabels=['Largemouth bass','Spotted bass','Hybrid striped bass','Striped bass','Black & white crappie','Black crappie','White crappie','Channel catfish','Blue catfish','Flathead catfish','Bluegill','Redear sunfish','Redbreast sunfish','Shoal bass','Alabama bass','Tallapoosa bass','White bass'];
+  check(establishedLabels.every(n=>speciesForLabel(n).length>0),'Established Alabama and Georgia species labels still resolve');
+  check(speciesForLabel('Black & white crappie').length===2 && speciesForLabel('Crappie').length===2,'Generic crappie labels offer separate black and white profiles');
+  check(speciesForLabel('Black crappie').length===1 && speciesForLabel('Black crappie')[0].id==='black-crappie','Exact black crappie label opens only the black crappie profile');
+  check(speciesForLabel('White crappie').length===1 && speciesForLabel('White crappie')[0].id==='white-crappie','Exact white crappie label opens only the white crappie profile');
+  check(speciesForLabel('Flounder').map(s=>s.id).join(',')==='southern-flounder,summer-flounder','Generic flounder label offers both SC flounder profiles');
+  check(speciesForLabel('Southern flounder').length===1 && speciesForLabel('Summer flounder').length===1,'Species-specific flounder labels open the matching profile');
   check(speciesForLabel('Striped bass (seasonal)')[0].id==='striped-bass','Seasonal striped bass alias resolves correctly');
+  const scWater=waters.waters.find(w=>w.state==='SC'&&w.species.length);
+  const scWaterCard=new DOMParser().parseFromString(waterHtml(scWater),'text/html');
+  check(scWaterCard.querySelector('[data-species]')?.getAttribute('data-state')==='SC','South Carolina state context is attached to species buttons on water cards');
+  check(speciesHtml('largemouth-bass','SC').includes('65–75°F') && speciesHtml('largemouth-bass','SC').includes('South Carolina-specific notes'),'South Carolina water context selects regional fact-sheet guidance');
+  check(speciesHtml('largemouth-bass','AL').includes('63–68°F') && !speciesHtml('largemouth-bass','AL').includes('South Carolina-specific notes'),'Other state context keeps the base profile guidance');
   for(const s of SPECIES){
     const html=speciesHtml(s.id),doc=new DOMParser().parseFromString(html,'text/html');
     check(doc.querySelectorAll('.fish-facts dt').length===4,s.name+': spawning, diet, habitat and habits present');
-    const image=doc.querySelector('img');check(!!image,s.name+': credited photograph is included');
-    await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>{if(im.naturalWidth>0)resolve();else reject(Error('Empty image'));};im.onerror=()=>reject(Error('Missing photo: '+s.name));im.src=image.getAttribute('src');});
+    check(doc.querySelectorAll('.links a').length>0,s.name+': official or agency source links are included');
+    const image=doc.querySelector('img');
+    if(image){
+      check(!!doc.querySelector('.fish-photo figcaption a'),s.name+': photo provenance is included');
+      await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>{if(im.naturalWidth>0)resolve();else reject(Error('Empty image'));};im.onerror=()=>reject(Error('Missing photo: '+s.name));im.src=image.getAttribute('src');});
+    } else check(doc.body.textContent.includes('species-specific image'),s.name+': unverified photo is explicitly omitted');
   }
   check(gaugeName({id:'02339400',name:'02339400'}).startsWith('West Point Lake'),'Cached numeric lake gauge gets a friendly name');
   check(gaugeName({id:'02339402',name:'02339402'}).includes('below West Point Dam'),'Cached numeric river gauge gets a friendly name');

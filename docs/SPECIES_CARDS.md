@@ -1,14 +1,17 @@
-# Species field guide and gauge names
+# Species field guide
 
-Implemented October 26, 2026.
+Updated October 27, 2026.
 
-- All 17 distinct labels in the lake catalogue resolve to 16 individual species profiles. The combined crappie labels offer separate black and white crappie profiles; seasonal striped bass uses the striped bass profile.
-- Cards include locally packaged real photographs, scientific names, identification, reference adult sizes, spawning, diet, habitat and behavior. Each card links its agency sources and its photograph's source and reuse license. Photographs were resized and converted to JPEG for the app; no animal features were generated or altered.
-- Source facts are short paraphrases of the linked Outdoor Alabama, Georgia DNR and other agency profiles. Seasonal windows identify their regional context. Tallapoosa bass spawning and diet are explicitly marked unavailable in the linked profile; these details were not inferred from related species.
-- Local photos are included in the PWA precache along with the compiled fact sheets, so an installed, fully cached app can display these cards without requesting remote images.
-- The USGS station-name request now uses the supported agency filter. Local aliases for stations 02339400 and 02339402 were checked against USGS monitoring-location metadata: West Point Lake near West Point, GA, and Chattahoochee River below West Point Dam, GA. Station IDs remain in expanded records.
-- Gauge trend requests now start when the destination's gauge panels open. Late identify responses no longer replace a panel after the user navigates elsewhere.
+- The guide contains 29 species profiles. All 25 distinct fish labels in the South Carolina destination catalog now open a species card or an explicit choice when the catalog uses an ambiguous name. The overall waters catalog is checked as well.
+- Shared freshwater species switch to South Carolina-specific size, season, diet, habitat and behavior notes when opened from a South Carolina water. Other destinations retain their existing regional guidance.
+- Added South Carolina profiles for smallmouth bass, chain pickerel, brook trout, brown trout, rainbow trout, warmouth, yellow perch, walleye, red drum, sheepshead, spotted seatrout, southern flounder and summer flounder. A generic “Flounder” label offers both coastal species rather than guessing which one the catalog meant.
+- Exact “Black crappie” and “White crappie” labels now open only their own cards; generic “Crappie” and combined crappie labels still offer both.
+- Cards include identification, reference sizes, spawning, diet, habitat, behavior and linked agency sources. South Carolina facts are paraphrases from SCDNR species pages. SCDNR freshwater pages may cite the agency’s 2009 freshwater fish guide, so timing is presented as guidance and the card directs users to current regulations.
+- Local photographs are shown only when a species match and reuse provenance were already verified. The South Carolina additions reuse cleared photos for smallmouth bass, walleye, yellow perch and southern flounder. Other new profiles intentionally have no photo until a suitable species-specific image is verified. Existing local photos remain packaged with the app for offline display.
 
-Validation: production build passed; `tools/species-checks.html` passed all 37 assertions and loaded all 16 local photographs. Browser checks exercised the lake-to-species flow, the crappie chooser and back navigation, and verified the two friendly gauge headings.
+## Gauge names and trends
 
-Reproduction: run the development server, then open `tools/species-checks.html`. Catalogue: `src/species-data.ts`. Photo credits: `src/data/species-photos.json`. Download preparation preserves source metadata in `tools/species-photo-candidates.json`; original downloads are in `tools/species-originals`. Regenerate web-sized photographs with `tools/prepare_species_photos.ps1`.
+- The USGS station-name request uses the supported agency filter. Local aliases for stations 02339400 and 02339402 were checked against USGS monitoring-location metadata: West Point Lake near West Point, GA, and Chattahoochee River below West Point Dam, GA. Station IDs remain in expanded records.
+- Gauge trend requests start when the destination's gauge panels open. Late identify responses no longer replace a panel after the user navigates elsewhere.
+
+Reproduction: run the development server, then open `tools/species-checks.html`. Catalogue: `src/species-data.ts`. Label handling and rendering: `src/species.ts`. Photo credits: `src/data/species-photos.json`.
