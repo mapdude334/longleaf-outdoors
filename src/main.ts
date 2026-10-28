@@ -851,8 +851,18 @@ map.on('touchstart', (e) => {
 
 // Coordinates readout
 const coordsEl = $('#coords');
-const showCoords = () => { const c = map.getCenter(); coordsEl.textContent = fmtCoord(c.lng, c.lat, ui.coordFmt) + (innerWidth > 560 ? ` · z${map.getZoom().toFixed(1)}` : ''); };
+let pointerPoint: [number, number] | undefined;
+const formatCoords = (lng: number, lat: number) => fmtCoord(lng, lat, ui.coordFmt) + (innerWidth > 560 ? ` · z${map.getZoom().toFixed(1)}` : '');
+const showCoords = () => {
+  const point = pointerPoint ? map.unproject(pointerPoint) : map.getCenter();
+  coordsEl.textContent = formatCoords(point.lng, point.lat);
+};
+map.on('mousemove', (e) => { pointerPoint = [e.point.x, e.point.y]; showCoords(); });
+map.on('mouseout', () => { pointerPoint = undefined; showCoords(); });
 map.on('move', showCoords);
+map.on('load', showCoords);
+coordsEl.title = 'Map cursor coordinates · click to switch format';
+coordsEl.setAttribute('aria-label', 'Map cursor coordinates. Click to switch coordinate format.');
 coordsEl.onclick = () => { ui.coordFmt = ui.coordFmt === 'dd' ? 'dm' : 'dd'; saveUi(); showCoords(); };
 
 // ---------------- search ----------------
