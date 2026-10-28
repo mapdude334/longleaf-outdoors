@@ -35,6 +35,16 @@
 .destination-option[hidden] { display: none; }
 .destination-no-results { margin: 8px 4px 2px; color: #5f6f6f; font-size: 12px; }
 .destination-no-results[hidden] { display: none; }
+.trip-picker-field { position: relative; }
+.trip-picker-label { display: block; margin-bottom: 6px; }
+.trip-picker-field .destination-combobox { margin-top: 0; }
+.trip-option-group-label { padding: 8px 9px 4px; border-top: 1px solid #d8e1d8; color: #5f6f6f; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.trip-picker-option-group:first-child .trip-option-group-label { border-top: 0; }
+.trip-picker-option .trip-picker-option-title, .trip-picker-option .trip-picker-option-detail { display: block; }
+.trip-picker-option .trip-picker-option-title { font-weight: 600; }
+.trip-picker-option .trip-picker-option-detail { margin-top: 3px; color: #5f6f6f; font-size: 11px; line-height: 1.35; }
+.trip-picker-option[aria-selected="true"] { background: #dce9dc; }
+.trip-picker-note { margin-top: -2px; }
 .destination-hero .region-scope-note { margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #e1ece6; }
 .trip-pin-banner { position: fixed; z-index: 10; top: calc(var(--top) + 12px); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 100px); display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 8px; background: var(--bg); color: var(--fg); box-shadow: var(--shadow); font-size: 13px; }
 .destination-hero h2 { font-family: Georgia, serif; font-size: 37px; line-height: 1.05; font-weight: 400; margin: 22px 0 12px; }

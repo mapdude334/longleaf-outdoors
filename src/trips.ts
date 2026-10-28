@@ -6,6 +6,8 @@ import { loadAccessLive, accessLocation } from './layers/access';
 import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
 import { esc, haversineKm, store, toast } from './util';
 import { shareTrip } from './share';
+import { ALL_REGION } from './config';
+import { REGIONS, STATES, watersInRegion } from './state-regions';
 
 export type Place = { id: string; name: string; coords: [number, number] };
 export type Trip = { id: string; name: string; destination: string; date?: string; ramp?: Place; spots: Place[]; notes: string; updated: number; view: { center: [number, number]; zoom: number } };
@@ -36,6 +38,88 @@ let cancelPick: (() => void) | undefined;
 export const pickingTripSpot = () => !!cancelPick;
 export function cancelTripPick() { cancelPick?.(); }
 export const activeTrip = () => store.get<Trip>('active-trip')?.v;
+
+type TripPickerOption = { value: string; label: string; group: string; detail?: string; search?: string };
+
+function tripPickerHtml(id: string, title: string, searchPlaceholder: string, placeholder: string, options: TripPickerOption[], selected: string, prefixHtml = '') {
+  const groups = new globalThis.Map<string, TripPickerOption[]>();
+  for (const option of options) {
+    const group = groups.get(option.group) ?? [];
+    group.push(option);
+    groups.set(option.group, group);
+  }
+  const selectedOption = options.find((option) => option.value === selected);
+  const optionGroups = [...groups].map(([group, items]) => `<div class="trip-picker-option-group" data-picker-group><div class="trip-option-group-label">${esc(group)}</div>${items.map((option) => `<button type="button" class="destination-option trip-picker-option" role="option" data-picker-option data-value="${esc(option.value)}" data-search="${esc(option.search ?? `${option.label} ${option.detail ?? ''} ${group}`)}" aria-selected="${option.value === selected ? 'true' : 'false'}"><span class="trip-picker-option-title">${esc(option.label)}</span>${option.detail ? `<span class="trip-picker-option-detail">${esc(option.detail)}</span>` : ''}</button>`).join('')}</div>`).join('');
+  return `<div class="field trip-picker-field" data-trip-picker="${id}"><span class="trip-picker-label" id="${id}-label">${prefixHtml}${esc(title)}</span><div class="destination-combobox"><button type="button" id="${id}-picker" class="destination-select" role="combobox" aria-labelledby="${id}-label ${id}-value" aria-haspopup="listbox" aria-expanded="false" aria-controls="${id}-list"><span id="${id}-value">${esc(selectedOption?.label ?? placeholder)}</span><span class="destination-select-arrow" aria-hidden="true"></span></button><div class="destination-menu" hidden><input type="search" class="destination-search" placeholder="${esc(searchPlaceholder)}" aria-label="Search ${esc(title.toLocaleLowerCase())}" autocomplete="off"><div class="destination-option-list" id="${id}-list" role="listbox" aria-labelledby="${id}-label">${optionGroups}</div><p class="destination-no-results" hidden>No matches. Try another search.</p></div></div><input type="hidden" id="${id}" value="${esc(selected)}"></div>`;
+}
+
+function wireTripPicker(root: HTMLElement, id: string, choose: (value: string) => void) {
+  const wrapper = root.querySelector<HTMLElement>(`[data-trip-picker="${id}"]`);
+  const button = wrapper?.querySelector<HTMLButtonElement>(`#${id}-picker`);
+  const menu = wrapper?.querySelector<HTMLElement>('.destination-menu');
+  const search = menu?.querySelector<HTMLInputElement>('.destination-search');
+  const list = menu?.querySelector<HTMLElement>('.destination-option-list');
+  const noResults = menu?.querySelector<HTMLElement>('.destination-no-results');
+  const value = wrapper?.querySelector<HTMLInputElement>(`#${id}`);
+  const selectedLabel = wrapper?.querySelector<HTMLElement>(`#${id}-value`);
+  if (!wrapper || !button || !menu || !search || !list || !noResults || !value || !selectedLabel) return;
+  const close = () => { menu.hidden = true; button.setAttribute('aria-expanded', 'false'); };
+  const filter = () => {
+    const term = search.value.trim().toLocaleLowerCase();
+    let matches = 0;
+    list.querySelectorAll<HTMLElement>('[data-picker-group]').forEach((group) => {
+      let groupMatches = 0;
+      group.querySelectorAll<HTMLButtonElement>('[data-picker-option]').forEach((option) => {
+        const visible = (option.dataset.search ?? option.textContent ?? '').toLocaleLowerCase().includes(term);
+        option.hidden = !visible;
+        if (visible) groupMatches++;
+      });
+      group.hidden = groupMatches === 0;
+      matches += groupMatches;
+    });
+    noResults.hidden = matches > 0;
+  };
+  const select = (option: HTMLButtonElement) => {
+    value.value = option.dataset.value ?? '';
+    selectedLabel.textContent = option.querySelector('.trip-picker-option-title')?.textContent ?? '';
+    list.querySelectorAll<HTMLButtonElement>('[data-picker-option]').forEach((item) => item.setAttribute('aria-selected', String(item === option)));
+    close();
+    choose(value.value);
+    if (button.isConnected) button.focus();
+  };
+  button.onclick = () => {
+    const opening = menu.hidden;
+    root.querySelectorAll<HTMLElement>('[data-trip-picker] .destination-menu').forEach((other) => { other.hidden = true; });
+    root.querySelectorAll<HTMLButtonElement>('[data-trip-picker] [role="combobox"]').forEach((other) => other.setAttribute('aria-expanded', 'false'));
+    if (!opening) return;
+    menu.hidden = false; button.setAttribute('aria-expanded', 'true');
+    search.value = ''; filter(); search.focus();
+  };
+  search.oninput = (event) => { event.stopPropagation(); filter(); };
+  search.onkeydown = (event) => {
+    if (event.key === 'Escape') { close(); button.focus(); }
+    if (event.key === 'Enter') {
+      const first = list.querySelector<HTMLButtonElement>('[data-picker-option]:not([hidden])');
+      if (first) { event.preventDefault(); select(first); }
+    }
+    if (event.key === 'ArrowDown') {
+      const first = list.querySelector<HTMLButtonElement>('[data-picker-option]:not([hidden])');
+      if (first) { event.preventDefault(); first.focus(); }
+    }
+  };
+  list.onkeydown = (event) => {
+    const options = [...list.querySelectorAll<HTMLButtonElement>('[data-picker-option]:not([hidden])')];
+    const index = options.indexOf(event.target as HTMLButtonElement);
+    if (event.key === 'Escape') { close(); button.focus(); }
+    if (event.key === 'ArrowDown' && index >= 0) { event.preventDefault(); options[Math.min(index + 1, options.length - 1)]?.focus(); }
+    if (event.key === 'ArrowUp' && index >= 0) { event.preventDefault(); (options[index - 1] ?? search).focus(); }
+  };
+  list.onclick = (event) => {
+    const option = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-picker-option]');
+    if (option) select(option);
+  };
+}
+
 export function showTripPlan(map: Map, preview?: Trip) {
   if (!map.isStyleLoaded()) return;
   if (!map.getSource('trip-plan')) {
@@ -88,6 +172,8 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     const candidates = new globalThis.Map<string, Place>();
     const namedRampIds = new Set<string>();
     const savedRampIds = new Set<string>();
+    const currentTripRampIds = new Set<string>();
+    const rampDetails = new globalThis.Map<string, { location: string; source: string }>();
     const cached = store.get<any[]>('access-osm')?.v ?? [];
     const rendered = map.getLayer('access-pts') ? map.queryRenderedFeatures(undefined, { layers: ['access-pts'] }) : [];
     for (const f of [...cached, ...rendered]) {
@@ -98,24 +184,35 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       const name = String(f.properties.name ?? '').trim();
       const hasName = !!name && !/^(boat ramp|launch|paddle launch)$/i.test(name);
       if (hasName) namedRampIds.add(id);
-      candidates.set(id, { id, name: hasName ? name : `${f.properties.kind === 'paddle_launch' ? 'Paddle launch' : 'Boat ramp'} — ${accessLocation(f.properties, coords)}`, coords });
+      candidates.set(id, { id, name: hasName ? name : f.properties.kind === 'paddle_launch' ? 'Paddle launch' : 'Boat ramp', coords });
+      rampDetails.set(id, { location: accessLocation(f.properties, coords), source: String(f.properties.data_source ?? (f.properties.osm ? 'OpenStreetMap contributors' : 'Mapped access catalog')) });
     }
     for (const w of getWpts().filter((w) => w.type === 'ramp')) {
-      candidates.set(w.id, { id: w.id, name: w.name, coords: [w.lng, w.lat] });
+      const coords: [number, number] = [w.lng, w.lat];
+      candidates.set(w.id, { id: w.id, name: w.name || 'Saved launch', coords });
       savedRampIds.add(w.id);
+      rampDetails.set(w.id, { location: accessLocation({}, coords), source: 'Saved on this device' });
     }
     if (trip.ramp && !candidates.has(trip.ramp.id)) {
       const ramp = trip.ramp;
-      candidates.set(ramp.id, { ...ramp, name: !ramp.name.trim() || /^(Launch ·|boat ramp$|launch$)/i.test(ramp.name) ? `Boat ramp — ${accessLocation({}, ramp.coords)}` : ramp.name });
+      candidates.set(ramp.id, { ...ramp, name: !ramp.name.trim() || /^(Launch ·|boat ramp$|launch$)/i.test(ramp.name) ? 'Boat ramp' : ramp.name });
+      currentTripRampIds.add(ramp.id);
+      rampDetails.set(ramp.id, { location: accessLocation({}, ramp.coords), source: 'Saved in this trip' });
     }
     const ramps = [...candidates.values()].sort((a, b) => {
-      const group = (ramp: Place) => namedRampIds.has(ramp.id) ? 0 : savedRampIds.has(ramp.id) ? 1 : 2;
+      const group = (ramp: Place) => namedRampIds.has(ramp.id) ? 0 : savedRampIds.has(ramp.id) ? 1 : currentTripRampIds.has(ramp.id) ? 2 : 3;
       return group(a) - group(b) || (water?.center ? haversineKm(a.coords, water.center) - haversineKm(b.coords, water.center) : a.name.localeCompare(b.name));
     });
-    const destinationOptions = [...waters].sort((a, b) => a.state.localeCompare(b.state) || a.name.localeCompare(b.name));
-    const destinationChoices = new globalThis.Map<string, string>();
+
+    const selectedRegion = REGIONS.find((region) => region.id === store.get<string>('destination-area')?.v) ?? ALL_REGION;
+    const regionWaters = selectedRegion.id === ALL_REGION.id ? [...waters] : watersInRegion(waters, selectedRegion);
+    const regionWaterIds = new Set(regionWaters.map((choice) => choice.id));
+    const currentWaterOutsideRegion = waters.find((choice) => choice.id === trip.destination && !regionWaterIds.has(choice.id));
+    const destinationOptions = [...regionWaters, ...(currentWaterOutsideRegion ? [currentWaterOutsideRegion] : [])]
+      .sort((a, b) => a.state.localeCompare(b.state) || a.name.localeCompare(b.name));
     const destinationLabels = new globalThis.Map<string, string>();
-    const waterBaseLabels = (choice: (typeof destinationOptions)[number]) => waterDisplayLabel(choice);
+    const usedDestinationLabels = new Set<string>();
+    const waterBaseLabels = (choice: (typeof destinationOptions)[number]) => waterDisplayName(choice);
     const waterLabelCounts = new globalThis.Map<string, number>();
     for (const choice of destinationOptions) waterLabelCounts.set(waterBaseLabels(choice), (waterLabelCounts.get(waterBaseLabels(choice)) ?? 0) + 1);
     for (const choice of destinationOptions) {
@@ -132,37 +229,62 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       }
       if (!detail && peers.length > 1) detail = `Mapped area ${peers.indexOf(choice) + 1}`;
       let label = `${base}${detail ? ` · ${detail}` : ''}`;
-      if (destinationChoices.has(label)) label += ` · Mapped area ${peers.indexOf(choice) + 1}`;
-      destinationChoices.set(label, choice.id);
+      if (usedDestinationLabels.has(label)) label += ` · Mapped area ${peers.indexOf(choice) + 1}`;
+      usedDestinationLabels.add(label);
       destinationLabels.set(choice.id, label);
     }
-    const selectedDestination = destinationLabels.get(trip.destination) ?? (trip.destination ? 'Choose a current lake (previous destination retired)' : '');
     const rampChoices = new globalThis.Map<string, Place>();
     const rampLabels = new globalThis.Map<string, string>();
     const rampLabelCounts = new globalThis.Map<string, number>();
     for (const ramp of ramps) {
-      const miles = water?.center ? (haversineKm(ramp.coords, water.center) / 1.609344).toFixed(1) : '';
-      const label = `${ramp.name}${namedRampIds.has(ramp.id) && miles ? ` · ${miles} mi from mapped center` : savedRampIds.has(ramp.id) && miles ? ` · Saved launch · ${miles} mi away` : ''}`;
+      const label = ramp.name;
       rampLabelCounts.set(label, (rampLabelCounts.get(label) ?? 0) + 1);
       rampLabels.set(ramp.id, label);
     }
+    const usedRampLabels = new Set<string>();
     for (const ramp of ramps) {
       let label = rampLabels.get(ramp.id)!;
-      if ((rampLabelCounts.get(label) ?? 0) > 1) label += ` · ${accessLocation({}, ramp.coords)}`;
-      if (rampChoices.has(label)) label += ` · ${ramp.coords[1].toFixed(4)}° N, ${Math.abs(ramp.coords[0]).toFixed(4)}° W`;
+      if ((rampLabelCounts.get(label) ?? 0) > 1) label += ` · ${rampDetails.get(ramp.id)?.location ?? accessLocation({}, ramp.coords)}`;
+      if (usedRampLabels.has(label)) label += ` · ${ramp.coords[1].toFixed(4)}° N, ${Math.abs(ramp.coords[0]).toFixed(4)}° W`;
+      usedRampLabels.add(label);
       rampLabels.set(ramp.id, label);
-      rampChoices.set(label, ramp);
+      rampChoices.set(ramp.id, ramp);
     }
-    const selectedRamp = trip.ramp ? rampLabels.get(trip.ramp.id) ?? trip.ramp.name : '';
+    const stateNames = new globalThis.Map<string, string>(STATES.map((state) => [state.code, state.name]));
+    const stateGroup = (choice: (typeof destinationOptions)[number]) => choice.state.split(/[\/,]/).map((code) => stateNames.get(code.trim().toUpperCase()) ?? code.trim()).filter(Boolean).join(' / ') || 'Other waters';
+    const destinationPickerOptions: TripPickerOption[] = destinationOptions.map((choice) => {
+      const group = choice.id === trip.destination && currentWaterOutsideRegion ? 'Current trip destination' : stateGroup(choice);
+      const counties = String(choice.county ?? '').split(/[\/,]/).map((county) => county.trim()).filter(Boolean);
+      const detail = [...counties.map((county) => /county$/i.test(county) ? county : `${county} County`), choice.river ? `${choice.river} basin` : ''].join(' · ');
+      return { value: choice.id, label: destinationLabels.get(choice.id) ?? waterDisplayName(choice), group, detail, search: [choice.name, choice.state, choice.county, choice.river, waterDisplayLabel(choice), group].filter(Boolean).join(' ') };
+    });
+    const rampGroup = (ramp: Place) => namedRampIds.has(ramp.id) ? 'Named mapped launches' : savedRampIds.has(ramp.id) ? 'Your saved launches' : currentTripRampIds.has(ramp.id) ? 'Current trip launch' : 'Nearby unnamed launches';
+    const rampPickerOptions: TripPickerOption[] = [
+      { value: '', label: 'Choose a launch later', group: 'Optional', detail: 'You can add a launch later or use one of your saved launches.', search: 'choose later optional' },
+      ...ramps.map((ramp) => {
+        const meta = rampDetails.get(ramp.id) ?? { location: accessLocation({}, ramp.coords), source: 'Mapped access catalog' };
+        const miles = water?.center ? (haversineKm(ramp.coords, water.center) / 1.609344).toFixed(1) : '';
+        const distance = miles ? `${miles} mi from mapped water center · straight-line` : '';
+        const detail = [meta.location, distance, meta.source, 'Confirm access before traveling'].filter(Boolean).join(' · ');
+        return { value: ramp.id, label: rampLabels.get(ramp.id) ?? ramp.name, group: rampGroup(ramp), detail, search: [ramp.name, meta.location, meta.source, detail].filter(Boolean).join(' ') };
+      }),
+    ];
+    const destinationScopeNote = selectedRegion.id === ALL_REGION.id
+      ? `Search ${destinationOptions.length.toLocaleString()} cataloged waters across available regions.`
+      : `Showing waters in ${selectedRegion.label}. Change the region on the Destination tab to browse another area.${currentWaterOutsideRegion ? ' Your current trip destination is also kept available.' : ''}`;
+    const destinationPlaceholder = trip.destination && !destinationLabels.has(trip.destination)
+      ? 'Choose a current destination (previous destination unavailable)'
+      : 'Search lakes, rivers, or states';
     const spots = new globalThis.Map<string, Place>();
     for (const w of getWpts().filter((w) => w.type === 'fish')) spots.set(w.id, { id: w.id, name: w.name, coords: [w.lng, w.lat] });
     for (const spot of trip.spots) spots.set(spot.id, spot);
     root.innerHTML = `<button class="link" data-back>← My trips</button><h3>Plan your trip</h3>
       <label class="field">Trip name<input id="trip-name" maxlength="120" value="${esc(trip.name)}" placeholder="Saturday on the lake"></label>
       <label class="field">Trip date<input id="trip-date" type="date" value="${esc(trip.date ?? '')}"></label>
-      <label class="field">Destination<input id="trip-destination" type="search" list="trip-destination-options" value="${esc(selectedDestination)}" placeholder="Search by lake, river or state" autocomplete="off"><datalist id="trip-destination-options">${destinationOptions.map((choice) => `<option value="${esc(destinationLabels.get(choice.id) ?? choice.name)}"></option>`).join('')}</datalist></label>
-      <label class="field">${symbolHtml('boat_ramp')}Boat ramp / launch<input id="trip-ramp" type="search" list="trip-ramp-options" value="${esc(selectedRamp)}" placeholder="Search nearby or saved launches" autocomplete="off"><datalist id="trip-ramp-options">${ramps.map((r) => `<option value="${esc(rampLabels.get(r.id) ?? r.name)}"></option>`).join('')}</datalist></label>
-      <p class="muted small">Agency-matched launches on this water, other launches within ${coastal ? '75' : '25'} miles of its overview point, and your saved launches. Distances are straight-line proximity, not boating routes; confirm access and suitability before traveling.</p>
+      ${tripPickerHtml('trip-destination', 'Destination', 'Search by water, county, river, or state', destinationPlaceholder, destinationPickerOptions, trip.destination)}
+      <p class="muted small trip-picker-note">${esc(destinationScopeNote)}</p>
+      ${tripPickerHtml('trip-ramp', 'Boat ramp / launch', 'Search launch, water, location, or source', 'Choose a launch later', rampPickerOptions, trip.ramp?.id ?? '', symbolHtml('boat_ramp'))}
+      <p class="muted small">Launches are nearby mapped access locations and your saved launches. Distances are straight-line from the mapped water center, not boating routes. Confirm current status, access, and suitability before traveling.</p>
       <button class="btn" data-refresh-launches>Refresh nearby launches</button>
       <h4>${symbolHtml('spot')}Fishing spots</h4>${[...spots.values()].map((s) => `<div class="trip-spot"><label class="row"><input type="checkbox" data-trip-spot="${esc(s.id)}" ${trip.spots.some((p) => p.id === s.id) ? 'checked' : ''}>Include this spot</label><label class="field">Spot name<input data-spot-name="${esc(s.id)}" maxlength="120" value="${esc(s.name)}"></label><span class="muted small">${s.coords[1].toFixed(5)}, ${s.coords[0].toFixed(5)}</span> <button class="link" data-remove-spot="${esc(s.id)}">Remove from trip</button></div>`).join('') || '<p class="muted small">Choose saved fishing waypoints from My Spots, or drop a pin anywhere on the map.</p>'}
       <label class="field">New fishing spot name<input id="trip-spot-name" maxlength="120" placeholder="Point, cove or brush pile"></label><button class="btn" data-add-spot>Drop a fishing pin</button><button class="btn" data-cancel-pin hidden>Cancel pin</button>
@@ -172,8 +294,8 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     const input = <T extends HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(id: string) => root.querySelector<T>(id)!;
     const collect = () => {
       trip.name = input('#trip-name').value.trim();
-      const destinationId = destinationChoices.get(input<HTMLInputElement>('#trip-destination').value);
-      if (destinationId) trip.destination = destinationId;
+      const destinationId = input<HTMLInputElement>('#trip-destination').value;
+      if (destinationOptions.some((choice) => choice.id === destinationId)) trip.destination = destinationId;
       trip.date = input('#trip-date').value;
       const rampInput = input<HTMLInputElement>('#trip-ramp');
       if (!rampInput.value) trip.ramp = undefined;
@@ -185,7 +307,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     const autosave = () => { collect(); if (store.set('trip-draft', trip)) root.querySelector('[data-trip-status]')!.textContent = 'Draft autosaved on this device.'; };
     root.oninput = autosave;
     root.onchange = autosave;
-    input<HTMLInputElement>('#trip-ramp').onchange = () => {
+    const onRampChange = () => {
       const field = input<HTMLInputElement>('#trip-ramp');
       if (field.value && !rampChoices.has(field.value)) {
         field.setCustomValidity('Choose a launch from the suggestions, or clear the field.');
@@ -200,22 +322,36 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       map.flyTo({ center: trip.ramp.coords, zoom: Math.max(map.getZoom(), 14), padding: { left: !isCompactLayout() ? 410 : 20, right: 55, top: 60, bottom: !isCompactLayout() ? 40 : 160 } });
       toast(`Selected ${trip.ramp.name}`);
     };
+    input<HTMLInputElement>('#trip-ramp').onchange = onRampChange;
+    const onDestinationChange = () => {
+      const field = input<HTMLInputElement>('#trip-destination');
+      if (!destinationOptions.some((choice) => choice.id === field.value)) return;
+      collect(); trip.ramp = undefined; store.set('trip-draft', trip);
+      const center = waters.find((w) => w.id === trip.destination)?.center;
+      if (center) map.flyTo({ center, zoom: 11, padding: { left: !isCompactLayout() ? 410 : 40, right: 55, top: 50, bottom: !isCompactLayout() ? 45 : 150 } });
+      edit(trip);
+    };
+    input<HTMLInputElement>('#trip-destination').onchange = onDestinationChange;
+    wireTripPicker(root, 'trip-destination', onDestinationChange);
+    wireTripPicker(root, 'trip-ramp', onRampChange);
+    root.onpointerdown = (event) => {
+      if ((event.target as HTMLElement).closest('[data-trip-picker]')) return;
+      root.querySelectorAll<HTMLElement>('[data-trip-picker] .destination-menu').forEach((menu) => { menu.hidden = true; });
+      root.querySelectorAll<HTMLButtonElement>('[data-trip-picker] [role="combobox"]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
+    };
+    const openTripPicker = (id: string) => root.querySelector<HTMLButtonElement>(`#${id}-picker`)?.click();
     root.querySelectorAll<HTMLButtonElement>('[data-remove-spot]').forEach((button) => button.onclick = () => { collect(); trip.spots = trip.spots.filter((p) => p.id !== button.dataset.removeSpot); store.set('trip-draft', trip); edit(trip); showTripPlan(map, trip); });
     const save = () => {
       const destinationInput = input<HTMLInputElement>('#trip-destination');
-      if (!destinationChoices.has(destinationInput.value)) {
-        destinationInput.setCustomValidity('Choose a destination from the suggestions.');
-        destinationInput.reportValidity();
+      if (!destinationOptions.some((choice) => choice.id === destinationInput.value)) {
+        openTripPicker('trip-destination'); toast('Choose a destination from the available waters.');
         return false;
       }
-      destinationInput.setCustomValidity('');
       const rampInput = input<HTMLInputElement>('#trip-ramp');
       if (rampInput.value && !rampChoices.has(rampInput.value)) {
-        rampInput.setCustomValidity('Choose a launch from the suggestions, or clear the field.');
-        rampInput.reportValidity();
+        openTripPicker('trip-ramp'); toast('Choose a launch from the list, or leave it for later.');
         return false;
       }
-      rampInput.setCustomValidity('');
       collect();
       if (!waters.some((w) => w.id === trip.destination)) { input('#trip-destination').focus(); toast('Choose a specific lake for this trip.'); return false; }
       if (!trip.name) { input('#trip-name').focus(); toast('Give your trip a name.'); return false; }
@@ -227,19 +363,6 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       if (activeTrip()?.id === trip.id) { store.set('active-trip', trip); showTripPlan(map); }
       root.querySelector('[data-trip-status]')!.textContent = 'Trip saved on this device.';
       return true;
-    };
-    input<HTMLInputElement>('#trip-destination').onchange = () => {
-      const field = input<HTMLInputElement>('#trip-destination');
-      if (!destinationChoices.has(field.value)) {
-        field.setCustomValidity('Choose a destination from the suggestions.');
-        field.reportValidity();
-        return;
-      }
-      field.setCustomValidity('');
-      collect(); trip.ramp = undefined; store.set('trip-draft', trip);
-      const center = waters.find((w) => w.id === trip.destination)?.center;
-      if (center) map.flyTo({ center, zoom: 11, padding: { left: !isCompactLayout() ? 410 : 40, right: 55, top: 50, bottom: !isCompactLayout() ? 45 : 150 } });
-      edit(trip);
     };
     root.querySelector<HTMLButtonElement>('[data-back]')!.onclick = list;
     root.querySelector<HTMLButtonElement>('[data-refresh-launches]')!.onclick = async (event) => {
