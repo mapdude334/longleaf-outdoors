@@ -92,7 +92,7 @@ export function waterHtml(w: Water, nhd?: Record<string, unknown>): string {
   <p class="muted">${acres}${esc(w.river ? w.river + ' basin · ' : '')}${esc(location)}${w.manager ? ' · ' + esc(w.manager) : ''}</p>
   ${w.location_note ? `<p class="muted small">${esc(w.location_note)}</p>` : ''}
   <h4>Species</h4>
-  <div class="chips">${w.species.map((s) => `<button class="chip species-chip" data-species="${esc(s.name)}" data-state="${esc(w.state)}" aria-label="Learn about ${esc(s.name)}">${esc(s.name)} ↗</button>`).join('')}</div>
+  <div class="chips">${w.species.map((s) => `<button class="chip species-chip" data-species="${esc(s.name)}" data-state="${esc(w.state)}" data-water-id="${esc(w.id)}" aria-label="Learn about ${esc(s.name)} at ${esc(w.name)}">${esc(s.name)} ↗</button>`).join('')}</div>
   ${w.notes ? `<p>${esc(w.notes)}</p>` : ''}
   ${w.species_note ? `<p class="muted small">${esc(w.species_note)}</p>` : ''}
   ${!w.species.length ? '<p class="muted small">Species information has not been verified for this source record.</p>' : ''}

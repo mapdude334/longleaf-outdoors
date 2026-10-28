@@ -353,6 +353,20 @@ details summary { cursor: pointer; padding: 4px 0; }
 .fish-choice { display: block; width: 100%; background: var(--chip); border: 1px solid var(--line); border-radius: 10px; margin: 14px 0; padding: 12px; color: var(--fg); text-align: left; cursor: pointer; }
 .fish-choice .fish-photo { margin-top: 0; }
 .fish-back { min-height: 44px; }
+.fishing-guide { margin: 22px 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--chip); }
+.fishing-guide > h3 { margin: 6px 0; font: 24px Georgia, serif; }
+.fishing-guide > p { line-height: 1.5; }
+.bite-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0 8px; }
+.bite-controls label { display: grid; gap: 5px; min-width: 0; font-size: 12px; font-weight: 650; }
+.bite-controls select { width: 100%; min-height: 42px; padding: 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--fg); font: inherit; font-size: 13px; }
+.bite-card { padding: 10px 0; border-top: 1px solid var(--line); }
+.bite-card b, .bite-local b { font-size: 13px; }
+.bite-card p, .bite-local p { margin: 5px 0 0; font-size: 13px; line-height: 1.55; }
+.bite-local { margin-top: 8px; padding: 12px; border-radius: 8px; background: color-mix(in srgb, var(--bg) 70%, var(--chip)); }
+.bite-sources { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 12px 0; font-size: 12px; }
+.bite-disclaimer { line-height: 1.5; }
+:root[data-theme="dark"] .bite-controls select { color-scheme: dark; }
+@media (max-width: 600px) { .bite-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bite-controls label:last-child { grid-column: 1 / -1; } }
 :root[data-theme="dark"] .fish-profile a, :root[data-theme="dark"] .fish-photo a, :root[data-theme="dark"] .fish-back { color: #83d2b4; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) .fish-profile a, :root:not([data-theme]) .fish-photo a, :root:not([data-theme]) .fish-back { color: #83d2b4; }

@@ -21,6 +21,7 @@ For the current Alabama and Georgia statewide agency catalogs and the source-lim
 | Weather | [NWS API](https://www.weather.gov/documentation/services-web-api) points, forecast, hourly, alerts, observations | JSON, CORS | Public domain | Live (20-min cache) |
 | Radar | NEXRAD n0q mosaic via [Iowa Environmental Mesonet](https://mesonet.agron.iastate.edu/ogc/) | XYZ tiles | Free for non-commercial use | Live |
 | Fishery info | Curated in `public/data/waters.json` from ADCNR and GA DNR WRD lake/river profiles | — | Edit and verify locally | Manual |
+| Seasonal fishing tactics | Longleaf-authored starting suggestions by mapped species, season, daypart and water clarity; linked to [Outdoor Alabama seasonal tips](https://www.outdooralabama.com/learn-freshwater-fish-resources/freshwater-spring-fishing-tips), [Georgia DNR fishing forecasts](https://georgiawildlife.com/fishing-forecasts), and species agency profiles | Bundled guide content; official lake forecasts remain external links | Recommendations are educational heuristics, not an agency forecast or guaranteed catch. Water-specific notes come from `waters.json`; verify temperature, tide/current, access, seasons and regulations before a trip. | Review seasonally |
 
 ## Roadmap ideas
 

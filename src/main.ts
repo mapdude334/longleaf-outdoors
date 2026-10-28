@@ -6,6 +6,7 @@ import { installSymbols, symbolHtml, setIdentifyHighlight } from './symbols';
 import { addShareControl, clearIncomingShare, readIncomingShare, shareSpots, type SharePayload } from './share';
 import { renderTrips, showTripPlan, pickingTripSpot, cancelTripPick, useLaunchInTrip, useSpotInTrip, validateTripBackup, type Trip } from './trips';
 import { speciesForLabel, speciesHtml, speciesChoiceHtml, verifiedSpeciesPhoto } from './species';
+import { fishingGuideHtml, wireFishingGuide } from './fishing-tactics';
 import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
@@ -438,7 +439,7 @@ function showInfo(html: string, after?: (root: HTMLElement) => void) {
     if (coords.every(Number.isFinite) && add({ id: button.dataset.launchId!, name: button.dataset.launchName!, coords })) { showTab('trips'); $('#tab-trips').querySelector<HTMLButtonElement>('[data-resume]')?.click(); toast('Location added to your autosaved trip draft.'); }
   });
   el.querySelectorAll<HTMLButtonElement>('[data-species]').forEach((button) => {
-    button.onclick = () => openSpecies(button.dataset.species!, () => showInfo(html, after), button.dataset.state);
+    button.onclick = () => openSpecies(button.dataset.species!, () => showInfo(html, after), button.dataset.state, button.dataset.waterId);
   });
 }
 
@@ -504,20 +505,23 @@ function openTripDestination(id: string) {
   if (isCompactLayout()) setSheetSnap('peek');
 }
 
-function openSpecies(label: string, back: () => void, state?: string) {
+function openSpecies(label: string, back: () => void, state?: string, waterId?: string) {
+  const water = waterId ? waterById(waterId) : undefined;
   const matches = speciesForLabel(label);
   if (!matches.length) {
     const photo = verifiedSpeciesPhoto(label);
-    showInfo(`<button class="link fish-back">← Back</button><h3>${esc(label)}</h3>${photo}<p>This species is reported in the agency source inventory. ${photo ? 'The photo source identifies this exact species; treat the image as a visual reference only.' : 'A species-specific image is not shown because a matching photo source has not been verified.'} A detailed Longleaf field-guide entry has not been added yet.</p><p>For identification and rules, use official agency resources linked on the water’s information card.</p>`, (root) => { root.querySelector<HTMLButtonElement>('.fish-back')!.onclick = back; });
+    showInfo(`<button class="link fish-back">← Back</button><h3>${esc(label)}</h3>${photo}<p>This species is reported in the agency source inventory. ${photo ? 'The photo source identifies this exact species; treat the image as a visual reference only.' : 'A species-specific image is not shown because a matching photo source has not been verified.'} A detailed Longleaf field-guide entry has not been added yet.</p><p>For identification and rules, use official agency resources linked on the water’s information card.</p>${fishingGuideHtml(label, water)}`, (root) => { root.querySelector<HTMLButtonElement>('.fish-back')!.onclick = back; wireFishingGuide(root, water); });
     return;
   }
   const choice = matches.length > 1;
-  showInfo(`<button class="link fish-back">← Back</button>${choice ? speciesChoiceHtml(label) : speciesHtml(matches[0].id, state)}`, (root) => {
+  showInfo(`<button class="link fish-back">← Back</button>${choice ? speciesChoiceHtml(label) : speciesHtml(matches[0].id, state, water)}`, (root) => {
     root.querySelector<HTMLButtonElement>('.fish-back')!.onclick = back;
+    if (!choice) wireFishingGuide(root, water);
     root.querySelectorAll<HTMLButtonElement>('[data-fish-id]').forEach((button) => {
       button.onclick = () => {
-        showInfo(`<button class="link fish-back">← Back to choices</button>${speciesHtml(button.dataset.fishId!, state)}`, (detail) => {
-          detail.querySelector<HTMLButtonElement>('.fish-back')!.onclick = () => openSpecies(label, back, state);
+        showInfo(`<button class="link fish-back">← Back to choices</button>${speciesHtml(button.dataset.fishId!, state, water)}`, (detail) => {
+          detail.querySelector<HTMLButtonElement>('.fish-back')!.onclick = () => openSpecies(label, back, state, waterId);
+          wireFishingGuide(detail, water);
         });
       };
     });

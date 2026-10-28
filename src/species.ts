@@ -1,6 +1,8 @@
 import { SPECIES } from './species-data';
 import photos from './data/species-photos.json';
 import { esc } from './util';
+import type { Water } from './layers/waters';
+import { fishingGuideHtml } from './fishing-tactics';
 
 type Photo = { file: string; credit: string; license: string; licenseUrl: string | null; page: string };
 const catalogue = photos as Record<string, Photo>;
@@ -31,7 +33,7 @@ export function verifiedSpeciesPhoto(label: string) {
   return photo ? photoMarkup(photo, label) : '';
 }
 
-export function speciesHtml(id: string, state?: string) {
+export function speciesHtml(id: string, state?: string, water?: Water) {
   const s = SPECIES.find((s) => s.id === id);
   if (!s) return '<p>Species profile unavailable.</p>';
   const isSC = state?.split(/[\/,;]/).some((code) => code.trim().toUpperCase() === 'SC') ?? false;
@@ -41,6 +43,7 @@ export function speciesHtml(id: string, state?: string) {
     ${speciesPhoto(s.id, s.name)}${catalogue[s.id] ? '' : '<p class="muted small">No photograph is shown because a species-specific image with suitable provenance has not been verified.</p>'}<p class="fish-size">${esc(facts.size)}</p>
     <h4>How to recognize it</h4><p>${esc(facts.identify)}</p>
     <dl class="fish-facts">${[['Spawning & season',facts.spawn],['What it eats',facts.diet],['Where it lives',facts.habitat],['Habits & behavior',facts.habits]].map(([title,body])=>`<div><dt>${esc(title)}</dt><dd>${esc(body)}</dd></div>`).join('')}</dl>
+    ${fishingGuideHtml(s.name, water)}
     ${isSC && s.regional?.SC ? '<p class="muted small">Showing South Carolina-specific notes for this water.</p>' : ''}
     <p class="muted small">Seasonal windows are regional guides, not a forecast for this lake. Water temperature and local conditions shift timing. Some SCDNR freshwater pages cite older reference material. Adult size ranges are reference ranges, not minimum keeping sizes.</p>
     <h4>Agency sources</h4><ul class="links">${s.sources.map((l)=>`<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul>
