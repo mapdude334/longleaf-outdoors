@@ -2,7 +2,7 @@ import type { LayerSpecification, SourceSpecification, StyleSpecification, Expre
 import { layers as pmLayers, namedFlavor } from '@protomaps/basemaps';
 import mlcontour from 'maplibre-contour';
 import { addProtocol } from 'maplibre-gl';
-import { ARCGIS, GLYPHS, POINT_SYMBOL_MIN_ZOOM, RADAR_TILES, RASTER_BASEMAPS, SPRITE, TERRAIN_URL, USGS_HYDRO_TILES, arcgisExport } from './config';
+import { AL_PFL_BATHYMETRY, ARCGIS, GLYPHS, POINT_SYMBOL_MIN_ZOOM, RADAR_TILES, RASTER_BASEMAPS, SPRITE, TERRAIN_URL, USGS_HYDRO_TILES, arcgisExport } from './config';
 import type { Resolved } from './pmtiles';
 import { SYMBOL_COLORS } from './symbols';
 
@@ -140,6 +140,17 @@ export function buildStyle(av: Availability): StyleSpecification {
   };
   add('contours', { id: 'contour-line', type: 'line', source: 'contours', 'source-layer': 'contours', minzoom: 11, layout: { visibility: 'none' }, paint: { 'line-color': '#8a6d3b', 'line-opacity': 0.55, 'line-width': ['match', ['get', 'level'], 1, 1.1, 0.5] } }, L);
   add('contours', { id: 'contour-label', type: 'symbol', source: 'contours', 'source-layer': 'contours', minzoom: 12, filter: ['>', ['get', 'level'], 0], layout: { visibility: 'none', 'symbol-placement': 'line', 'text-field': ['concat', ['number-format', ['get', 'ele'], {}], "'"], 'text-size': 10, 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': '#7a5d2b', 'text-halo-color': '#fff', 'text-halo-width': 1 } }, L);
+
+  // Agency-mapped underwater depth bands and contours for Alabama public fishing lakes.
+  // Keep separate from the Terrarium land-elevation contours above.
+  sources['al-pfl-bathymetry'] = {
+    type: 'raster', tiles: [AL_PFL_BATHYMETRY.url], tileSize: 256, bounds: AL_PFL_BATHYMETRY.bounds,
+    attribution: `Alabama DCNR · <a href="${AL_PFL_BATHYMETRY.source}" target="_blank" rel="noopener">Public fishing lake depth contours</a>`,
+  };
+  add('bathymetry', {
+    id: 'al-pfl-bathymetry', type: 'raster', source: 'al-pfl-bathymetry', minzoom: 10,
+    layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.72 },
+  }, L);
 
   // ---------- weather radar ----------
   sources.radar = { type: 'raster', tiles: [RADAR_TILES], tileSize: 256, attribution: 'NEXRAD via Iowa Environmental Mesonet' };

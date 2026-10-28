@@ -1,7 +1,7 @@
 // Offline manager: whole-region PMTiles downloads + view-bounded map tile coverage.
 // Cache names must match the service worker runtime caches in vite.config.ts.
 import type { Map } from 'maplibre-gl';
-import { GLYPHS, SPRITE, PMTILES, RASTER_BASEMAPS, TERRAIN_URL, USGS_HYDRO_TILES, type PmKey } from './config';
+import { AL_PFL_BATHYMETRY, GLYPHS, SPRITE, PMTILES, RASTER_BASEMAPS, TERRAIN_URL, USGS_HYDRO_TILES, type PmKey } from './config';
 import { localFile, loadPackManifest, packStatus, remoteSize, removeFromDevice, saveToDevice, type PackManifest } from './pmtiles';
 import { esc, store, toast } from './util';
 import { cacheName } from './environment';
@@ -47,6 +47,26 @@ function* tilesFor(bounds: [number, number, number, number], z: number): Generat
   for (let i = x(bounds[0]); i <= x(bounds[2]); i++) for (let j = y(bounds[3]); j <= y(bounds[1]); j++) yield [z, i, j];
 }
 const fill = (tpl: string, [z, x, y]: [number, number, number]) => tpl.replace('{z}', String(z)).replace('{x}', String(x)).replace('{y}', String(y));
+const tileBBox3857 = ([z, x, y]: [number, number, number]) => {
+  const radius = 6378137;
+  const originX = -Math.PI * radius;
+  const originY = Math.PI * radius;
+  const extent = 2 * Math.PI * radius;
+  const n = 2 ** z;
+  const tileExtent = extent / n;
+  const rowFromBottom = n - y - 1;
+  const gridMinY = originY - extent;
+  return `${originX + x * tileExtent},${gridMinY + rowFromBottom * tileExtent},${originX + (x + 1) * tileExtent},${gridMinY + (rowFromBottom + 1) * tileExtent}`;
+};
+const tileOverlapsBounds = ([z, x, y]: [number, number, number], [west, south, east, north]: [number, number, number, number]) => {
+  const n = 2 ** z;
+  const tileWest = x / n * 360 - 180;
+  const tileEast = (x + 1) / n * 360 - 180;
+  const latitude = (row: number) => Math.atan(Math.sinh(Math.PI * (1 - 2 * row / n))) * 180 / Math.PI;
+  const tileNorth = latitude(y);
+  const tileSouth = latitude(y + 1);
+  return tileEast >= west && tileWest <= east && tileNorth >= south && tileSouth <= north;
+};
 
 export function planArea(map: Map, layers: string[], maxZoom: number) {
   const b = map.getBounds();
@@ -55,10 +75,14 @@ export function planArea(map: Map, layers: string[], maxZoom: number) {
   // Include overview zooms so a saved area still works when zooming out.
   const minZ = 0;
   for (const id of layers) {
-    const tpl = id === 'terrain' ? TERRAIN_URL : id === 'hydro' ? USGS_HYDRO_TILES : RASTER_BASEMAPS[id as keyof typeof RASTER_BASEMAPS].url;
+    const tpl = id === 'bathymetry' ? AL_PFL_BATHYMETRY.url : id === 'terrain' ? TERRAIN_URL : id === 'hydro' ? USGS_HYDRO_TILES : RASTER_BASEMAPS[id as keyof typeof RASTER_BASEMAPS].url;
     const top = id === 'terrain' ? Math.min(12, maxZoom) : maxZoom;
-    for (let z = minZ; z <= top; z++) for (const t of tilesFor(bounds, z)) {
-      urls.push(fill(tpl, t));
+    const firstZoom = id === 'bathymetry' ? 10 : minZ;
+    for (let z = firstZoom; z <= top; z++) for (const t of tilesFor(bounds, z)) {
+      if (id === 'bathymetry') {
+        if (!tileOverlapsBounds(t, AL_PFL_BATHYMETRY.bounds)) continue;
+        urls.push(tpl.replace('{bbox-epsg-3857}', tileBBox3857(t)));
+      } else urls.push(fill(tpl, t));
       if (urls.length > MAX_AREA_TILES) return urls; // Bound planning memory before the UI rejects a large area.
     }
   }
@@ -171,7 +195,9 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
       <label><input type="checkbox" value="imagery"> Imagery</label>
       <label><input type="checkbox" value="terrain" checked> Terrain (hillshade + contours; terrain tiles through zoom 12)</label>
       <label><input type="checkbox" value="hydro"> USGS hydro overlay</label>
+      <label><input type="checkbox" value="bathymetry" ${visibleLayers.bathymetry ? 'checked' : ''}> Alabama public fishing lake depth bands &amp; contours (mapped lakes only)</label>
       <label>Maximum offline zoom <select class="maxz"><option>13</option><option selected>14</option><option>15</option><option>16</option></select></label>
+      <p class="muted small">Bathymetry is served by Alabama DCNR where mapped. Select it here to save the rendered depth map for this view; turn it on in Layers when viewing the saved area. Other lakes may have no depth coverage.</p>
       <p class="muted small est"></p>
       <p class="muted small" data-area-limit>Area downloads are limited to ${MAX_AREA_TILES.toLocaleString()} tiles and about ${mb(MAX_AREA_BYTES)} per download to protect device storage. Browser storage rules vary by device.</p>
       <button class="btn clear-area">Clear saved areas (${s.rasterCount.toLocaleString()} tiles)</button>
@@ -331,7 +357,7 @@ export async function renderSavedMaps(root: HTMLElement, map: Map, onChanged: ()
   areaRoot.innerHTML = saved.length ? saved.slice().reverse().map((area, reverseIndex) => {
     const index = saved.length - reverseIndex - 1;
     const [west, south, east, north] = area.bounds;
-    const detail = area.mapLayers.map((id) => ({ topo: 'Topo', imagery: 'Imagery', terrain: 'Terrain', hydro: 'Hydrography' }[id] ?? id)).join(', ') || 'No map layers recorded';
+    const detail = area.mapLayers.map((id) => ({ topo: 'Topo', imagery: 'Imagery', terrain: 'Terrain', hydro: 'Hydrography', bathymetry: 'Alabama PFL depths & contours' }[id] ?? id)).join(', ') || 'No map layers recorded';
     const catalogData = area.dataLayers.map((id) => DATA_LAYER_LABELS[id] ?? id).join(', ');
     return `<div class="destination-card"><b>${area.complete ? 'Ready for offline viewing' : 'Partial download'}</b><p class="muted small">${south.toFixed(3)}°–${north.toFixed(3)}° latitude · ${west.toFixed(3)}°–${east.toFixed(3)}° longitude<br>${detail} · zoom through ${area.maxZoom} · ${area.tileCount?.toLocaleString() ?? 'unknown'} tiles · saved ${new Date(area.savedAt).toLocaleDateString()}${area.bytesAdded ? ` · ${mb(area.bytesAdded)} added` : ''}${catalogData ? `<br>Map data switches: ${esc(catalogData)}` : ''}</p>${area.complete ? '' : '<p class="muted small">Some tiles or labels did not save. Reconnect and download this view again to fill the gaps.</p>'}<button class="btn" data-area-open="${index}">Show this area on map</button></div>`;
   }).join('') : '<p class="muted small">No custom map areas saved yet. Download a map view from the map tools or Destination tab and it will appear here.</p>';

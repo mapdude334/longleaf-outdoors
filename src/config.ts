@@ -54,6 +54,13 @@ export const RASTER_BASEMAPS = {
 } as const;
 export const USGS_HYDRO_TILES = `${TNM}/USGSHydroCached/MapServer/tile/{z}/{y}/{x}`;
 
+/** ADCNR's official PFL contour and depth-band map service. Coverage is only where the agency has mapped PFL bathymetry. */
+export const AL_PFL_BATHYMETRY = {
+  url: 'https://conservationgis.alabama.gov/adcnrweb/rest/services/PFLBathymetry/MapServer/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&dpi=96&layers=show:0,1&f=image',
+  bounds: [-88.35642101, 31.02387221, -85.309159327, 34.818589158] as [number, number, number, number],
+  source: 'https://conservationgis.alabama.gov/adcnrweb/rest/services/PFLBathymetry/MapServer',
+} as const;
+
 const exportUrl = (svc: string, layers?: string) =>
   `${svc}/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=512,512&format=png32&transparent=true&dpi=96&f=image` +
   (layers ? `&layers=show:${layers}` : '');

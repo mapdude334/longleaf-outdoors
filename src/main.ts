@@ -43,7 +43,7 @@ registerSW({ immediate: true, onOfflineReady: () => toast('App installed offline
 // ---------------- state ----------------
 type UiState = { basemap: BasemapId; on: Record<string, boolean>; terrain3d: boolean; coordFmt: 'dd' | 'dm' };
 const DEFAULT_ON: Record<string, boolean> = {
-  hillshade: true, public_lands: true, parcels: false, water: true, contours: false, radar: false,
+  hillshade: true, public_lands: true, parcels: false, water: true, contours: false, bathymetry: false, radar: false,
   access: true, fish_structures: false, restrooms: false, habitat: false, state_boundaries: true, dams: true, dams_osm: true, gauges: true, waters: true, mine: true,
 };
 const ui: UiState = { basemap: 'topo', terrain3d: false, coordFmt: 'dd', ...store.get<UiState>('ui')?.v, on: { ...DEFAULT_ON, ...store.get<UiState>('ui')?.v?.on } };
@@ -335,6 +335,7 @@ function showTab(name: string) {
     if (base) ui.basemap = base;
     ui.on.hillshade = area.mapLayers.includes('terrain');
     ui.on.water = area.mapLayers.includes('hydro');
+    ui.on.bathymetry = area.mapLayers.includes('bathymetry');
     saveUi();
     applyVisibility();
     map.fitBounds([[area.bounds[0], area.bounds[1]], [area.bounds[2], area.bounds[3]]], { padding: 48, maxZoom: Math.min(area.maxZoom, 14), duration: 500 });
@@ -537,12 +538,13 @@ const OVERLAY_ROWS: [string, string, string?][] = [
   ['water', 'Lakes & streams (NHD)'],
   ['parcels', 'Property parcels', 'Lee Co. AL, Muscogee Co. GA (zoom 13+)'],
   ['contours', 'Contour lines (ft)', 'Zoom 11+'],
+  ['bathymetry', 'Underwater depths & contours (Alabama PFLs)', 'ADCNR-mapped public fishing lakes only · zoom 10+'],
   ['hillshade', 'Hillshade'],
   ['radar', 'Weather radar', 'Live NEXRAD'],
   ['mine', 'My waypoints & tracks'],
 ];
 const LAYER_PROFILES: Record<string, string[]> = {
-  fishing: ['public_lands', 'access', 'fish_structures', 'state_boundaries', 'water', 'dams', 'dams_osm', 'gauges', 'waters', 'mine'],
+  fishing: ['public_lands', 'access', 'fish_structures', 'state_boundaries', 'water', 'bathymetry', 'dams', 'dams_osm', 'gauges', 'waters', 'mine'],
   facilities: ['public_lands', 'access', 'restrooms', 'water', 'waters', 'mine'],
   land: ['public_lands', 'water', 'contours', 'hillshade'],
   all: OVERLAY_ROWS.map(([group]) => group).concat('dams_osm'),
@@ -581,6 +583,7 @@ function renderLayers() {
       <div>${symbolHtml('gauge')}Water gauge ${symbolHtml('stale')}No recent data</div>
       <div>${symbolHtml('dam')}Dam / release information</div><div>${symbolHtml('spot')}My fishing spot · amber outline = selected location</div>
       <div>${symbolHtml('structure')}Fish attractor / artificial reef</div><div>${symbolHtml('habitat')}Aquatic habitat survey · historical vegetation record</div><div>${symbolHtml('restroom')}Public restroom · facility-level reports may be approximate</div>
+      <div style="margin-top:.5rem"><b>Underwater depths · Alabama public fishing lakes</b><br>Depth bands are 1-foot intervals; contours are 1-foot minor and 5-foot major. Only mapped ADCNR lakes are covered. Source: <a href="https://www.outdooralabama.com/where-freshwater-fish/state-public-fishing-lakes" target="_blank" rel="noopener">Outdoor Alabama ↗</a>. Survey age and coverage vary; planning aid, not navigation.</div>
       <p class="muted small">Layer switches control what is shown. Access icons appear from zoom 9 and labels from zoom 12. Icons may be hidden where crowded; zoom in to separate them. Some layers appear only when zoomed in; live layers need a connection unless cached.</p>
     </details>
     <p class="muted small">Data: ${esc(dataStatus || 'loading…')}<br>

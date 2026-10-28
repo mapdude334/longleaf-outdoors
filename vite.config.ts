@@ -47,6 +47,7 @@ export default defineConfig({
         navigateFallbackDenylist: [/\.pmtiles$/],
         runtimeCaching: [
           // Cache names must match src/offline.ts (RASTER_CACHE / STATIC_CACHE)
+          tileCache(/^https:\/\/conservationgis\.alabama\.gov\/adcnrweb\/rest\/services\/PFLBathymetry\/MapServer\/export\?/, cacheName('vw-raster'), 80000),
           tileCache(/^https:\/\/basemap\.nationalmap\.gov\/arcgis\/rest\/services\/.*\/tile\//, cacheName('vw-raster'), 80000),
           tileCache(/^https:\/\/s3\.amazonaws\.com\/elevation-tiles-prod\//, cacheName('vw-raster'), 80000),
           tileCache(/^https:\/\/protomaps\.github\.io\/basemaps-assets\//, cacheName('vw-static'), 2000),
