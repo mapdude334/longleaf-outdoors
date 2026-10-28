@@ -54,17 +54,28 @@ export function showSelectedWaterOutline(map: Map, water: Water | undefined, onS
   void (async () => {
     try {
       const cache = await caches.open(STATIC_CACHE);
-      let response = await cache.match(url);
-      if (!response) {
-        response = await fetch(url, { signal: AbortSignal.timeout(25000) });
-        if (!response.ok) throw new Error(`USGS returned ${response.status}`);
-        if (Number(response.headers.get('content-length') ?? 0) > 4 * 1024 * 1024) throw new Error('Waterbody outline is too large to cache safely.');
-        await cache.put(url, response.clone());
+      const urls = [url];
+      if (water.nhd_permanent_identifiers?.length) {
+        const nameFallback = waterOutlineQueryUrl(water, false);
+        if (nameFallback && nameFallback !== url) urls.push(nameFallback);
       }
-      const payload = await response.json() as BoundaryCollection & { error?: { message?: string } };
-      if (payload.error) throw new Error(payload.error.message || 'USGS waterbody query failed.');
-      const features = Array.isArray(payload.features) ? payload.features.filter((feature) => ['Polygon', 'MultiPolygon'].includes(feature?.geometry?.type)) : [];
-      if (features.length > 100) throw new Error('USGS returned too many waterbody features.');
+      let features: BoundaryFeature[] = [];
+      for (const queryUrl of urls) {
+        try {
+          let response = await cache.match(queryUrl);
+          if (!response) {
+            response = await fetch(queryUrl, { signal: AbortSignal.timeout(25000) });
+            if (!response.ok) throw new Error(`USGS returned ${response.status}`);
+            if (Number(response.headers.get('content-length') ?? 0) > 4 * 1024 * 1024) throw new Error('Waterbody outline is too large to cache safely.');
+            await cache.put(queryUrl, response.clone());
+          }
+          const payload = await response.json() as BoundaryCollection & { error?: { message?: string } };
+          if (payload.error) throw new Error(payload.error.message || 'USGS waterbody query failed.');
+          const matches = Array.isArray(payload.features) ? payload.features.filter((feature) => ['Polygon', 'MultiPolygon'].includes(feature?.geometry?.type)) : [];
+          if (matches.length > 100) continue;
+          if (matches.length) { features = matches; break; }
+        } catch { /* Try the bounded GNIS-name query if an NHD ID query is unavailable. */ }
+      }
       if (!features.length) throw new Error('No named polygon found nearby.');
       if (states.get(map)?.revision !== revision) return;
       const data: BoundaryCollection = { type: 'FeatureCollection', features };

@@ -1,6 +1,6 @@
 {
   "offline_packs": "Existing regional archives are unchanged. Online maps and catalog points extend beyond them. Save map areas separately for expanded geography.",
-  "updated": "2026-10-28T01:31:39Z",
+  "updated": "2026-10-28T17:12:33Z",
   "scope": "Alabama and Georgia statewide agency catalogs, plus selected South Carolina agency catalogs; records are source-limited and not an exhaustive inventory. Adjacent coastal and offshore sources are included where documented.",
   "sources": {
     "al_access": {
@@ -88,6 +88,20 @@
       "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0",
       "agency": "U.S. Census Bureau TIGERweb",
       "states_in_catalog": 3
+    },
+    "nhd_destinations": {
+      "record_count": 5686,
+      "state_counts": {
+        "AL": 1527,
+        "GA": 3111,
+        "SC": 1048
+      },
+      "url": "https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/12",
+      "source_updated": "2023-12-27",
+      "retired_date": "2023-10-01",
+      "minimum_area_acres_approx": 5,
+      "county_source_url": "https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_500k.zip",
+      "note": "Named Lake/Pond, Reservoir, and Estuary NHD features with mapped area of at least about five acres. NHD was retired in 2023; it does not establish current conditions, fish species, or public access."
     }
   },
   "counts": {

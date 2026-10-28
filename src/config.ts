@@ -15,6 +15,7 @@ export const HOME_DATA_ZOOM = 8;
 export const POINT_SYMBOL_MIN_ZOOM = {
   dams: 8,
   destinations: 8.5,
+  nhdDestinations: 10,
   gauges: 8.5,
   waypoints: 8.5,
   access: 9,

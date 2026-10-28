@@ -40,20 +40,14 @@ export function cancelTripPick() { cancelPick?.(); }
 export const activeTrip = () => store.get<Trip>('active-trip')?.v;
 
 type TripPickerOption = { value: string; label: string; group: string; detail?: string; search?: string };
+const TRIP_PICKER_RESULT_LIMIT = 100;
 
 function tripPickerHtml(id: string, title: string, searchPlaceholder: string, placeholder: string, options: TripPickerOption[], selected: string, prefixHtml = '') {
-  const groups = new globalThis.Map<string, TripPickerOption[]>();
-  for (const option of options) {
-    const group = groups.get(option.group) ?? [];
-    group.push(option);
-    groups.set(option.group, group);
-  }
   const selectedOption = options.find((option) => option.value === selected);
-  const optionGroups = [...groups].map(([group, items]) => `<div class="trip-picker-option-group" data-picker-group><div class="trip-option-group-label">${esc(group)}</div>${items.map((option) => `<button type="button" class="destination-option trip-picker-option" role="option" data-picker-option data-value="${esc(option.value)}" data-search="${esc(option.search ?? `${option.label} ${option.detail ?? ''} ${group}`)}" aria-selected="${option.value === selected ? 'true' : 'false'}"><span class="trip-picker-option-title">${esc(option.label)}</span>${option.detail ? `<span class="trip-picker-option-detail">${esc(option.detail)}</span>` : ''}</button>`).join('')}</div>`).join('');
-  return `<div class="field trip-picker-field" data-trip-picker="${id}"><span class="trip-picker-label" id="${id}-label">${prefixHtml}${esc(title)}</span><div class="destination-combobox"><button type="button" id="${id}-picker" class="destination-select" role="combobox" aria-labelledby="${id}-label ${id}-value" aria-haspopup="listbox" aria-expanded="false" aria-controls="${id}-list"><span id="${id}-value">${esc(selectedOption?.label ?? placeholder)}</span><span class="destination-select-arrow" aria-hidden="true"></span></button><div class="destination-menu" hidden><input type="search" class="destination-search" placeholder="${esc(searchPlaceholder)}" aria-label="Search ${esc(title.toLocaleLowerCase())}" autocomplete="off"><div class="destination-option-list" id="${id}-list" role="listbox" aria-labelledby="${id}-label">${optionGroups}</div><p class="destination-no-results" hidden>No matches. Try another search.</p></div></div><input type="hidden" id="${id}" value="${esc(selected)}"></div>`;
+  return `<div class="field trip-picker-field" data-trip-picker="${id}"><span class="trip-picker-label" id="${id}-label">${prefixHtml}${esc(title)}</span><div class="destination-combobox"><button type="button" id="${id}-picker" class="destination-select" role="combobox" aria-labelledby="${id}-label ${id}-value" aria-haspopup="listbox" aria-expanded="false" aria-controls="${id}-list"><span id="${id}-value">${esc(selectedOption?.label ?? placeholder)}</span><span class="destination-select-arrow" aria-hidden="true"></span></button><div class="destination-menu" hidden><input type="search" class="destination-search" placeholder="${esc(searchPlaceholder)}" aria-label="Search ${esc(title.toLocaleLowerCase())}" autocomplete="off"><div class="destination-option-list" id="${id}-list" role="listbox" aria-labelledby="${id}-label"></div><p class="destination-no-results" hidden></p></div></div><input type="hidden" id="${id}" value="${esc(selected)}"></div>`;
 }
 
-function wireTripPicker(root: HTMLElement, id: string, choose: (value: string) => void) {
+function wireTripPicker(root: HTMLElement, id: string, options: TripPickerOption[], choose: (value: string) => void) {
   const wrapper = root.querySelector<HTMLElement>(`[data-trip-picker="${id}"]`);
   const button = wrapper?.querySelector<HTMLButtonElement>(`#${id}-picker`);
   const menu = wrapper?.querySelector<HTMLElement>('.destination-menu');
@@ -66,18 +60,19 @@ function wireTripPicker(root: HTMLElement, id: string, choose: (value: string) =
   const close = () => { menu.hidden = true; button.setAttribute('aria-expanded', 'false'); };
   const filter = () => {
     const term = search.value.trim().toLocaleLowerCase();
-    let matches = 0;
-    list.querySelectorAll<HTMLElement>('[data-picker-group]').forEach((group) => {
-      let groupMatches = 0;
-      group.querySelectorAll<HTMLButtonElement>('[data-picker-option]').forEach((option) => {
-        const visible = (option.dataset.search ?? option.textContent ?? '').toLocaleLowerCase().includes(term);
-        option.hidden = !visible;
-        if (visible) groupMatches++;
-      });
-      group.hidden = groupMatches === 0;
-      matches += groupMatches;
-    });
-    noResults.hidden = matches > 0;
+    const matches = options.filter((option) => (option.search ?? `${option.label} ${option.detail ?? ''} ${option.group}`).toLocaleLowerCase().includes(term));
+    let shown = matches.slice(0, TRIP_PICKER_RESULT_LIMIT);
+    const selected = !term ? options.find((option) => option.value === value.value) : undefined;
+    if (selected && !shown.includes(selected)) shown = [selected, ...shown.slice(0, TRIP_PICKER_RESULT_LIMIT - 1)];
+    const groups = new globalThis.Map<string, TripPickerOption[]>();
+    for (const option of shown) {
+      const group = groups.get(option.group) ?? [];
+      group.push(option); groups.set(option.group, group);
+    }
+    list.innerHTML = [...groups].map(([group, items]) => `<div class="trip-picker-option-group" data-picker-group><div class="trip-option-group-label">${esc(group)}</div>${items.map((option) => `<button type="button" class="destination-option trip-picker-option" role="option" data-picker-option data-value="${esc(option.value)}" data-search="${esc(option.search ?? `${option.label} ${option.detail ?? ''} ${group}`)}" aria-selected="${option.value === value.value ? 'true' : 'false'}"><span class="trip-picker-option-title">${esc(option.label)}</span>${option.detail ? `<span class="trip-picker-option-detail">${esc(option.detail)}</span>` : ''}</button>`).join('')}</div>`).join('');
+    noResults.hidden = matches.length > 0 && matches.length <= shown.length;
+    if (!matches.length) { noResults.textContent = 'No matches. Try another search.'; noResults.hidden = false; }
+    else if (matches.length > shown.length) { noResults.textContent = `Showing ${shown.length} of ${matches.length.toLocaleString()} matches. Type more to narrow the list.`; noResults.hidden = false; }
   };
   const select = (option: HTMLButtonElement) => {
     value.value = option.dataset.value ?? '';
@@ -213,19 +208,33 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     const destinationLabels = new globalThis.Map<string, string>();
     const usedDestinationLabels = new Set<string>();
     const waterBaseLabels = (choice: (typeof destinationOptions)[number]) => waterDisplayName(choice);
-    const waterLabelCounts = new globalThis.Map<string, number>();
-    for (const choice of destinationOptions) waterLabelCounts.set(waterBaseLabels(choice), (waterLabelCounts.get(waterBaseLabels(choice)) ?? 0) + 1);
+    const watersByLabel = new globalThis.Map<string, (typeof destinationOptions)[number][]>();
     for (const choice of destinationOptions) {
       const base = waterBaseLabels(choice);
-      const peers = (waterLabelCounts.get(base) ?? 0) > 1 ? destinationOptions.filter((other) => waterBaseLabels(other) === base) : [];
+      const peers = watersByLabel.get(base) ?? [];
+      peers.push(choice); watersByLabel.set(base, peers);
+    }
+    const waterLabelMeta = new globalThis.Map<string, { peers: (typeof destinationOptions)[number][]; mean: [number, number]; riverCounts: globalThis.Map<string, number> }>();
+    for (const [base, peers] of watersByLabel) {
+      if (peers.length < 2) continue;
+      const located = peers.flatMap((peer) => peer.center ? [peer.center] : []);
+      const mean: [number, number] = [
+        located.reduce((sum, point) => sum + point[0], 0) / Math.max(1, located.length),
+        located.reduce((sum, point) => sum + point[1], 0) / Math.max(1, located.length),
+      ];
+      const riverCounts = new globalThis.Map<string, number>();
+      for (const peer of peers) if (peer.river) riverCounts.set(peer.river, (riverCounts.get(peer.river) ?? 0) + 1);
+      waterLabelMeta.set(base, { peers, mean, riverCounts });
+    }
+    for (const choice of destinationOptions) {
+      const base = waterBaseLabels(choice);
+      const group = waterLabelMeta.get(base);
+      const peers = group?.peers ?? [];
       let detail = '';
-      if (peers.length > 1 && choice.river && peers.filter((peer) => peer.river === choice.river).length === 1) detail = choice.river;
+      if (group && choice.river && group.riverCounts.get(choice.river) === 1) detail = choice.river;
       if (!detail && peers.length > 1 && choice.center) {
-        const located = peers.flatMap((peer) => peer.center ? [peer.center] : []);
-        const meanLat = located.reduce((sum, point) => sum + point[1], 0) / Math.max(1, located.length);
-        const meanLng = located.reduce((sum, point) => sum + point[0], 0) / Math.max(1, located.length);
-        const northSouth = Math.abs(choice.center[1] - meanLat) >= Math.abs(choice.center[0] - meanLng);
-        detail = northSouth ? `${choice.center[1] >= meanLat ? 'Northern' : 'Southern'} section` : `${choice.center[0] >= meanLng ? 'Eastern' : 'Western'} section`;
+        const northSouth = Math.abs(choice.center[1] - group!.mean[1]) >= Math.abs(choice.center[0] - group!.mean[0]);
+        detail = northSouth ? `${choice.center[1] >= group!.mean[1] ? 'Northern' : 'Southern'} section` : `${choice.center[0] >= group!.mean[0] ? 'Eastern' : 'Western'} section`;
       }
       if (!detail && peers.length > 1) detail = `Mapped area ${peers.indexOf(choice) + 1}`;
       let label = `${base}${detail ? ` · ${detail}` : ''}`;
@@ -332,8 +341,8 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       edit(trip);
     };
     input<HTMLInputElement>('#trip-destination').onchange = onDestinationChange;
-    wireTripPicker(root, 'trip-destination', onDestinationChange);
-    wireTripPicker(root, 'trip-ramp', onRampChange);
+    wireTripPicker(root, 'trip-destination', destinationPickerOptions, onDestinationChange);
+    wireTripPicker(root, 'trip-ramp', rampPickerOptions, onRampChange);
     root.onpointerdown = (event) => {
       if ((event.target as HTMLElement).closest('[data-trip-picker]')) return;
       root.querySelectorAll<HTMLElement>('[data-trip-picker] .destination-menu').forEach((menu) => { menu.hidden = true; });

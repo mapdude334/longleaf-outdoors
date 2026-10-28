@@ -177,10 +177,16 @@ export function buildStyle(av: Availability): StyleSpecification {
 
   // ---------- live + curated GeoJSON ----------
   sources.waters = { ...EMPTY };
-  add('waters', { ...badge('waters-pt', 'waters', 'water'), minzoom: POINT_SYMBOL_MIN_ZOOM.destinations }, L);
+  add('waters', { ...badge('waters-pt', 'waters', 'water'), filter: ['!=', ['get', 'nhd'], true], minzoom: POINT_SYMBOL_MIN_ZOOM.destinations } as LayerSpecification, L);
+  add('waters', { ...badge('nhd-waters-pt', 'waters', 'water'), filter: ['==', ['get', 'nhd'], true], minzoom: POINT_SYMBOL_MIN_ZOOM.nhdDestinations } as LayerSpecification, L);
   add('waters', {
-    id: 'waters-lbl', type: 'symbol', source: 'waters', minzoom: 7,
+    id: 'waters-lbl', type: 'symbol', source: 'waters', minzoom: 7, filter: ['!=', ['get', 'nhd'], true],
     layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 11, 12, 15], 'text-font': ['Noto Sans Medium'], 'text-ignore-placement': false, 'text-allow-overlap': false, 'symbol-sort-key': ['coalesce', ['get', 'priority'], 1], 'text-max-width': 8, 'text-offset': [0, 1.25], 'text-anchor': 'top' },
+    paint: { 'text-color': '#0d47a1', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
+  }, L);
+  add('waters', {
+    id: 'nhd-waters-lbl', type: 'symbol', source: 'waters', minzoom: 11, filter: ['==', ['get', 'nhd'], true],
+    layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10, 13, 12], 'text-font': ['Noto Sans Medium'], 'text-ignore-placement': false, 'text-allow-overlap': false, 'symbol-sort-key': ['coalesce', ['get', 'priority'], 1], 'text-max-width': 8, 'text-offset': [0, 1.25], 'text-anchor': 'top' },
     paint: { 'text-color': '#0d47a1', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
   }, L);
 

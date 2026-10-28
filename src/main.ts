@@ -294,7 +294,7 @@ function applyRegionPointVisibility(force = false) {
   };
   setPoints('waters', waters.filter((water) => water.center).map((water) => ({
     type: 'Feature', geometry: { type: 'Point', coordinates: water.center },
-    properties: { id: water.id, name: water.name.replace(/\s*\(.*\)/, ''), priority: water.id.startsWith('water-') ? 1 : 0 },
+    properties: { id: water.id, name: water.name.replace(/\s*\(.*\)/, ''), nhd: water.id.startsWith('nhd-'), priority: water.id.startsWith('water-') || water.id.startsWith('nhd-') ? 1 : 0 },
   })));
   setPoints('dams', dams.map((dam) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: dam.coords }, properties: { id: dam.id, name: dam.name } })));
   setGaugePoints(map, include);
@@ -607,10 +607,15 @@ function renderLayers() {
 // ---------------- Waters tab ----------------
 function renderWaters(filter = '') {
   const el = $('#tab-waters');
-  const f = filter.toLowerCase();
-  const list = waters.filter((w) => !f || w.name.toLowerCase().includes(f) || w.species.some((s) => s.name.toLowerCase().includes(f)));
-  el.innerHTML = `<input class="filter" placeholder="Filter by lake or species (e.g. shoal bass)" value="${esc(filter)}">
-    <ul class="list">${list.map((w) => `<li><button class="destination-row" data-water-id="${esc(w.id)}"><b>${esc(waterDisplayName(w))}</b><span>${esc(waterAdministrativeLabel(w))}</span><span>${esc(w.species.slice(0, 5).map((s) => s.name).join(', '))}</span><span>View water information ↗</span></button></li>`).join('')}</ul>
+  const f = filter.trim().toLocaleLowerCase();
+  const matches = waters.filter((w) => !f || [w.name, w.state, w.county, w.location_label, w.type, ...(w.gnis_names ?? []), ...w.species.map((s) => s.name)].some((value) => String(value ?? '').toLocaleLowerCase().includes(f)));
+  const list = matches.slice(0, 100);
+  const nhdCount = waters.filter((water) => water.id.startsWith('nhd-')).length;
+  const resultNote = matches.length > list.length
+    ? `Showing ${list.length} of ${matches.length.toLocaleString()} matches. Type more to narrow the list.`
+    : `${matches.length.toLocaleString()} ${matches.length === 1 ? 'water' : 'waters'} found.`;
+  el.innerHTML = `<p class="muted small">${nhdCount.toLocaleString()} reference waters are mapped from legacy USGS NHD; those records do not verify current shorelines, public access, or fish species.</p><p class="muted small">${resultNote}</p><input class="filter" placeholder="Search water, county, state, or species" value="${esc(filter)}">
+    <ul class="list">${list.map((w) => `<li><button class="destination-row" data-water-id="${esc(w.id)}"><b>${esc(waterDisplayName(w))}</b><span>${esc(waterAdministrativeLabel(w))}</span><span>${esc(w.species.slice(0, 5).map((s) => s.name).join(', '))}</span><span>View water information ↗</span></button></li>`).join('') || '<li class="muted">No matching waters. Try another search.</li>'}</ul>
     <h4>Regulations & advisories</h4><ul class="links">${regulations.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul>`;
   const input = el.querySelector<HTMLInputElement>('.filter')!;
   input.oninput = () => { renderWaters(input.value); const i = $<HTMLInputElement>('#tab-waters .filter'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };

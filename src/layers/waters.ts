@@ -8,6 +8,9 @@ export type Water = {
   location_note?: string;
   bounds?: [[number, number], [number, number]];
   catalog_sources?: { label: string; url: string; source_updated?: string | null }[];
+  nhd_permanent_identifiers?: string[];
+  nhd_gnis_id?: string;
+  area_note?: string;
   retrieved_at?: string;
   species_note?: string;
   location_label?: string;
@@ -20,8 +23,41 @@ const norm = (s: string) => s.toLowerCase().replace(/\blake\b|\breservoir\b/g, '
 const byName: Record<string, Water[]> = {};
 
 export async function loadWaters(map: Map) {
-  const j = await fetchJSON<{ waters: Water[]; regulations: typeof regulations }>(`${import.meta.env.BASE_URL}data/waters.json`);
-  waters = j.waters;
+  const [j, nhd] = await Promise.all([
+    fetchJSON<{ waters: Water[]; regulations: typeof regulations }>(`${import.meta.env.BASE_URL}data/waters.json`),
+    fetchJSON<{
+      waters: Omit<Water, 'species' | 'species_note' | 'notes' | 'location_note' | 'links' | 'catalog_sources' | 'retrieved_at' | 'area_note'>[];
+      retrieved_at: string;
+      source: {
+        source_url: string;
+        source_updated: string;
+        state_regulations: Record<string, { label: string; url: string }[]>;
+        area_note: string;
+        species_note: string;
+        notes: string;
+        location_note: string;
+        catalog_source: NonNullable<Water['catalog_sources']>[number];
+      };
+    }>(`${import.meta.env.BASE_URL}data/nhd-destinations.json`).catch((error) => {
+      console.warn('Supplemental NHD destinations are unavailable; curated destinations remain available.', error);
+      return null;
+    }),
+  ]);
+  const curatedIds = new Set(j.waters.map((water) => water.id));
+  const nhdWaters: Water[] = nhd?.waters
+    .filter((water) => water.id.startsWith('nhd-') && water.center && !curatedIds.has(water.id))
+    .map((water) => ({
+      ...water,
+      species: [],
+      area_note: nhd.source.area_note,
+      species_note: nhd.source.species_note,
+      notes: nhd.source.notes,
+      location_note: nhd.source.location_note,
+      links: nhd.source.state_regulations[water.state] ?? [],
+      catalog_sources: [nhd.source.catalog_source],
+      retrieved_at: nhd.retrieved_at,
+    })) ?? [];
+  waters = [...j.waters, ...nhdWaters];
   const previous = store.get<string>('destination')?.v;
   if (previous === 'al-pfl') store.set('destination', 'lee-county-lake');
   if (previous === 'ga-pfa') store.set('destination', 'big-lazer-creek');
@@ -33,7 +69,7 @@ export async function loadWaters(map: Map) {
   }
   (map.getSource('waters') as GeoJSONSource).setData({
     type: 'FeatureCollection',
-    features: waters.filter((w) => w.center).map((w) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: w.center! }, properties: { id: w.id, name: w.name.replace(/\s*\(.*\)/, ''), priority: w.id.startsWith('water-') ? 1 : 0 } })),
+    features: waters.filter((w) => w.center).map((w) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: w.center! }, properties: { id: w.id, name: w.name.replace(/\s*\(.*\)/, ''), nhd: w.id.startsWith('nhd-'), priority: w.id.startsWith('water-') || w.id.startsWith('nhd-') ? 1 : 0 } })),
   });
 }
 
@@ -86,7 +122,7 @@ export function waterAdministrativeLabel(w: Pick<Water, 'county' | 'location_lab
 }
 
 export function waterHtml(w: Water, nhd?: Record<string, unknown>): string {
-  const acres = w.acres ? `${w.acres.toLocaleString()} acres · ` : '';
+  const acres = w.acres ? `${w.acres.toLocaleString()} ${w.area_note ? 'approx. mapped acres' : 'acres'} · ` : '';
   const location = waterAdministrativeLabel(w);
   return `<h3>${esc(waterDisplayName(w))}</h3>
   <p class="muted">${acres}${esc(w.river ? w.river + ' basin · ' : '')}${esc(location)}${w.manager ? ' · ' + esc(w.manager) : ''}</p>
@@ -99,6 +135,7 @@ export function waterHtml(w: Water, nhd?: Record<string, unknown>): string {
   ${w.links.length || w.catalog_sources?.length ? `<ul class="links">${[...w.links, ...(w.catalog_sources ?? [])].filter((link, index, links) => links.findIndex((item) => item.url === link.url) === index).map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul>` : ''}
   ${w.retrieved_at ? `<p class="muted small">Catalog retrieved ${esc(new Date(w.retrieved_at).toLocaleDateString())}. Overview points and point extents are not surveyed water boundaries.</p>` : ''}
   ${w.catalog_sources?.map((source) => `<p class="muted small">${esc(source.label)} · Source layer edition ${source.source_updated ? esc(new Date(source.source_updated).toLocaleDateString()) : 'not supplied'}</p>`).join('') ?? ''}
+  ${w.area_note && w.acres ? `<p class="muted small">${esc(w.area_note)}</p>` : ''}
   ${nhd?.areasqkm ? `<p class="muted small">NHD feature: ${esc(nhd.gnis_name ?? '')} · ${(Number(nhd.areasqkm) * 247.105).toFixed(0)} acres mapped</p>` : ''}
   <p class="muted small">Species lists are general — check current regulations, limits and consumption advisories.</p>
   <ul class="links">${regulations.slice(0, 4).map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul>`;
