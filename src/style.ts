@@ -76,7 +76,7 @@ export function buildStyle(av: Availability): StyleSpecification {
 
   // ---------- public lands ----------
   if (av.overlays) {
-    sources.overlays = { type: 'vector', url: av.overlays.url, attribution: 'USGS PAD-US, USGS NHD, Alabama DCNR fish attractors, USACE Mobile District, © OpenStreetMap contributors' };
+    sources.overlays = { type: 'vector', url: av.overlays.url, attribution: 'USGS PAD-US, USGS NHD, Alabama ADCNR fish attractors, USACE Mobile District, © OpenStreetMap contributors' };
     add('public_lands', { id: 'pl-fill', type: 'fill', source: 'overlays', 'source-layer': 'public_lands', paint: { 'fill-color': MANAGER_COLOR, 'fill-opacity': 0.28 } }, L);
     add('public_lands', {
       id: 'pl-line', type: 'line', source: 'overlays', 'source-layer': 'public_lands',
@@ -145,7 +145,7 @@ export function buildStyle(av: Availability): StyleSpecification {
   // Keep separate from the Terrarium land-elevation contours above.
   sources['al-pfl-bathymetry'] = {
     type: 'raster', tiles: [AL_PFL_BATHYMETRY.url], tileSize: 256, bounds: AL_PFL_BATHYMETRY.bounds,
-    attribution: `Alabama DCNR · <a href="${AL_PFL_BATHYMETRY.source}" target="_blank" rel="noopener">Public fishing lake depth contours</a>`,
+    attribution: `Alabama ADCNR · <a href="${AL_PFL_BATHYMETRY.source}" target="_blank" rel="noopener">Public fishing lake depth contours</a>`,
   };
   add('bathymetry', {
     id: 'al-pfl-bathymetry', type: 'raster', source: 'al-pfl-bathymetry', minzoom: 10,

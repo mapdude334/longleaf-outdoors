@@ -197,7 +197,7 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
       <label><input type="checkbox" value="hydro"> USGS hydro overlay</label>
       <label><input type="checkbox" value="bathymetry" ${visibleLayers.bathymetry ? 'checked' : ''}> Alabama public fishing lake depth bands &amp; contours (mapped lakes only)</label>
       <label>Maximum offline zoom <select class="maxz"><option>13</option><option selected>14</option><option>15</option><option>16</option></select></label>
-      <p class="muted small">Bathymetry is served by Alabama DCNR where mapped. Select it here to save the rendered depth map for this view; turn it on in Layers when viewing the saved area. Other lakes may have no depth coverage.</p>
+      <p class="muted small">Bathymetry is served by Alabama ADCNR where mapped. Select it here to save the rendered depth map for this view; turn it on in Layers when viewing the saved area. Other lakes may have no depth coverage.</p>
       <p class="muted small est"></p>
       <p class="muted small" data-area-limit>Area downloads are limited to ${MAX_AREA_TILES.toLocaleString()} tiles and about ${mb(MAX_AREA_BYTES)} per download to protect device storage. Browser storage rules vary by device.</p>
       <button class="btn clear-area">Clear saved areas (${s.rasterCount.toLocaleString()} tiles)</button>
