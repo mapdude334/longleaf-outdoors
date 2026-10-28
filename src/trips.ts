@@ -2,7 +2,7 @@ import type { Map, MapMouseEvent } from 'maplibre-gl';
 import { symbolHtml, highlightLocation } from './symbols';
 import { waters, waterDisplayLabel, waterDisplayName } from './layers/waters';
 import { getWpts } from './waypoints';
-import { loadAccessLive, accessLocation } from './layers/access';
+import { loadAccessLive, accessLocation, accessFeatures } from './layers/access';
 import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
 import { esc, haversineKm, store, toast } from './util';
 import { shareTrip } from './share';
@@ -174,7 +174,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     const savedRampIds = new Set<string>();
     const currentTripRampIds = new Set<string>();
     const rampDetails = new globalThis.Map<string, { location: string; source: string }>();
-    const cached = store.get<any[]>('access-osm')?.v ?? [];
+    const cached = accessFeatures();
     const rendered = map.getLayer('access-pts') ? map.queryRenderedFeatures(undefined, { layers: ['access-pts'] }) : [];
     for (const f of [...cached, ...rendered]) {
       if (f.geometry?.type !== 'Point' || !['boat_ramp', 'paddle_launch'].includes(f.properties?.kind)) continue;

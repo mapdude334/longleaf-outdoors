@@ -5,7 +5,7 @@ import type { GeoJSONSource, Map } from 'maplibre-gl';
 import type { Feature, Point } from 'geojson';
 import { AOI, OVERPASS } from '../config';
 import { normalizePointKinds, symbolHtml } from '../symbols';
-import { cachedLive, esc, haversineKm, fetchJSON, store } from '../util';
+import { esc, haversineKm, fetchJSON, store } from '../util';
 import { waters } from './waters';
 import { dams } from './dams';
 import { sourceMetadata } from '../data-metadata';
@@ -15,7 +15,19 @@ export const ACCESS_LABELS: Record<string, string> = {
   marina: 'Marina', campground: 'Campground', trailhead: 'Trailhead', parking: 'Parking', other: 'Access',
 };
 type AccessFeature = Feature<Point, Record<string, any>>;
-export const accessFeatures = () => store.get<AccessFeature[]>('access-osm')?.v ?? [];
+// This public catalog is already shipped and precached as data/access.json. Keep it in
+// memory rather than duplicating its multi-megabyte payload in localStorage, which is
+// also where the user's trips, spots, and map preferences live.
+const previousAccessCache = store.get<AccessFeature[]>('access-osm');
+let accessCatalog: AccessFeature[] = previousAccessCache?.v ?? [];
+let accessEdition = store.get<string>('access-edition')?.v;
+let accessRetrievedAt = previousAccessCache?.t ?? 0;
+// Migrate older installs off the large localStorage copy before other app state is saved.
+store.del('access-osm');
+store.del('access-edition');
+
+export const accessFeatures = () => accessCatalog;
+export const accessCatalogInfo = () => ({ available: accessCatalog.length > 0, updated: accessEdition, retrievedAt: accessRetrievedAt });
 
 function kind(t: Record<string, string>) {
   if (t.leisure === 'slipway' || t.amenity === 'boat_ramp') return 'boat_ramp';
@@ -30,34 +42,45 @@ function kind(t: Record<string, string>) {
 export async function loadAccessLive(map: Map) {
   // Ship a same-origin catalog with the app so first-time visitors do not depend
   // on an Overpass POST succeeding in their browser. It is also precached offline.
+  // Do not write this large catalog to localStorage; the shipped file is its offline copy.
   try {
     const snapshot = await fetchJSON<{ type: string; updated: string; features: AccessFeature[] }>(`${import.meta.env.BASE_URL}data/access.json`, { timeout: 8000 });
     if (snapshot.type !== 'FeatureCollection' || !snapshot.features?.length || !snapshot.features.every((f) => f.geometry?.type === 'Point' && f.geometry.coordinates.length >= 2 && f.geometry.coordinates.every(Number.isFinite))) throw new Error('Invalid access catalog');
     const features = normalizePointKinds(snapshot.features, 'access', 'Access catalog');
-    store.set('access-osm', features);
-    store.set('access-edition', snapshot.updated);
+    accessCatalog = features;
+    accessEdition = snapshot.updated;
+    accessRetrievedAt = Date.now();
     (map.getSource('access-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
     return { count: features.length, offline: !navigator.onLine, source: 'published agency / OSM catalog' };
   } catch { /* Older offline installations can still use their cached/live data. */ }
   const [w, s, e, n] = AOI;
   const bb = `(${s},${w},${n},${e})`;
   const q = `[out:json][timeout:90];(nwr["leisure"="slipway"]${bb};nwr["amenity"="boat_ramp"]${bb};nwr["leisure"="fishing"]${bb};nwr["man_made"="pier"]${bb};nwr["canoe"="put_in"]${bb};nwr["leisure"="marina"]${bb};nwr["tourism"="camp_site"]${bb};);out center tags;`;
-  const res = await cachedLive<AccessFeature[]>('access-osm', 7 * 24 * 3600_000, async () => {
+  try {
     const j = await fetchJSON(OVERPASS, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 });
     if (j.remark || !j.elements?.length) throw new Error('Access query incomplete or empty');
-    store.del('access-edition');
-    return j.elements.flatMap((el: any) => {
+    const queried: AccessFeature[] = j.elements.flatMap((el: any) => {
       const lon = el.lon ?? el.center?.lon;
       const lat = el.lat ?? el.center?.lat;
       if (lon == null) return [];
       const t = el.tags ?? {};
-      return [{ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [lon, lat] as [number, number] }, properties: { ...pick(t), kind: kind(t), osm: `${el.type}/${el.id}` } }];
+      return [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lon, lat] as [number, number] }, properties: { ...pick(t), kind: kind(t), osm: `${el.type}/${el.id}` } }];
     });
-  });
-  const features = normalizePointKinds(res.v, 'access', 'Live access catalog');
-  store.set('access-osm', features);
-  (map.getSource('access-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
-  return { count: features.length, offline: res.offline, source: 'OSM live' };
+    const features: AccessFeature[] = normalizePointKinds(queried, 'access', 'Live access catalog');
+    accessCatalog = features;
+    accessEdition = undefined;
+    accessRetrievedAt = Date.now();
+    (map.getSource('access-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
+    return { count: features.length, offline: false, source: 'OSM live' };
+  } catch (error) {
+    // Preserve the in-memory legacy catalog if an older installation is offline and
+    // its service worker does not yet have the shipped access.json file.
+    if (!accessCatalog.length) throw error;
+    const features: AccessFeature[] = normalizePointKinds(accessCatalog, 'access', 'Saved access catalog');
+    accessCatalog = features;
+    (map.getSource('access-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
+    return { count: features.length, offline: true, source: 'saved access catalog' };
+  }
 }
 
 const KEEP = ['name', 'operator', 'maintenance', 'access', 'status', 'public_access', 'waterbody', 'waterbody_type', 'water_type', 'county', 'state', 'source_access_type', 'source_access_subtype', 'species_summary', 'fee', 'opening_hours', 'surface', 'parking_surface', 'lanes', 'website', 'phone', 'description', 'directions', 'parking', 'toilets', 'courtesy_dock', 'fishing_pier', 'picnic_area', 'accessibility', 'game_zone', 'fishing', 'lit', 'addr:street', 'addr:city'];

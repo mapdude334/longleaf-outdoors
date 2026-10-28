@@ -3,7 +3,7 @@ import type { Map } from 'maplibre-gl';
 import { waters, placeTitleCase, waterAdministrativeLabel, waterDisplayLabel, waterDisplayName, waterHtml } from './layers/waters';
 import { gauges, gaugeHtml, fillTrend } from './layers/gauges';
 import { dams, damHtml, fillCwms } from './layers/dams';
-import { ACCESS_LABELS, accessHtml, accessLocation, accessFeatures } from './layers/access';
+import { ACCESS_LABELS, accessHtml, accessLocation, accessFeatures, accessCatalogInfo } from './layers/access';
 import { getWpts } from './waypoints';
 import { renderDestinationDownloads, destinationDownloadBusy } from './destination-downloads';
 import { activeTrip } from './trips';
@@ -178,8 +178,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       const key = f.properties.osm ?? f.properties.record_id ?? `${f.properties.name}:${f.geometry.coordinates.join(',')}`;
       if (seen.has(key)) return false; seen.add(key); return true;
     });
-  const accessCache = store.get('access-osm');
-  const accessEdition = store.get<string>('access-edition')?.v;
+  const accessInfo = accessCatalogInfo();
   const sectionOpen = new globalThis.Map([...root.querySelectorAll<HTMLDetailsElement>('details[data-section]')].map((section) => [section.dataset.section!, section.open]));
   const tripSummaryOpen = root.querySelector<HTMLDetailsElement>('details[data-trip-summary]')?.open;
   const overviewOpen = root.querySelector<HTMLDetailsElement>('details[data-overview]')?.open;
@@ -211,7 +210,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
       <button class="link" data-action="refresh">Refresh visible access</button>
       ${showingNearby ? '<p class="muted small">No access locations in this map view. Showing nearby places outside the view; check each location before choosing a launch.</p>' : ''}
       <ul class="list">${access.slice(0, 8).map((f, i) => `<li><button class="destination-row" data-access="${i}"><b>${symbolHtml(f.properties.kind)}${esc(f.properties.name || ACCESS_LABELS[f.properties.kind] || 'Access point')}</b>${f.properties.description ? `<span>${esc(f.properties.description)}</span>` : ''}<span>${esc(accessLocation(f.properties, f.geometry.type === 'Point' ? f.geometry.coordinates as [number, number] : CENTER))}</span><span>${esc(ACCESS_LABELS[f.properties.kind] ?? 'Access')} · View details ↗</span></button></li>`).join('') || '<li class="muted">No access locations in this view. Explore this water or zoom out to see nearby places.</li>'}</ul>
-      ${accessCache ? `<p class="muted small">${accessEdition ? 'Access catalog retrieved ' + esc(new Date(accessEdition).toLocaleDateString()) : 'Live-service access cache saved ' + esc(new Date(accessCache.t).toLocaleString())}. Agency and community sources are identified on each location card. Regional map packs have separate coverage and dates.</p>` : ''}
+      ${accessInfo.available ? `<p class="muted small">${accessInfo.updated ? 'Access catalog published ' + esc(new Date(accessInfo.updated).toLocaleDateString()) : accessInfo.retrievedAt ? 'Access locations loaded ' + esc(new Date(accessInfo.retrievedAt).toLocaleString()) : 'Access locations loaded for this session'}. Agency and community sources are identified on each location card. Regional map packs have separate coverage and dates.</p>` : ''}
       <h4>03 / Make it your lake</h4>
       <ul class="list">${spots.map((p) => `<li><button class="destination-row" data-spot="${esc(p.id)}"><b>${esc(p.name)}</b><span>My saved spot ↗</span></button></li>`).join('') || '<li class="muted">Your lake spots will appear here. Long-press the map to save your first one.</li>'}</ul>
       <button class="btn" data-action="fish">Species & lake notes</button>

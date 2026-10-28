@@ -34,8 +34,8 @@ export const store = {
       localStorage.setItem(storageKey('vw:' + k), JSON.stringify({ t: Date.now(), v }));
       return true;
     } catch (e) {
-      console.warn('storage full?', e);
-      toast('Device storage failed. Changes are only in memory — export GPX before closing.', 10000);
+      console.warn(`Could not persist app data (${k})`, e);
+      toast('This browser could not save a change on this device. Keep the app open and export important spots or trips before closing.', 10000);
       return false;
     }
   },
