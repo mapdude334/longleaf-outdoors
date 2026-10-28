@@ -127,6 +127,56 @@ export function showTripPlan(map: Map, preview?: Trip) {
   (map.getSource('trip-plan') as import('maplibre-gl').GeoJSONSource).setData({ type: 'FeatureCollection', features: features.map((p) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: p.coords }, properties: { name: p.name, kind: p.kind } })) });
 }
 
+function tripGpx(trip: Trip): string {
+  const xml = (value: unknown) => esc(value);
+  const water = waters.find((choice) => choice.id === trip.destination);
+  const tripName = trip.name?.trim() || 'Fishing trip';
+  const spots = Array.isArray(trip.spots) ? trip.spots : [];
+  const tripNotes = typeof trip.notes === 'string' ? trip.notes.trim() : '';
+  const updated = new Date(trip.updated || Date.now());
+  const timestamp = Number.isFinite(updated.getTime()) ? updated.toISOString() : new Date().toISOString();
+  const destinationLabel = water ? waterDisplayLabel(water) : trip.destination;
+  let tripNotesAttached = false;
+  const point = (name: string, type: string, coords: [number, number], notes: string) => {
+    const context = tripNotesAttached ? '' : `Trip: ${tripName}${tripNotes ? `\nTrip notes: ${tripNotes}` : ''}`;
+    tripNotesAttached = true;
+    const description = [notes, context].filter(Boolean).join('\n');
+    return `<wpt lat="${coords[1]}" lon="${coords[0]}"><time>${timestamp}</time><name>${xml(name)}</name><desc>${xml(description)}</desc><type>${xml(type)}</type></wpt>`;
+  };
+  const waypoints = [
+    ...(water?.center ? [point(`${waterDisplayName(water)} (reference center)`, 'Destination reference', water.center, `Approximate mapped water center for ${destinationLabel}. Reference only; not a navigational target.`)] : []),
+    ...(trip.ramp ? [point(trip.ramp.name || 'Selected launch', 'Boat launch', trip.ramp.coords, `Launch selected for trip ${tripName}. Confirm current access, status, and suitability before traveling.`)] : []),
+    ...spots.map((spot, index) => point(spot.name || `Fishing spot ${index + 1}`, 'Fishing spot', spot.coords, `Fishing spot ${index + 1} in trip ${tripName}.`)),
+  ].join('\n');
+  const description = [
+    `Destination: ${destinationLabel}`,
+    trip.date ? `Trip date: ${trip.date}` : '',
+    trip.ramp ? `Selected launch: ${trip.ramp.name}` : 'No launch selected',
+    `${spots.length} fishing spot${spots.length === 1 ? '' : 's'}`,
+    tripNotes ? `Trip notes: ${tripNotes}` : '',
+    'Contains waypoints only; no route line, charts, or bathymetry.',
+  ].filter(Boolean).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Longleaf Atlas" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${xml(tripName)}</name><desc>${xml(description)}</desc><time>${timestamp}</time></metadata>\n${waypoints}\n</gpx>`;
+}
+
+function downloadTripGpx(trip: Trip) {
+  const water = waters.find((choice) => choice.id === trip.destination);
+  const spotCount = Array.isArray(trip.spots) ? trip.spots.length : 0;
+  const pointCount = (water?.center ? 1 : 0) + (trip.ramp ? 1 : 0) + spotCount;
+  if (!pointCount) { toast('This trip has no mapped destination center, launch, or fishing spots to export.'); return; }
+  const filename = (trip.name || 'trip').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'trip';
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(trip.date ?? '') ? trip.date! : new Date().toISOString().slice(0, 10);
+  const blob = new Blob([tripGpx(trip)], { type: 'application/gpx+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `longleaf-atlas-${filename}-${date}.gpx`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  const included = [water?.center ? 'destination reference' : '', trip.ramp ? 'selected launch' : '', spotCount ? `${spotCount} fishing spot${spotCount === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ');
+  toast(`GPX downloaded with ${included}. It does not include map charts or bathymetry.`, 10000);
+}
+
 export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: string) => void) {
   function list() {
     root.oninput = null; root.onchange = null;
@@ -137,7 +187,8 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       <p class="muted small" data-import-status role="status"></p>
       ${draft() ? '<p class="muted small">Resume and save your draft before starting another trip. Backups include saved trips.</p>' : ''}
       <p class="muted small">Saved on this browser, available offline. Map packs must be downloaded separately. Clearing browser data removes trips.</p>
-      <ul class="list">${saved().map((t) => { const destination = waters.find((w) => w.id === t.destination); return `<li><button class="destination-row" data-edit="${esc(t.id)}"><b>${esc(t.name)}</b><span>${esc(destination ? waterDisplayName(destination) : t.destination)}</span><span>${esc(t.ramp?.name ?? 'No launch selected')} · ${t.spots.length} fishing spots</span></button><div class="row-btns"><button class="btn" data-share-trip="${esc(t.id)}">Share trip</button></div></li>`; }).join('') || '<li class="muted">Your saved trips will appear here.</li>'}</ul>`;
+      <details class="chartplotter-guide"><summary>Use a trip with a chartplotter</summary><p class="muted small">Trip GPX downloads contain an approximate destination-center reference when mapped, your selected launch, and fishing spots. They do not include a boat route, map charts, bathymetry, or other map layers. The water center is a reference only; follow the chartplotter’s chart and safe-navigation practices.</p><ul class="list small"><li><b>Garmin:</b> for compatible units, copy the GPX to the card’s <code>Garmin/GPX</code> folder and import it through User Data. <a href="https://support.garmin.com/en-GB/?faq=zFDPlv7AnK2eNWRp2AgMkA" target="_blank" rel="noopener">Garmin transfer guide ↗</a></li><li><b>Lowrance, Simrad, and B&amp;G:</b> GPX is supported by compatible models; use the unit’s Files or Storage import flow. <a href="https://support.garmin.com/en-US/marine/faq/SUutX622LO5HeOglgB9vtA/" target="_blank" rel="noopener">Navico transfer steps ↗</a></li><li><b>Raymarine:</b> use My Data or Import/Export and choose Import from card. <a href="https://docs.raymarine.com/81388/en-US/latest/ImportingUserData-F7BC51DC.html" target="_blank" rel="noopener">Raymarine import guide ↗</a></li><li><b>Humminbird:</b> formats vary by model. APEX, XPLORE, SOLIX, and ONIX use GPX; HELIX requires GPX converted to HWR with HumminbirdPC. <a href="https://humminbird-help.johnsonoutdoors.com/hc/en-us/articles/11016871237399-Transferring-Navigation-Data-Between-Minn-Kota-and-Humminbird-Fish-Finders" target="_blank" rel="noopener">Humminbird model guidance ↗</a></li><li><b>Magellan:</b> GPX support varies by model; check the device manual before importing. <a href="https://trxsupport.magellangps.com/hc/en-us/articles/360056078794--Export-GPX-files-from-device-to-micro-SD-card" target="_blank" rel="noopener">Magellan GPX notes ↗</a></li></ul><p class="muted small">Import menus and supported fields vary. If offered, choose Merge or Add to keep existing device waypoints. Verify the imported points before navigating.</p></details>
+      <ul class="list">${saved().map((t) => { const destination = waters.find((w) => w.id === t.destination); return `<li><button class="destination-row" data-edit="${esc(t.id)}"><b>${esc(t.name)}</b><span>${esc(destination ? waterDisplayName(destination) : t.destination)}</span><span>${esc(t.ramp?.name ?? 'No launch selected')} · ${t.spots.length} fishing spots</span></button><div class="row-btns"><button class="btn" data-share-trip="${esc(t.id)}">Share trip</button><button class="btn" data-export-gpx="${esc(t.id)}">Download chartplotter GPX</button></div></li>`; }).join('') || '<li class="muted">Your saved trips will appear here.</li>'}</ul>`;
     root.querySelector<HTMLButtonElement>('[data-new]')!.onclick = () => edit({ id: crypto.randomUUID(), name: '', destination: store.get<string>('destination')?.v ?? '', spots: [], notes: '', updated: Date.now(), view: { center: map.getCenter().toArray() as [number, number], zoom: map.getZoom() } });
     const resume = root.querySelector<HTMLButtonElement>('[data-resume]');
     if (resume) resume.onclick = () => edit(structuredClone(draft()!));
@@ -160,6 +211,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
     };
     root.querySelectorAll<HTMLButtonElement>('[data-edit]').forEach((b) => b.onclick = () => { const trip = saved().find((t) => t.id === b.dataset.edit); if (trip) edit(structuredClone(trip)); });
     root.querySelectorAll<HTMLButtonElement>('[data-share-trip]').forEach((b) => b.onclick = () => { const trip = saved().find((t) => t.id === b.dataset.shareTrip); if (trip) { try { shareTrip(trip); } catch (error) { toast((error as Error).message); } } });
+    root.querySelectorAll<HTMLButtonElement>('[data-export-gpx]').forEach((b) => b.onclick = () => { const trip = saved().find((t) => t.id === b.dataset.exportGpx); if (trip) downloadTripGpx(trip); });
   }
   function edit(trip: Trip) {
     const water = waters.find((w) => w.id === trip.destination);
