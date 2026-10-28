@@ -32,7 +32,8 @@ jobs:
       - run: npm ci
       - name: Build
         env:
-          BASE_PATH: /${{ github.event.repository.name }}/
+          # Production uses the apex custom domain; preview keeps its repository path in its own publisher.
+          BASE_PATH: /
           VITE_TILE_BASE: ${{ vars.VITE_TILE_BASE }}
           VITE_USGS_API_KEY: ${{ vars.VITE_USGS_API_KEY }}
         run: npm run build
