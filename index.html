@@ -17,7 +17,6 @@
         <ul id="results" hidden></ul>
       </div>
       <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark theme" aria-pressed="false" title="Switch to dark theme"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20.4 15.4A8.5 8.5 0 0 1 8.6 3.6 8.6 8.6 0 1 0 20.4 15.4Z"/></svg><span>Dark</span></button>
-      <button class="donate-header" id="donate-header" type="button" aria-label="Support Longleaf Atlas" title="Support app development">$ <span>Support</span></button>
       <span id="net" class="net" title="Connection status"></span>
     </header>
     <div id="map" role="application" aria-label="Map"></div>
@@ -62,27 +61,10 @@
           <div class="welcome-credit"><span>APP DEVELOPMENT</span><strong>James Bush</strong><p>Longleaf Atlas</p></div>
           <div class="welcome-actions">
             <label><input type="checkbox" id="welcome-remember" /> Remember my acknowledgment on this device</label>
-            <button class="btn donate-splash" id="donate-splash" type="button">Support app development</button>
             <button class="btn primary" id="welcome-continue" type="button">Acknowledge &amp; explore</button>
             <p>You can reopen this notice anytime by selecting the Longleaf logo.</p>
           </div>
         </div>
-      </div>
-    </dialog>
-    <dialog id="donate-prompt" class="share-dialog donate-dialog" aria-labelledby="donate-title" aria-describedby="donate-copy">
-      <h2 id="donate-title">Support Longleaf Atlas</h2>
-      <p id="donate-copy">Your Venmo contribution supports continued development and maintenance of this app, which I build in my spare time. For every contribution, I will separately donate $2 to WE OUTSIDE GA.</p>
-      <section class="donate-charity" aria-labelledby="donate-charity-title">
-        <h3 id="donate-charity-title">About WE OUTSIDE GA</h3>
-        <p>A Georgia 501(c)(3) nonprofit expanding outdoor access through community fishing clinics and fishing days for youth, families, and adults.</p>
-        <a href="https://weoutsidega.org/" target="_blank" rel="noopener">Visit the organization’s website ↗</a>
-      </section>
-      <blockquote class="donate-quote">“My passion is getting young people outdoors and helping them discover fishing. Teaching a kid to fish can spark a lifelong connection with nature.”<cite>— James Bush</cite></blockquote>
-      <p>Venmo sends your payment to James Bush; it does not split or forward any amount to the charity. James makes the $2 gift separately, and your payment is not a charitable donation to WE OUTSIDE GA. You can also <a href="https://weoutsidega.org/#donate" target="_blank" rel="noopener">donate directly to WE OUTSIDE GA</a>.</p>
-      <p class="donate-recipient" id="donate-recipient"></p>
-      <div class="row-btns donate-actions">
-        <a class="btn primary" id="venmo-pay" href="#" target="_blank" rel="noopener" hidden>Continue to Venmo ↗</a>
-        <button class="btn" id="donate-close" type="button">Close</button>
       </div>
     </dialog>
     <script type="module" src="/src/main.ts"></script>
