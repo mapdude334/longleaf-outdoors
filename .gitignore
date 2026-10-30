@@ -12,3 +12,4 @@ pipeline/cache/
 /.publishing/
 __pycache__/
 pipeline/staging/south-carolina/
+pipeline/staging/north-carolina/

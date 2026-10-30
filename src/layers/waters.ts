@@ -84,7 +84,18 @@ export const waterByName = (n?: string, at?: [number, number]) => {
 /** Build a consistent user-facing destination label without repeating state codes. */
 export function waterCountyLabel(w: Pick<Water, 'county' | 'location_label' | 'state'>): string {
   const stateCodes = new Set(w.state.split(/[\/,]/).map((part) => part.trim().toUpperCase()).filter(Boolean));
-  const raw = (w.county ?? w.location_label ?? '').trim();
+  const countyValue = (w.county ?? '').trim();
+  if (countyValue) {
+    const counties = countyValue.split(/[;|]/).map((part) => part.trim().replace(/\s+County$/i, '')).filter(Boolean);
+    if (!counties.length || counties.every((county) => stateCodes.has(county.toUpperCase()) || /^[A-Z]{2}$/.test(county))) return '';
+    const names = counties.map(placeTitleCase);
+    if (names.length === 1) return `${names[0]} County`;
+    if (names.length === 2) return `${names[0]} & ${names[1]} Counties`;
+    if (names.length === 3) return `${names[0]}, ${names[1]} & ${names[2]} Counties`;
+    return `Across ${names.length} counties`;
+  }
+
+  const raw = (w.location_label ?? '').trim();
   if (!raw) return '';
 
   // Catalog location labels may include a state suffix, or may only repeat the
