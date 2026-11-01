@@ -13,7 +13,7 @@ import { isCompactLayout, setSheetSnap } from './sheet';
 import { locationBounds } from './region-bounds';
 import { showSelectedWaterOutline } from './water-outline';
 import { ALL_REGION } from './config';
-import { REGIONS, regionContainsWater, type RegionDefinition } from './state-regions';
+import { REGIONS, STATES, regionContainsWater, type RegionDefinition } from './state-regions';
 
 const BOUNDS: [[number, number], [number, number]] = [[-85.32, 32.86], [-85.02, 33.22]];
 const regionWaters = (region: RegionDefinition) => waters.filter((water) => regionContainsWater(region, water));
@@ -61,7 +61,19 @@ function pickerHtml(id: string, title: string, placeholder: string, options: Pic
 }
 function regionPickerHtml() {
   const selected = store.get<string>('destination-area')?.v;
-  return pickerHtml('destination-region', 'Choose a region', 'Search regions', REGIONS.map((item) => ({ value: item.id, label: placeTitleCase(item.label) })), selected);
+  return pickerHtml('destination-region', 'Choose a region', 'Search regions', regionPickerOptions(), selected);
+}
+function regionPickerOptions(): PickerOption[] {
+  return REGIONS.map((region) => {
+    const stateCodes = region.states ?? [...new Set(region.membership?.flatMap((area) => area.states) ?? [])];
+    const partialStates = STATES.filter((state) => stateCodes.includes(state.code) && state.coverage === 'partial');
+    const count = destinationChoices(region).choices.length;
+    const partialNote = partialStates.length
+      ? ` · ${partialStates.map((state) => state.code === 'FL' ? 'FWC Northwest pilot only' : `partial ${state.name} coverage`).join(', ')}`
+      : '';
+    const detail = `${count.toLocaleString()} mapped waters${partialNote}`;
+    return { value: region.id, label: placeTitleCase(region.label), detail, search: `${region.label} ${detail}` };
+  });
 }
 function destinationOptions(choices: typeof waters): PickerOption[] {
   const sorted = [...choices].sort((a, b) => a.name.localeCompare(b.name));
@@ -108,7 +120,7 @@ function wireSearchPicker(root: HTMLElement, id: string, options: PickerOption[]
   };
 }
 function wireRegionPicker(root: HTMLElement, map: Map, region: RegionDefinition, actions: Parameters<typeof renderDestination>[2]) {
-  const regionOptions = REGIONS.map((item) => ({ value: item.id, label: placeTitleCase(item.label) }));
+  const regionOptions = regionPickerOptions();
   wireSearchPicker(root, 'destination-region', regionOptions, (id) => {
     const nextRegion = REGIONS.find((item) => item.id === id);
     if (!nextRegion) return;
@@ -159,7 +171,10 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
     return;
   }
   if (!water) {
-    root.innerHTML = `<div class="destination-hero"><span class="destination-eyebrow">YOUR NEXT DAY OUT</span>${regionPickerHtml()}<p class="small region-scope-note">Search for a region to update the map data and destination choices.</p>${destinationPickerHtml(choiceOptions)}<h2>Choose a body of water</h2><p>Select a lake, river, or coastal water to see its details, species, nearby access, and trip planning options.</p><button class="btn destination-explore" data-explore-region>Show full map ↗</button></div><div class="destination-body"><div class="destination-card"><b>Explore the map while you decide</b><p class="muted small">Browse anywhere in the available map area. Data and point symbols appear as you zoom to useful map scales. Choose a destination when you’re ready for water-specific information and trip planning.</p></div></div>`;
+    const scopeText = region.id === ALL_REGION.id
+      ? `${choices.length.toLocaleString()} mapped waters are available across the map. Choose a region to narrow the destination list.`
+      : `${choices.length.toLocaleString()} mapped waters are available in this region. Choose a destination or switch regions.`;
+    root.innerHTML = `<div class="destination-hero"><span class="destination-eyebrow">YOUR NEXT DAY OUT</span>${regionPickerHtml()}<p class="small region-scope-note">${esc(scopeText)}</p>${destinationPickerHtml(choiceOptions)}<h2>Choose a body of water</h2><p>Select a lake, river, or coastal water to see its details, species, nearby access, and trip planning options.</p><button class="btn destination-explore" data-explore-region>Show full map ↗</button></div><div class="destination-body"><div class="destination-card"><b>Explore the map while you decide</b><p class="muted small">Browse anywhere in the available map area. Data and point symbols appear as you zoom to useful map scales. Choose a destination when you’re ready for water-specific information and trip planning.</p></div></div>`;
     showSelectedWaterOutline(map, undefined);
     wireRegionPicker(root, map, region, actions);
   root.querySelector<HTMLButtonElement>('[data-explore-region]')!.onclick = () => showFullRegionMap(map, region);
@@ -205,7 +220,7 @@ export async function renderDestination(root: HTMLElement, map: Map, actions: {
   root.innerHTML = `<div class="destination-hero">
       <span class="destination-eyebrow">YOUR NEXT DAY OUT · SOUTHEAST</span>
       ${regionPickerHtml()}
-      <p class="small region-scope-note">Map points and destination choices are scoped to this area. Choose another region to switch the map data shown here.</p>
+      <p class="small region-scope-note">${esc(choices.length.toLocaleString())} mapped waters in this region. Choose another region to update map data and destinations.</p>
       ${destinationPickerHtml(choiceOptions, water.id)}
       <h2>${esc(water ? waterDisplayName(water) : 'Choose your water')}</h2><p>Pick your launch. Check the water.<br>Keep the day yours.</p>
       ${recordStatus ? `<p class="water-record-status"><b>${esc(recordStatus.label)}</b><span>${esc(recordStatus.detail)}</span></p>` : ''}

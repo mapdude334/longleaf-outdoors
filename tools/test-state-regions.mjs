@@ -4,8 +4,9 @@ import { stripTypeScriptTypes } from 'node:module';
 
 const source = await readFile(new URL('../src/state-regions.ts', import.meta.url), 'utf8');
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source)).toString('base64')}`;
-const { STATES, REGIONS, regionContainsPoint, regionContainsWater } = await import(moduleUrl);
+const { STATES, REGIONS, regionContainsPoint, regionContainsWater, watersInRegion } = await import(moduleUrl);
 const boundaryData = JSON.parse(await readFile(new URL('../public/data/state-boundaries.json', import.meta.url), 'utf8'));
+const curatedWaters = JSON.parse(await readFile(new URL('../public/data/waters.json', import.meta.url), 'utf8')).waters;
 
 assert.deepEqual(STATES.map(({ code, coverage }) => [code, coverage]), [
   ['AL', 'available'], ['GA', 'available'], ['SC', 'available'], ['FL', 'partial'], ['NC', 'planned'], ['VA', 'planned'],
@@ -41,7 +42,10 @@ for (const state of STATES.filter(({ coverage }) => coverage === 'available')) {
 }
 const floridaRegion = region['florida-panhandle'];
 const floridaBoundary = boundaryData.features.find(({ properties }) => properties.STUSAB === 'FL');
+const floridaDestinations = curatedWaters.filter((water) => water.id.startsWith('florida-panhandle-'));
 assert.ok(floridaBoundary?.properties.reference_only, 'Florida state outline must remain a reference, not a drawn pilot polygon');
+assert.equal(floridaDestinations.length, 18, 'Florida Northwest region should expose the current 18 FWC destination guides');
+assert.deepEqual(watersInRegion(floridaDestinations, floridaRegion).map((water) => water.id).sort(), floridaDestinations.map((water) => water.id).sort(), 'The Florida region filter must retain every available FWC destination guide');
 assert.ok(floridaRegion.viewBounds[0][0] <= -87.634871 && floridaRegion.viewBounds[0][1] <= 29.43598, 'Florida Panhandle view omits western/southern FWC Northwest counties');
 assert.ok(floridaRegion.viewBounds[1][0] >= -83.604121 && floridaRegion.viewBounds[1][1] >= 31.000968, 'Florida Panhandle view omits eastern/northern FWC Northwest counties');
 assert.match(await readFile(new URL('../src/style.ts', import.meta.url), 'utf8'), /reference_only.*true/, 'Reference-only state outline must be excluded from map rendering');
