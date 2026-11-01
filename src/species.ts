@@ -4,17 +4,18 @@ import { esc } from './util';
 import type { Water } from './layers/waters';
 import { fishingGuideHtml } from './fishing-tactics';
 
-type Photo = { file: string; credit: string; license: string; licenseUrl: string | null; page: string };
+type Photo = { file: string; credit: string; license: string; licenseUrl: string | null; page: string; kind?: 'photo' | 'illustration'; changes?: string };
 const catalogue = photos as Record<string, Photo>;
 const verifiedCatalogPhoto: Record<string, string> = {
   'smallmouth bass': 'smallmouth-bass', sauger: 'sauger', walleye: 'walleye',
   'yellow perch': 'yellow-perch', 'red snapper': 'red-snapper',
 };
 export function speciesForLabel(label: string) {
-  const normal = label.replace(/\s*\(seasonal\)/i, '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const raw = label.replace(/\s*\(seasonal\)/i, '').trim().toLowerCase().replace(/[’‘`]/g, "'").replace(/\s+/g, ' ');
+  const normal = raw === 'bartrams bass' ? "bartram's bass" : raw;
   if (['crappie', 'black & white crappie', 'black and white crappie'].includes(normal)) return SPECIES.filter((s) => s.id === 'black-crappie' || s.id === 'white-crappie');
   if (normal === 'flounder') return SPECIES.filter((s) => s.id === 'southern-flounder' || s.id === 'summer-flounder');
-  return SPECIES.filter((s) => s.name.toLowerCase() === normal);
+  return SPECIES.filter((s) => s.name.toLowerCase().replace(/[’‘`]/g, "'") === normal);
 }
 
 export function speciesPhoto(id: string, name: string) {
@@ -23,7 +24,10 @@ export function speciesPhoto(id: string, name: string) {
 }
 
 function photoMarkup(p: Photo, name: string) {
-  return `<figure class="fish-photo"><img src="${import.meta.env.BASE_URL}${esc(p.file)}" alt="Photograph of ${esc(name)}" width="800" height="500"><figcaption>${esc(p.credit)} · <a href="${esc(p.page)}" target="_blank" rel="noopener">Photo source</a> · ${p.licenseUrl ? `<a href="${esc(p.licenseUrl)}" target="_blank" rel="noopener">${esc(p.license)}</a>` : esc(p.license)} · resized for display</figcaption></figure>`;
+  const isIllustration = p.kind === 'illustration';
+  const mediaLabel = isIllustration ? 'Field guide illustration' : 'Photograph';
+  const sourceLabel = isIllustration ? 'Reference source' : 'Photo source';
+  return `<figure class="fish-photo"><img src="${import.meta.env.BASE_URL}${esc(p.file)}" alt="${mediaLabel} of ${esc(name)}" width="800" height="500"><figcaption>${isIllustration ? 'Illustration · ' : ''}${esc(p.credit)} · <a href="${esc(p.page)}" target="_blank" rel="noopener">${sourceLabel}</a> · ${p.licenseUrl ? `<a href="${esc(p.licenseUrl)}" target="_blank" rel="noopener">${esc(p.license)}</a>` : esc(p.license)}${p.changes ? ` · ${esc(p.changes)}` : ''}</figcaption></figure>`;
 }
 
 /** Only labels matched to a checked scientific/common-name source get an image. */
@@ -40,7 +44,7 @@ export function speciesHtml(id: string, state?: string, water?: Water) {
   const facts = { ...s, ...(isSC ? s.regional?.SC : undefined) };
   return `<article class="fish-profile"><span class="destination-eyebrow fish-eyebrow">LONGLEAF FIELD GUIDE</span>
     <h2>${esc(s.name)}</h2><p class="fish-scientific">${esc(s.scientific)}</p>
-    ${speciesPhoto(s.id, s.name)}${catalogue[s.id] ? '' : '<p class="muted small">No photograph is shown because a species-specific image with suitable provenance has not been verified.</p>'}<p class="fish-size">${esc(facts.size)}</p>
+    ${speciesPhoto(s.id, s.name)}${catalogue[s.id] ? '' : '<p class="muted small">No verified species image is available yet.</p>'}<p class="fish-size">${esc(facts.size)}</p>
     <h4>How to recognize it</h4><p>${esc(facts.identify)}</p>
     <dl class="fish-facts">${[['Spawning & season',facts.spawn],['What it eats',facts.diet],['Where it lives',facts.habitat],['Habits & behavior',facts.habits]].map(([title,body])=>`<div><dt>${esc(title)}</dt><dd>${esc(body)}</dd></div>`).join('')}</dl>
     ${fishingGuideHtml(s.name, water)}

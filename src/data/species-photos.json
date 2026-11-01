@@ -111,6 +111,129 @@
     "file": "species/red-snapper.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Red_Snapper.jpg"
   },
+  "altamaha-bass": {
+    "kind": "illustration",
+    "credit": "Original Longleaf Atlas field-guide illustration; traits referenced from Georgia DNR",
+    "license": "MIT (project license)",
+    "licenseUrl": "https://github.com/mapdude334/longleaf-outdoors/blob/main/LICENSE",
+    "changes": "Original vector illustration based on the cited agency identification traits; not a photograph.",
+    "file": "species/altamaha-bass.svg",
+    "page": "https://georgiawildlife.com/fishing/identification"
+  },
+  "bartrams-bass": {
+    "kind": "illustration",
+    "credit": "Original Longleaf Atlas field-guide illustration; traits referenced from Georgia DNR",
+    "license": "MIT (project license)",
+    "licenseUrl": "https://github.com/mapdude334/longleaf-outdoors/blob/main/LICENSE",
+    "changes": "Original vector illustration based on the cited agency identification traits; not a photograph.",
+    "file": "species/bartrams-bass.svg",
+    "page": "https://georgiawildlife.com/fishing/identification"
+  },
+  "brook-trout": {
+    "credit": "John J. Mosesso · National Biological Information Infrastructure / USGS",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "changes": "Resized and converted to JPEG; no content edits.",
+    "file": "species/brook-trout.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Salvelinus_fontinalis_NBII.jpg"
+  },
+  "brown-trout": {
+    "credit": "USFWS Mountain Prairie · photographed by Sam Stukel",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "changes": "Resized and converted to JPEG; no content edits.",
+    "file": "species/brown-trout.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Brown_Trout_(Salmo_trutta).jpg"
+  },
+  "chattahoochee-bass": {
+    "kind": "illustration",
+    "credit": "Original Longleaf Atlas field-guide illustration; traits referenced from Georgia DNR",
+    "license": "MIT (project license)",
+    "licenseUrl": "https://github.com/mapdude334/longleaf-outdoors/blob/main/LICENSE",
+    "changes": "Original vector illustration based on the cited agency identification traits; not a photograph.",
+    "file": "species/chattahoochee-bass.svg",
+    "page": "https://georgiawildlife.com/fishing/identification"
+  },
+  "chain-pickerel": {
+    "credit": "USDA Photo Library",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "changes": "Resized and converted to JPEG; no content edits.",
+    "file": "species/chain-pickerel.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Pickerel.jpg"
+  },
+  "greater-amberjack": {
+    "credit": "A. Hulbert · NOAA/OAR National Undersea Research Program · University of North Carolina at Wilmington",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "changes": "Resized and converted to JPEG; no content edits.",
+    "file": "species/greater-amberjack.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Seriola_dumerili.jpg"
+  },
+  "gray-triggerfish": {
+    "credit": "NOAA/NMFS/SEFSC · collection of Brandi Noble",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "changes": "Resized and converted to JPEG; no content edits.",
+    "file": "species/gray-triggerfish.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Balistes_capriscus_NOAA.jpg"
+  },
+  "rainbow-trout": {
+    "credit": "U.S. Fish and Wildlife Service · National Conservation Training Center",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "changes": "Resized and converted to JPEG; no content edits.",
+    "file": "species/rainbow-trout.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Rainbow_Trout.jpg"
+  },
+  "red-drum": {
+    "credit": "Steve Hillebrand · U.S. Fish and Wildlife Service",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "changes": "Resized and converted to JPEG; no content edits.",
+    "file": "species/red-drum.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Red_Drum_Fish.jpg"
+  },
+  "sheepshead": {
+    "credit": "FDA photo by J. Deeds · U.S. Food and Drug Administration",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "changes": "Resized and converted to JPEG; no content edits.",
+    "file": "species/sheepshead.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Archosargus_probatocephalus_(FDA_063).jpg"
+  },
+  "spotted-seatrout": {
+    "credit": "Rennair",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "changes": "Resized and converted to JPEG; no content edits.",
+    "file": "species/spotted-seatrout.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Spotted_Seatrout.jpg"
+  },
+  "summer-flounder": {
+    "credit": "Robert Aguilar · Smithsonian Environmental Research Center",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "changes": "Resized and converted to JPEG; no content edits.",
+    "file": "species/summer-flounder.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Paralichthys_dentatus_(S0225)_(12593682393).jpg"
+  },
+  "vermilion-snapper": {
+    "credit": "G. P. Schmahl · Flower Garden Banks National Marine Sanctuary · NOAA Photo Library",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "changes": "Resized and converted to JPEG; no content edits.",
+    "file": "species/vermilion-snapper.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Rhomboplites_aurorubens_-_Sanc2430.jpg"
+  },
+  "warmouth": {
+    "credit": "Bclegg77",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "changes": "Resized and converted to JPEG; no content edits.",
+    "file": "species/warmouth.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Warmouth.jpg"
+  },
   "bluegill": {
     "credit": "USFWS Mountain Prairie",
     "license": "Public domain",
