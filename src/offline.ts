@@ -195,9 +195,9 @@ export async function renderOffline(root: HTMLElement, map: Map, onChanged: () =
       <label><input type="checkbox" value="imagery"> Imagery</label>
       <label><input type="checkbox" value="terrain" checked> Terrain (hillshade + contours; terrain tiles through zoom 12)</label>
       <label><input type="checkbox" value="hydro"> USGS hydro overlay</label>
-      <label><input type="checkbox" value="bathymetry" ${visibleLayers.bathymetry ? 'checked' : ''}> Alabama public fishing lake depth bands &amp; contours (mapped lakes only)</label>
+      <label><input type="checkbox" value="bathymetry" ${visibleLayers.bathymetry ? 'checked' : ''}> Underwater depth data (mapped Alabama lakes and FWC Lake Jackson / Hurricane Lake)</label>
       <label>Maximum offline zoom <select class="maxz"><option>13</option><option selected>14</option><option>15</option><option>16</option></select></label>
-      <p class="muted small">Bathymetry is served by Alabama ADCNR where mapped. Select it here to save the rendered depth map for this view; turn it on in Layers when viewing the saved area. Other lakes may have no depth coverage.</p>
+      <p class="muted small">Alabama depth bands are served by ADCNR where mapped. Northwest Florida also includes packaged FWC depth bands and contours for Lake Jackson and Hurricane Lake. Select the layer here to save rendered depth tiles for this view; turn it on in Layers to view the saved area. Most lakes have no bathymetry coverage.</p>
       <p class="muted small est"></p>
       <p class="muted small" data-area-limit>Area downloads are limited to ${MAX_AREA_TILES.toLocaleString()} tiles and about ${mb(MAX_AREA_BYTES)} per download to protect device storage. Browser storage rules vary by device.</p>
       <button class="btn clear-area">Clear saved areas (${s.rasterCount.toLocaleString()} tiles)</button>
@@ -357,7 +357,7 @@ export async function renderSavedMaps(root: HTMLElement, map: Map, onChanged: ()
   areaRoot.innerHTML = saved.length ? saved.slice().reverse().map((area, reverseIndex) => {
     const index = saved.length - reverseIndex - 1;
     const [west, south, east, north] = area.bounds;
-    const detail = area.mapLayers.map((id) => ({ topo: 'Topo', imagery: 'Imagery', terrain: 'Terrain', hydro: 'Hydrography', bathymetry: 'Alabama PFL depths & contours' }[id] ?? id)).join(', ') || 'No map layers recorded';
+    const detail = area.mapLayers.map((id) => ({ topo: 'Topo', imagery: 'Imagery', terrain: 'Terrain', hydro: 'Hydrography', bathymetry: 'Mapped underwater depths & contours' }[id] ?? id)).join(', ') || 'No map layers recorded';
     const catalogData = area.dataLayers.map((id) => DATA_LAYER_LABELS[id] ?? id).join(', ');
     return `<div class="destination-card"><b>${area.complete ? 'Ready for offline viewing' : 'Partial download'}</b><p class="muted small">${south.toFixed(3)}°–${north.toFixed(3)}° latitude · ${west.toFixed(3)}°–${east.toFixed(3)}° longitude<br>${detail} · zoom through ${area.maxZoom} · ${area.tileCount?.toLocaleString() ?? 'unknown'} tiles · saved ${new Date(area.savedAt).toLocaleDateString()}${area.bytesAdded ? ` · ${mb(area.bytesAdded)} added` : ''}${catalogData ? `<br>Map data switches: ${esc(catalogData)}` : ''}</p>${area.complete ? '' : '<p class="muted small">Some tiles or labels did not save. Reconnect and download this view again to fill the gaps.</p>'}<button class="btn" data-area-open="${index}">Show this area on map</button></div>`;
   }).join('') : '<p class="muted small">No custom map areas saved yet. Download a map view from the map tools or Destination tab and it will appear here.</p>';

@@ -12,6 +12,17 @@ export let fishStructures: AnglerFeature[] = [];
 export let restrooms: AnglerFeature[] = [];
 export let habitats: AnglerFeature[] = [];
 
+async function bathymetryCatalog(path: string) {
+  try {
+    const data = await fetchJSON<any>(`${import.meta.env.BASE_URL}data/${path}`);
+    if (data.type !== 'FeatureCollection' || !Array.isArray(data.features)) throw new Error(`Invalid bathymetry data: ${path}`);
+    return data;
+  } catch (error) {
+    console.warn(`Optional bathymetry catalog unavailable: ${path}`, error);
+    return { type: 'FeatureCollection', features: [] };
+  }
+}
+
 function pointLocation(p: Record<string, any>, fallback: string) {
   const linkedWater = p.waterbody_id ? waterById(String(p.waterbody_id)) : undefined;
   // Use the canonical destination name whenever the point is linked. Source labels
@@ -41,7 +52,11 @@ async function catalog(path: string): Promise<Catalog> {
 }
 
 export async function loadAnglerData(map: Map) {
-  const [structures, toilets, vegetation, states] = await Promise.all([catalog('fish-structures.json'), catalog('restrooms.json'), catalog('habitat.json'), fetchJSON<any>(`${import.meta.env.BASE_URL}data/state-boundaries.json`)]);
+  const [structures, toilets, vegetation, states, floridaDepths, floridaContours] = await Promise.all([
+    catalog('fish-structures.json'), catalog('restrooms.json'), catalog('habitat.json'),
+    fetchJSON<any>(`${import.meta.env.BASE_URL}data/state-boundaries.json`),
+    bathymetryCatalog('florida-bathymetry.json'), bathymetryCatalog('florida-depth-contours.json'),
+  ]);
   fishStructures = structures.features;
   restrooms = toilets.features;
   habitats = vegetation.features;
@@ -49,6 +64,8 @@ export async function loadAnglerData(map: Map) {
   (map.getSource('restrooms-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: restrooms });
   (map.getSource('habitat-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: habitats });
   (map.getSource('state-boundaries') as GeoJSONSource | undefined)?.setData(states);
+  (map.getSource('florida-bathymetry') as GeoJSONSource | undefined)?.setData(floridaDepths);
+  (map.getSource('florida-depth-contours') as GeoJSONSource | undefined)?.setData(floridaContours);
   return { structureCount: fishStructures.length, restroomCount: restrooms.length, habitatCount: habitats.length, updated: structures.updated };
 }
 

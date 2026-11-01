@@ -151,6 +151,23 @@ export function buildStyle(av: Availability): StyleSpecification {
     id: 'al-pfl-bathymetry', type: 'raster', source: 'al-pfl-bathymetry', minzoom: 10,
     layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.72 },
   }, L);
+  // FWC vector bathymetry is packaged with the app and remains available offline.
+  // Current Northwest Florida coverage is only Lake Jackson and Hurricane Lake.
+  sources['florida-bathymetry'] = { ...EMPTY };
+  add('bathymetry', {
+    id: 'florida-bathymetry-bands', type: 'fill', source: 'florida-bathymetry', minzoom: 10,
+    layout: { visibility: 'none' },
+    paint: {
+      'fill-color': ['step', ['get', 'depth_ft'], '#a4cce1', 5, '#81b6d4', 10, '#5a9dc3', 20, '#367fa9', 30, '#205e87'],
+      'fill-opacity': 0.5, 'fill-outline-color': '#2e749d',
+    },
+  }, L);
+  sources['florida-depth-contours'] = { ...EMPTY };
+  add('bathymetry', {
+    id: 'florida-depth-contour-lines', type: 'line', source: 'florida-depth-contours', minzoom: 11,
+    layout: { visibility: 'none' },
+    paint: { 'line-color': '#174f77', 'line-opacity': 0.78, 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.7, 15, 1.25] },
+  }, L);
 
   // ---------- weather radar ----------
   sources.radar = { type: 'raster', tiles: [RADAR_TILES], tileSize: 256, attribution: 'NEXRAD via Iowa Environmental Mesonet' };
@@ -173,7 +190,7 @@ export function buildStyle(av: Availability): StyleSpecification {
   sources['habitat-live'] = { ...EMPTY };
   add('habitat', { ...badge('habitat-pts', 'habitat-live', 'habitat'), minzoom: POINT_SYMBOL_MIN_ZOOM.habitat }, L);
   sources['state-boundaries'] = { ...EMPTY };
-  add('state_boundaries', { id: 'state-boundaries-line', type: 'line', source: 'state-boundaries', paint: { 'line-color': '#746f55', 'line-width': 1.4, 'line-opacity': 0.65, 'line-dasharray': [3, 3] } }, L);
+  add('state_boundaries', { id: 'state-boundaries-line', type: 'line', source: 'state-boundaries', filter: ['!=', ['get', 'reference_only'], true], paint: { 'line-color': '#746f55', 'line-width': 1.4, 'line-opacity': 0.65, 'line-dasharray': [3, 3] } }, L);
 
   // ---------- live + curated GeoJSON ----------
   sources.waters = { ...EMPTY };

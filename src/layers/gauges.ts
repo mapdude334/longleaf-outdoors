@@ -7,14 +7,13 @@ import { cachedLive, fetchJSON, sparkline, esc, ago } from '../util';
 import { recentObservation } from '../observation-age';
 
 export type Reading = { code: string; value: number; time: string; unit?: string };
-export type Gauge = { id: string; name: string; coords: [number, number]; readings: Record<string, Reading> };
+export type Gauge = { id: string; name: string; coords: [number, number]; readings: Record<string, Reading>; state?: string };
 
 const CODES = Object.keys(PARAMS);
 const keyQS = USGS_API_KEY ? `&api_key=${encodeURIComponent(USGS_API_KEY)}` : '';
 export let gauges: Gauge[] = [];
-// Bump when the geographic coverage changes so old AL/GA-only device caches
-// cannot keep masking South Carolina stations when the live source is flaky.
-const GAUGE_CACHE_KEY = 'gauges-al-ga-sc-v3';
+// Bump when geographic coverage changes so old device caches cannot mask new states.
+const GAUGE_CACHE_KEY = 'gauges-al-ga-sc-fl-v4';
 
 function mapFeature(g: Gauge, now: number) {
   const times = Object.values(g.readings).map((r) => Date.parse(r.time)).filter(Number.isFinite);
@@ -26,11 +25,11 @@ function mapFeature(g: Gauge, now: number) {
   };
 }
 
-export function setGaugePoints(map: Map, include: (coords: [number, number]) => boolean = () => true) {
+export function setGaugePoints(map: Map, include: (coords: [number, number], state?: string) => boolean = () => true) {
   const source = map.getSource('gauges') as GeoJSONSource | undefined;
   if (!source) return;
   const now = Date.now();
-  source.setData({ type: 'FeatureCollection', features: gauges.filter((g) => include(g.coords)).map((g) => mapFeature(g, now)) });
+  source.setData({ type: 'FeatureCollection', features: gauges.filter((g) => include(g.coords, g.state)).map((g) => mapFeature(g, now)) });
 }
 
 // Verified against USGS monitoring-location metadata; keep station IDs in the expanded record.
@@ -90,8 +89,9 @@ async function fromOgc(): Promise<Gauge[]> {
     for (const f of locations) {
       const id = String(f.properties?.monitoring_location_number ?? f.id ?? '').replace(/^USGS-/, '');
       const state = String(f.properties?.state_code ?? '');
-      if (byId[id] && ['01', '13', '45'].includes(state) && f.properties?.agency_code === 'USGS') {
+      if (byId[id] && ['01', '12', '13', '45'].includes(state) && f.properties?.agency_code === 'USGS') {
         byId[id].name = f.properties.monitoring_location_name || byId[id].name;
+        byId[id].state = ({ '01': 'AL', '12': 'FL', '13': 'GA', '45': 'SC' } as Record<string, string>)[state];
         inScope.add(id);
       }
     }
@@ -104,23 +104,26 @@ async function fromOgc(): Promise<Gauge[]> {
 }
 
 async function fromLegacy(): Promise<Gauge[]> {
-  const url = `${USGS_LEGACY_IV}?format=json&stateCd=al,ga,sc&parameterCd=${CODES.join(',')}&siteStatus=active`;
-  const j = await fetchJSON<any>(url, { timeout: 30000 });
   const byId: Record<string, Gauge> = {};
-  for (const ts of j.value?.timeSeries ?? []) {
-    const si = ts.sourceInfo;
-    const id = si.siteCode[0].value;
-    const gl = si.geoLocation.geogLocation;
-    const g = (byId[id] ??= { id, name: si.siteName, coords: [gl.longitude, gl.latitude], readings: {} });
-    const code = ts.variable.variableCode[0].value;
-    const last = ts.values?.[0]?.value?.at(-1);
-    const nd = ts.variable.noDataValue;
-    const value = Number(last?.value);
-    const time = Date.parse(last?.dateTime);
-    const previous = g.readings[code];
-    if (last && Number.isFinite(value) && value !== nd && Number.isFinite(time)
-      && (!previous || time > Date.parse(previous.time))) {
-      g.readings[code] = { code, value, time: last.dateTime, unit: ts.variable.unit?.unitCode };
+  const stateNames = { al: 'AL', ga: 'GA', sc: 'SC', fl: 'FL' } as const;
+  for (const [stateCode, stateName] of Object.entries(stateNames)) {
+    const url = `${USGS_LEGACY_IV}?format=json&stateCd=${stateCode}&parameterCd=${CODES.join(',')}&siteStatus=active`;
+    const j = await fetchJSON<any>(url, { timeout: 30000 });
+    for (const ts of j.value?.timeSeries ?? []) {
+      const si = ts.sourceInfo;
+      const id = si.siteCode[0].value;
+      const gl = si.geoLocation.geogLocation;
+      const g = (byId[id] ??= { id, name: si.siteName, coords: [gl.longitude, gl.latitude], readings: {}, state: stateName });
+      const code = ts.variable.variableCode[0].value;
+      const last = ts.values?.[0]?.value?.at(-1);
+      const nd = ts.variable.noDataValue;
+      const value = Number(last?.value);
+      const time = Date.parse(last?.dateTime);
+      const previous = g.readings[code];
+      if (last && Number.isFinite(value) && value !== nd && Number.isFinite(time)
+        && (!previous || time > Date.parse(previous.time))) {
+        g.readings[code] = { code, value, time: last.dateTime, unit: ts.variable.unit?.unitCode };
+      }
     }
   }
   return Object.values(byId);

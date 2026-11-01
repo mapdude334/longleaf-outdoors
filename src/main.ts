@@ -28,7 +28,7 @@ import { addWpt, deleteTrack, deleteWpt, downloadGpx, getTracks, getWpts, import
 import { renderOffline, renderSavedMaps } from './offline';
 import { $, ago, esc, fmtCoord, store, toast } from './util';
 import { IS_PREVIEW } from './environment';
-import { REGIONS, regionContainsPoint } from './state-regions';
+import { REGIONS, regionContainsPoint, regionContainsWater } from './state-regions';
 
 setWorkerUrl(workerUrl);
 if (IS_PREVIEW) {
@@ -283,18 +283,21 @@ function applyRegionPointVisibility(force = false) {
   const region = activeMapRegion();
   if (!force && regionalPointScope === region.id) return;
   regionalPointScope = region.id;
-  const include = (coords: readonly [number, number]) => regionContainsPoint(region, coords);
+  const include = (coords: readonly [number, number], state?: string) => regionContainsPoint(region, coords, state);
   const setPoints = (sourceId: string, features: any[]) => {
     const source = map.getSource(sourceId) as GeoJSONSource | undefined;
     if (!source) return;
     source.setData({
       type: 'FeatureCollection',
-      features: features.filter((feature) => feature.geometry?.type === 'Point' && include(feature.geometry.coordinates)),
+      features: features.filter((feature) => feature.geometry?.type === 'Point' && include(
+        feature.geometry.coordinates,
+        feature.properties?.point_state ?? feature.properties?.state ?? feature.properties?.state_code,
+      )),
     });
   };
   setPoints('waters', waters.filter((water) => water.center).map((water) => ({
     type: 'Feature', geometry: { type: 'Point', coordinates: water.center },
-    properties: { id: water.id, name: water.name.replace(/\s*\(.*\)/, ''), nhd: water.id.startsWith('nhd-'), priority: water.id.startsWith('water-') || water.id.startsWith('nhd-') ? 1 : 0 },
+    properties: { id: water.id, name: water.name.replace(/\s*\(.*\)/, ''), state: water.state, nhd: water.id.startsWith('nhd-'), priority: water.id.startsWith('water-') || water.id.startsWith('nhd-') ? 1 : 0 },
   })));
   setPoints('dams', dams.map((dam) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: dam.coords }, properties: { id: dam.id, name: dam.name } })));
   setGaugePoints(map, include);
@@ -535,17 +538,17 @@ function openSpecies(label: string, back: () => void, state?: string, waterId?: 
 const OVERLAY_ROWS: [string, string, string?][] = [
   ['public_lands', 'Public lands (PAD-US)', 'WMAs, national/state forests & parks, USACE lands, easements'],
   ['access', 'Boat ramps & access', 'Ramps, piers, paddle launches, marinas, campgrounds'],
-  ['fish_structures', 'Fish attractors & reefs', 'AL/GA/SC agency freshwater structures and coastal reefs · zoom 11+'],
+  ['fish_structures', 'Fish attractors & reefs', 'AL/GA/SC and Northwest Florida agency freshwater structures and coastal reefs · zoom 11+'],
   ['habitat', 'Aquatic habitat surveys', 'Georgia DNR historical vegetation records · zoom 11+'],
   ['state_boundaries', 'State boundaries', 'Census generalized outlines; offshore sites may lie beyond state borders'],
-  ['restrooms', 'Public restrooms', 'AL/GA/SC agency facility reports and regional OSM points · zoom 10+'],
+  ['restrooms', 'Public restrooms', 'AL/GA/SC and Northwest Florida agency facility reports plus regional OSM points · zoom 10+'],
   ['waters', 'Lake & river fishing info', 'Species and notes for major waters'],
   ['gauges', 'Live river gauges & lake levels', 'USGS flow, stage, elevation, water temp'],
   ['dams', 'Dams & release schedules', 'Georgia Power, Alabama Power, USACE'],
   ['water', 'Lakes & streams (NHD)'],
   ['parcels', 'Property parcels', 'Lee Co. AL, Muscogee Co. GA (zoom 13+)'],
   ['contours', 'Contour lines (ft)', 'Zoom 11+'],
-  ['bathymetry', 'Underwater depths & contours (Alabama PFLs)', 'ADCNR-mapped public fishing lakes only · zoom 10+'],
+  ['bathymetry', 'Underwater depths & contours', 'Alabama PFLs plus FWC Lake Jackson and Hurricane Lake in Florida · zoom 10+'],
   ['hillshade', 'Hillshade'],
   ['radar', 'Weather radar', 'Live NEXRAD'],
   ['mine', 'My waypoints & tracks'],
@@ -591,6 +594,7 @@ function renderLayers() {
       <div>${symbolHtml('dam')}Dam / release information</div><div>${symbolHtml('spot')}My fishing spot · amber outline = selected location</div>
       <div>${symbolHtml('structure')}Fish attractor / artificial reef</div><div>${symbolHtml('habitat')}Aquatic habitat survey · historical vegetation record</div><div>${symbolHtml('restroom')}Public restroom · facility-level reports may be approximate</div>
       <div style="margin-top:.5rem"><b>Underwater depths · Alabama public fishing lakes</b><br>Depth bands are 1-foot intervals; contours are 1-foot minor and 5-foot major. Only mapped ADCNR lakes are covered. Source: <a href="https://www.outdooralabama.com/where-freshwater-fish/state-public-fishing-lakes" target="_blank" rel="noopener">Outdoor Alabama ↗</a>. Survey age and coverage vary; planning aid, not navigation.</div>
+      <div style="margin-top:.5rem"><b>Underwater depths · Florida Panhandle</b><br>Depth bands (ft): <span class="sw" style="background:#a4cce1"></span>0–4 <span class="sw" style="background:#81b6d4"></span>5–9 <span class="sw" style="background:#5a9dc3"></span>10–19 <span class="sw" style="background:#367fa9"></span>20–29 <span class="sw" style="background:#205e87"></span>30+; contours are in feet. FWC sonar-derived data currently cover Lake Jackson and Hurricane Lake only. Survey date and vertical reference are not consistently supplied; planning aid, not navigation. <a href="https://ocean.floridamarine.org/arcgis/rest/services/Projects_FWC/WhatsHappeningOnMyLake/MapServer/31" target="_blank" rel="noopener">FWC bathymetry source ↗</a></div>
       <p class="muted small">Layer switches control what is shown. Access icons appear from zoom 9 and labels from zoom 12. Icons may be hidden where crowded; zoom in to separate them. Some layers appear only when zoomed in; live layers need a connection unless cached.</p>
     </details>
     <p class="muted small">Data: ${esc(dataStatus || 'loading…')}<br>
@@ -904,25 +908,26 @@ q.oninput = () => {
   const s = q.value.trim().toLowerCase();
   if (s.length < 2) { results.hidden = true; return; }
   const hits: Hit[] = [];
+  const region = activeMapRegion();
   const m = s.match(/^\s*(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)\s*$/);
   if (m) {
     let [a, b] = [Number(m[1]), Number(m[2])];
     if (Math.abs(a) > 60) [a, b] = [b, a]; // accept lon,lat too
     hits.push({ label: `Go to ${a}, ${b}`, sub: 'Coordinates', center: [b, a], zoom: 14 });
   }
-  for (const w of waters) if (w.name.toLowerCase().includes(s) || w.species.some((x) => x.name.toLowerCase().includes(s))) hits.push({ label: w.name, sub: 'Water · ' + w.species.slice(0, 3).map((x) => x.name).join(', '), center: w.center ?? map.getCenter().toArray() as [number, number], zoom: 11, open: () => { selectDestination(w.id); resumeHomeCleanView(); applyRegionPointVisibility(true); showTab('destination'); } });
-  const region = activeMapRegion();
+  for (const w of waters) if (regionContainsWater(region, w) && (w.name.toLowerCase().includes(s) || w.species.some((x) => x.name.toLowerCase().includes(s)))) hits.push({ label: w.name, sub: 'Water · ' + w.species.slice(0, 3).map((x) => x.name).join(', '), center: w.center ?? map.getCenter().toArray() as [number, number], zoom: 11, open: () => { selectDestination(w.id); resumeHomeCleanView(); applyRegionPointVisibility(true); showTab('destination'); } });
   for (const d of dams) if (regionContainsPoint(region, d.coords) && d.name.toLowerCase().includes(s)) hits.push({ label: d.name, sub: 'Dam · ' + d.operator, center: d.coords, zoom: 13, open: () => showInfo(damHtml(d), (r) => fillCwms(r, d)) });
-  for (const g of gauges) if (regionContainsPoint(region, g.coords) && (g.name.toLowerCase().includes(s) || g.id.includes(s))) hits.push({ label: g.name, sub: 'USGS gauge ' + g.id, center: g.coords, zoom: 13, open: () => showInfo(gaugeHtml(g), (r) => fillTrend(r, g)) });
-  for (const f of fishStructures) if (regionContainsPoint(region, f.geometry.coordinates as [number, number]) && [f.properties.name, f.properties.waterbody, f.properties.structure].some((v) => String(v ?? '').toLowerCase().includes(s))) hits.push({ label: String(f.properties.name || 'Fish attractor'), sub: `${f.properties.waterbody || 'Fish structure'} · ${f.properties.data_source || 'agency data'}`, center: f.geometry.coordinates as [number, number], zoom: 14, open: () => showInfo(fishStructureHtml(f.properties, f.geometry.coordinates as [number, number])) });
-  for (const f of habitats) if (regionContainsPoint(region, f.geometry.coordinates as [number, number]) && [f.properties.name, f.properties.waterbody, f.properties.habitat_type].some((v) => String(v ?? '').toLowerCase().includes(s))) hits.push({ label: String(f.properties.name), sub: `Habitat survey · ${f.properties.observed_at || 'date not supplied'}`, center: f.geometry.coordinates as [number, number], zoom: 14, open: () => showInfo(habitatHtml(f.properties, f.geometry.coordinates as [number, number])) });
-  for (const f of restrooms) if (regionContainsPoint(region, f.geometry.coordinates as [number, number]) && !['public restroom', 'restroom reported at recreation facility'].includes(String(f.properties.name || '').toLowerCase()) && String(f.properties.name || '').toLowerCase().includes(s)) hits.push({ label: String(f.properties.name), sub: `Restroom · ${f.properties.facility || 'recreation facility'}`, center: f.geometry.coordinates as [number, number], zoom: 15, open: () => showInfo(restroomHtml(f.properties)) });
+  for (const g of gauges) if (regionContainsPoint(region, g.coords, g.state) && (g.name.toLowerCase().includes(s) || g.id.includes(s))) hits.push({ label: g.name, sub: 'USGS gauge ' + g.id, center: g.coords, zoom: 13, open: () => showInfo(gaugeHtml(g), (r) => fillTrend(r, g)) });
+  for (const f of fishStructures) if (regionContainsPoint(region, f.geometry.coordinates as [number, number], f.properties.point_state ?? f.properties.state) && [f.properties.name, f.properties.waterbody, f.properties.structure].some((v) => String(v ?? '').toLowerCase().includes(s))) hits.push({ label: String(f.properties.name || 'Fish attractor'), sub: `${f.properties.waterbody || 'Fish structure'} · ${f.properties.data_source || 'agency data'}`, center: f.geometry.coordinates as [number, number], zoom: 14, open: () => showInfo(fishStructureHtml(f.properties, f.geometry.coordinates as [number, number])) });
+  for (const f of habitats) if (regionContainsPoint(region, f.geometry.coordinates as [number, number], f.properties.point_state ?? f.properties.state) && [f.properties.name, f.properties.waterbody, f.properties.habitat_type].some((v) => String(v ?? '').toLowerCase().includes(s))) hits.push({ label: String(f.properties.name), sub: `Habitat survey · ${f.properties.observed_at || 'date not supplied'}`, center: f.geometry.coordinates as [number, number], zoom: 14, open: () => showInfo(habitatHtml(f.properties, f.geometry.coordinates as [number, number])) });
+  for (const f of restrooms) if (regionContainsPoint(region, f.geometry.coordinates as [number, number], f.properties.point_state ?? f.properties.state) && !['public restroom', 'restroom reported at recreation facility'].includes(String(f.properties.name || '').toLowerCase()) && String(f.properties.name || '').toLowerCase().includes(s)) hits.push({ label: String(f.properties.name), sub: `Restroom · ${f.properties.facility || 'recreation facility'}`, center: f.geometry.coordinates as [number, number], zoom: 15, open: () => showInfo(restroomHtml(f.properties)) });
   for (const p of getWpts()) if (p.name.toLowerCase().includes(s)) hits.push({ label: p.name, sub: 'My waypoint', center: [p.lng, p.lat], zoom: 15, open: () => editWpt(p.id) });
   const accessSrc = av.overlays ? map.querySourceFeatures('overlays', { sourceLayer: 'access' }) : map.querySourceFeatures('access-live');
   const seen = new Set<string>();
   for (const f of accessSrc) {
     const n = String(f.properties.name ?? '');
-    if (n && n.toLowerCase().includes(s) && !seen.has(n)) { seen.add(n); hits.push({ label: n, sub: ACCESS_LABELS[f.properties.kind] ?? 'Access', center: (f.geometry as { coordinates: number[] }).coordinates as [number, number], zoom: 15 }); }
+    const coords = (f.geometry as { coordinates: number[] }).coordinates as [number, number];
+    if (n && regionContainsPoint(region, coords, f.properties.point_state ?? f.properties.state) && n.toLowerCase().includes(s) && !seen.has(n)) { seen.add(n); hits.push({ label: n, sub: ACCESS_LABELS[f.properties.kind] ?? 'Access', center: coords, zoom: 15 }); }
   }
   results.innerHTML = hits.slice(0, 12).map((h, i) => `<li data-i="${i}"><b>${esc(h.label)}</b><br><span class="muted small">${esc(h.sub)}</span></li>`).join('') || '<li class="muted">No matches</li>';
   results.hidden = false;

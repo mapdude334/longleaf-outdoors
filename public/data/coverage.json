@@ -1,7 +1,7 @@
 {
   "offline_packs": "Existing regional archives are unchanged. Online maps and catalog points extend beyond them. Save map areas separately for expanded geography.",
-  "updated": "2026-11-01T02:49:53Z",
-  "scope": "Alabama and Georgia statewide agency catalogs, plus selected South Carolina agency catalogs; records are source-limited and not an exhaustive inventory. Adjacent coastal and offshore sources are included where documented.",
+  "updated": "2026-11-01T05:30:23Z",
+  "scope": "Alabama and Georgia statewide agency catalogs, plus selected South Carolina agency catalogs; records are source-limited and not an exhaustive inventory. Adjacent coastal and offshore sources are included where documented.; Florida is partial coverage limited to FWC Northwest Region destinations and verified public data; no statewide Florida completeness claim.; Florida is partial coverage limited to FWC Northwest Region destinations and verified public data; no statewide Florida completeness claim.; Florida is partial coverage limited to FWC Northwest Region destinations and verified public data; no statewide Florida completeness claim.",
   "sources": {
     "al_access": {
       "source_count": 134,
@@ -117,15 +117,83 @@
       "note": "County refers to the representative destination point; waterbodies can cross county boundaries.",
       "unlocated_destination_count": 2,
       "county_not_applicable_count": 1
+    },
+    "florida_nw_waterbodies": {
+      "record_count": 18,
+      "url": "https://ocean.floridamarine.org/arcgis/rest/services/Projects_FWC/WhatsHappeningOnMyLake/MapServer/2",
+      "agency": "Florida Fish and Wildlife Conservation Commission",
+      "region": "FWC Northwest Region; 16 counties",
+      "source_updated": null,
+      "note": "FWC regional fishing destinations and linked forecast pages; a representative point does not establish public access or a surveyed shoreline.",
+      "reuse_terms_reviewed": false
+    },
+    "florida_nw_access": {
+      "source_count": 611,
+      "accepted": 485,
+      "url": "https://ocean.floridamarine.org/arcgis/rest/services/Projects_FWC/WhatsHappeningOnMyLake/MapServer/1",
+      "destination_linked": 112,
+      "agency": "Florida Fish and Wildlife Conservation Commission",
+      "source_updated": null,
+      "filter": "Northwest counties; status Open for Business; VerificationStatus Verified; point in Census county geometry.",
+      "note": "FWC status and verification do not guarantee current hours, fees, conditions, or access; confirm before travel.",
+      "reuse_terms_reviewed": false
+    },
+    "florida_nw_attractors": {
+      "source_count": 47,
+      "accepted": 47,
+      "destination_linked": 43,
+      "url": "https://ocean.floridamarine.org/arcgis/rest/services/Projects_FWC/WhatsHappeningOnMyLake/MapServer/11",
+      "agency": "Florida Fish and Wildlife Conservation Commission",
+      "source_updated": null,
+      "note": "NW-region reported freshwater fish-attractor sites; not current sonar, depth, or navigation data.",
+      "reuse_terms_reviewed": false
+    },
+    "florida_nw_restrooms": {
+      "accepted": 442,
+      "destination_linked": 108,
+      "url": "https://ocean.floridamarine.org/arcgis/rest/services/Projects_FWC/WhatsHappeningOnMyLake/MapServer/1",
+      "agency": "Florida Fish and Wildlife Conservation Commission",
+      "source_updated": null,
+      "note": "Facility-level restroom type at boat-ramp point; restroom may be nearby rather than exactly at the point.",
+      "reuse_terms_reviewed": false
+    },
+    "florida_nw_species_surveys": {
+      "source_records": 26486,
+      "url": "https://ocean.floridamarine.org/arcgis/rest/services/Projects_FWC/WhatsHappeningOnMyLake/MapServer/38",
+      "agency": "Florida Fish and Wildlife Conservation Commission",
+      "source_updated": null,
+      "filter": "FWC community fish records since 2016, mapped only to existing Longleaf sport-fish profiles.",
+      "note": "Survey presence is not a current population estimate, catch rate, or forecast.",
+      "reuse_terms_reviewed": false
+    },
+    "florida_nw_bathymetry": {
+      "polygon_count": 692,
+      "contour_count": 130,
+      "waterbodies": [
+        "Hurricane Lake",
+        "Lake Jackson"
+      ],
+      "polygon_url": "https://ocean.floridamarine.org/arcgis/rest/services/Projects_FWC/WhatsHappeningOnMyLake/MapServer/31",
+      "contour_url": "https://ocean.floridamarine.org/arcgis/rest/services/Projects_FWC/WhatsHappeningOnMyLake/MapServer/30",
+      "agency": "Florida Fish and Wildlife Conservation Commission",
+      "note": "Sonar readings logged during FWC Long Term Monitoring vegetation-mapping operations; only Lake Jackson and Hurricane Lake are covered in this pilot. Survey date and vertical reference are not supplied consistently; not navigation.",
+      "reuse_terms_reviewed": false
+    },
+    "florida_state_boundary": {
+      "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0",
+      "agency": "U.S. Census Bureau TIGERweb",
+      "state": "FL",
+      "retrieved_at": "2026-11-01T05:30:23Z",
+      "note": "Generalized reference outline; used for display/context, not legal jurisdiction."
     }
   },
   "counts": {
-    "access": 2820,
-    "fish-structures": 5289,
-    "restrooms": 886,
+    "access": 3305,
+    "fish-structures": 5336,
+    "restrooms": 1328,
     "habitat": 7660,
-    "state-boundaries": 3,
-    "waters": 784
+    "state-boundaries": 4,
+    "waters": 802
   },
   "state_counts": {
     "GA": {
@@ -150,6 +218,13 @@
       "habitat": 257,
       "state-boundaries": 1,
       "waters": 292
+    },
+    "FL": {
+      "access": 485,
+      "fish-structures": 47,
+      "restrooms": 442,
+      "state-boundaries": 1,
+      "waters": 18
     }
   }
 }
