@@ -3,6 +3,7 @@ import type { GeoJSONSource, Map } from 'maplibre-gl';
 import { esc, fetchJSON } from '../util';
 import { normalizePointKinds } from '../symbols';
 import { addPointToTrip, sourceMetadata } from '../data-metadata';
+import { placeTitleCase, waterById, waterDisplayName } from './waters';
 
 export type AnglerFeature = Feature<Point, Record<string, any>>;
 type Catalog = { type: string; updated: string; source?: string; sourceUrl?: string; features: AnglerFeature[] };
@@ -10,6 +11,22 @@ type Catalog = { type: string; updated: string; source?: string; sourceUrl?: str
 export let fishStructures: AnglerFeature[] = [];
 export let restrooms: AnglerFeature[] = [];
 export let habitats: AnglerFeature[] = [];
+
+function pointLocation(p: Record<string, any>, fallback: string) {
+  const place = String(p.waterbody || fallback);
+  const countyValue = String(p.point_county || p.county || '').trim();
+  const county = countyValue
+    ? /\bcounty$/i.test(countyValue) ? placeTitleCase(countyValue) : `${placeTitleCase(countyValue)} County`
+    : '';
+  const state = String(p.point_state || p.state || '').trim();
+  const administrative = [county, state].filter(Boolean).join(', ');
+  return [placeTitleCase(place), administrative].filter(Boolean).join(' · ');
+}
+
+function linkedWaterAction(p: Record<string, any>) {
+  const water = p.waterbody_id ? waterById(String(p.waterbody_id)) : undefined;
+  return water ? `<button class="link" data-open-water="${esc(water.id)}">Open ${esc(waterDisplayName(water))} destination ↗</button>` : '';
+}
 
 async function catalog(path: string): Promise<Catalog> {
   const result = await fetchJSON<Catalog>(`${import.meta.env.BASE_URL}data/${path}`);
@@ -38,14 +55,15 @@ export function fishStructureHtml(p: Record<string, any>, coords?: [number, numb
   const depth = Number(p.depth_ft) > 0 ? `<tr><th>Reported depth</th><td>${Number(p.depth_ft).toLocaleString()} ft</td></tr>` : p.reported_depth ? `<tr><th>Source depth entry</th><td>${esc(p.reported_depth)} · ${esc(p.depth_unit)}</td></tr>` : '';
   const note = p.source_note || 'Structure records mark reported installation locations, not live sonar, water depth, or a guarantee the structure remains intact. Check current water level and navigation hazards.';
   return `<h3>${esc(p.name || 'Fish attractor / structure')}</h3>
-    <p>${esc(p.waterbody || 'Regional water')} · ${esc(p.structure || 'Fish-attractor structure')}</p>
+    <p>${esc(pointLocation(p, 'Regional water'))} · ${esc(p.structure || 'Fish-attractor structure')}</p>
+    ${linkedWaterAction(p)}
     <table class="props">${installed}${quantity}${depth}<tr><th>Data source</th><td>${esc(p.data_source || 'Agency data')}</td></tr></table>
     <p class="muted small">${esc(note)}</p>
     ${sourceMetadata(p)}${addPointToTrip(p, coords)}`;
 }
 
 export function habitatHtml(p: Record<string, any>, coords?: [number, number]) {
-  return `<h3>${esc(p.name || 'Aquatic habitat survey')}</h3><p>${esc(p.waterbody || 'Agency survey location')}</p><table class="props"><tr><th>Habitat record</th><td>${esc(p.habitat_type)}</td></tr>${p.observed_at ? `<tr><th>Observed</th><td>${esc(p.observed_at)}</td></tr>` : ''}${p.origin ? `<tr><th>Plant origin</th><td>${esc(p.origin)}</td></tr>` : ''}</table>${p.description ? `<p>${esc(p.description)}</p>` : ''}<p class="muted small">${esc(p.source_note)}</p>${sourceMetadata(p)}${addPointToTrip(p, coords)}`;
+  return `<h3>${esc(p.name || 'Aquatic habitat survey')}</h3><p>${esc(pointLocation(p, 'Agency survey location'))}</p>${linkedWaterAction(p)}<table class="props"><tr><th>Habitat record</th><td>${esc(p.habitat_type)}</td></tr>${p.observed_at ? `<tr><th>Observed</th><td>${esc(p.observed_at)}</td></tr>` : ''}${p.origin ? `<tr><th>Plant origin</th><td>${esc(p.origin)}</td></tr>` : ''}</table>${p.description ? `<p>${esc(p.description)}</p>` : ''}<p class="muted small">${esc(p.source_note)}</p>${sourceMetadata(p)}${addPointToTrip(p, coords)}`;
 }
 
 export function restroomHtml(p: Record<string, any>) {
@@ -59,6 +77,8 @@ export function restroomHtml(p: Record<string, any>) {
     : 'This point is mapped as a restroom. Hours, access, and facility conditions can change; verify before relying on it.';
   return `<h3>${esc(p.name || 'Public restroom')}</h3>
     <p>${p.facility ? `${esc(p.facility)} · ` : ''}Restroom reported by ${esc(p.data_source || 'the mapped facility source')}</p>
+    <p>${esc(pointLocation(p, 'Mapped facility'))}</p>
+    ${linkedWaterAction(p)}
     ${rows ? `<table class="props">${rows}</table>` : ''}
     <p class="muted small">${locationNote}</p>
     ${sourceMetadata(p)}`;

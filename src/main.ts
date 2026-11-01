@@ -441,6 +441,9 @@ function showInfo(html: string, after?: (root: HTMLElement) => void) {
   el.querySelectorAll<HTMLButtonElement>('[data-species]').forEach((button) => {
     button.onclick = () => openSpecies(button.dataset.species!, () => showInfo(html, after), button.dataset.state, button.dataset.waterId);
   });
+  el.querySelectorAll<HTMLButtonElement>('[data-open-water]').forEach((button) => {
+    button.onclick = () => openTripDestination(button.dataset.openWater!);
+  });
 }
 
 function handleIncomingShare() {

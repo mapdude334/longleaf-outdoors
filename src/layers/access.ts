@@ -6,7 +6,7 @@ import type { Feature, Point } from 'geojson';
 import { AOI, OVERPASS } from '../config';
 import { normalizePointKinds, symbolHtml } from '../symbols';
 import { esc, haversineKm, fetchJSON, store } from '../util';
-import { waters } from './waters';
+import { placeTitleCase, waterById, waterDisplayName, waters } from './waters';
 import { dams } from './dams';
 import { sourceMetadata } from '../data-metadata';
 
@@ -88,21 +88,28 @@ const KEEP = ['name', 'operator', 'maintenance', 'access', 'status', 'public_acc
 /** Describe the mapped position without inventing a facility name or access conditions. */
 export function accessLocation(p: Record<string, any>, coords: [number, number]): string {
   const address = [p['addr:street'], p['addr:city']].filter(Boolean).join(', ');
-  if (address) return address;
-  if (p.waterbody) return [p.waterbody, p.county ? `${p.county} County` : '', p.state].filter(Boolean).join(' · ');
+  const countyValue = String(p.point_county || p.county || '').trim();
+  const county = countyValue
+    ? /\bcounty$/i.test(countyValue) ? placeTitleCase(countyValue) : `${placeTitleCase(countyValue)} County`
+    : '';
+  const state = String(p.point_state || p.state || '').trim();
+  const administrative = [county, state].filter(Boolean).join(', ');
+  const withAdministrative = (place: string) => [place, administrative].filter(Boolean).join(' · ');
+  if (address) return withAdministrative(address);
+  if (p.waterbody) return withAdministrative(placeTitleCase(String(p.waterbody)));
   const anchors = [
     ...dams.map((d) => ({ name: d.name, coords: d.coords })),
     ...waters.flatMap((w) => w.center ? [{ name: `${w.name} (mapped center)`, coords: w.center }] : []),
   ].map((a) => ({ ...a, distance: haversineKm(coords, a.coords) })).sort((a, b) => a.distance - b.distance);
   const anchor = anchors[0];
   if (!anchor) return `${coords[1].toFixed(4)}° N, ${Math.abs(coords[0]).toFixed(4)}° W`;
-  if (anchor.distance < 0.16) return `Near ${anchor.name}`;
+  if (anchor.distance < 0.16) return withAdministrative(`Near ${anchor.name}`);
   const radians = Math.PI / 180;
   const lat1 = anchor.coords[1] * radians, lat2 = coords[1] * radians;
   const delta = (coords[0] - anchor.coords[0]) * radians;
   const bearing = (Math.atan2(Math.sin(delta) * Math.cos(lat2), Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(delta)) / radians + 360) % 360;
   const direction = ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'][Math.round(bearing / 45) % 8];
-  return `${(anchor.distance / 1.609344).toFixed(1)} mi ${direction} of ${anchor.name} · straight-line distance`;
+  return withAdministrative(`${(anchor.distance / 1.609344).toFixed(1)} mi ${direction} of ${anchor.name} · straight-line distance`);
 }
 function pick(t: Record<string, string>) {
   return Object.fromEntries(Object.entries(t).filter(([k]) => KEEP.includes(k)));
@@ -112,9 +119,12 @@ export function accessHtml(p: Record<string, any>, coords: [number, number]): st
   const k = p.kind ?? 'other';
   const rows = KEEP.filter((key) => key !== 'name' && p[key]).map((key) => `<tr><th>${esc(key.replace('_', ' '))}</th><td>${esc(p[key])}</td></tr>`).join('');
   const nav = `https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}`;
+  const water = p.waterbody_id ? waterById(String(p.waterbody_id)) : undefined;
+  const waterAction = water ? `<button class="link" data-open-water="${esc(water.id)}">Open ${esc(waterDisplayName(water))} details ↗</button>` : '';
   return `<h3>${esc(p.name ?? ACCESS_LABELS[k])}</h3>
   <p>${symbolHtml(k)}${esc(ACCESS_LABELS[k])}</p>
   <p>${esc(accessLocation(p, coords))}</p>
+  ${waterAction}
   <p class="muted small">${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}</p>
   ${['boat_ramp', 'paddle_launch'].includes(k) ? `<button class="btn primary" data-use-launch data-launch-id="${esc(p.osm ?? p.record_id ?? coords.join(','))}" data-launch-name="${esc(p.name || ACCESS_LABELS[k])}" data-launch-lng="${coords[0]}" data-launch-lat="${coords[1]}" ${/closed|decommissioned/i.test(String(p.status ?? '')) ? 'disabled title="Agency lists this facility as closed"' : ''}>Use as my launch</button>` : ''}
   ${k === 'fishing' ? `<button class="btn primary" data-use-spot data-launch-id="${esc(p.osm ?? coords.join(','))}" data-launch-name="${esc(p.name || ACCESS_LABELS[k])}" data-launch-lng="${coords[0]}" data-launch-lat="${coords[1]}">Add fishing spot to trip</button>` : ''}
