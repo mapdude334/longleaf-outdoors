@@ -60,6 +60,15 @@
 .water-record-status { display: block; padding: 10px 12px; margin: 12px 0; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 8px; background: var(--chip); color: var(--fg); font-size: 12px; line-height: 1.45; }
 .water-record-status b, .water-record-status span { display: block; }
 .water-record-status span { margin-top: 4px; color: var(--muted); }
+.data-provenance { margin: 12px 0; border-top: 1px solid var(--line); padding-top: 10px; font-size: 12px; line-height: 1.45; }
+.data-provenance > summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.data-provenance[open] > summary { margin-bottom: 8px; color: var(--fg); }
+.data-provenance dl { display: grid; gap: 7px; margin: 0; }
+.data-provenance dl > div { display: grid; grid-template-columns: minmax(104px, 0.36fr) minmax(0, 1fr); gap: 8px; }
+.data-provenance dt { color: var(--muted); }
+.data-provenance dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.data-provenance a { color: var(--accent); }
+.data-provenance-water { text-align: left; }
 .destination-hero .water-record-status { border-color: rgba(225, 236, 230, .35); border-left-color: #d7e4c7; background: rgba(9, 34, 34, .26); color: #f2f5ea; }
 .destination-hero .water-record-status span { color: #e1ece6; }
 .destination-card summary { cursor: pointer; font-weight: 600; line-height: 1.5; }

@@ -13,7 +13,10 @@ export let restrooms: AnglerFeature[] = [];
 export let habitats: AnglerFeature[] = [];
 
 function pointLocation(p: Record<string, any>, fallback: string) {
-  const place = String(p.waterbody || fallback);
+  const linkedWater = p.waterbody_id ? waterById(String(p.waterbody_id)) : undefined;
+  // Use the canonical destination name whenever the point is linked. Source labels
+  // can be abbreviated or differ from the destination shown by the map and search.
+  const place = linkedWater ? waterDisplayName(linkedWater) : String(p.waterbody || fallback);
   const countyValue = String(p.point_county || p.county || '').trim();
   const county = countyValue
     ? /\bcounty$/i.test(countyValue) ? placeTitleCase(countyValue) : `${placeTitleCase(countyValue)} County`
@@ -25,7 +28,7 @@ function pointLocation(p: Record<string, any>, fallback: string) {
 
 function linkedWaterAction(p: Record<string, any>) {
   const water = p.waterbody_id ? waterById(String(p.waterbody_id)) : undefined;
-  return water ? `<button class="link" data-open-water="${esc(water.id)}">Open ${esc(waterDisplayName(water))} destination ↗</button>` : '';
+  return water ? `<button class="link" data-open-water="${esc(water.id)}">Associated water · Open ${esc(waterDisplayName(water))} ↗</button>` : '';
 }
 
 async function catalog(path: string): Promise<Catalog> {

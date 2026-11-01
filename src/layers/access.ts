@@ -96,6 +96,8 @@ export function accessLocation(p: Record<string, any>, coords: [number, number])
   const administrative = [county, state].filter(Boolean).join(', ');
   const withAdministrative = (place: string) => [place, administrative].filter(Boolean).join(' · ');
   if (address) return withAdministrative(address);
+  const linkedWater = p.waterbody_id ? waterById(String(p.waterbody_id)) : undefined;
+  if (linkedWater) return withAdministrative(waterDisplayName(linkedWater));
   if (p.waterbody) return withAdministrative(placeTitleCase(String(p.waterbody)));
   const anchors = [
     ...dams.map((d) => ({ name: d.name, coords: d.coords })),
@@ -120,7 +122,7 @@ export function accessHtml(p: Record<string, any>, coords: [number, number]): st
   const rows = KEEP.filter((key) => key !== 'name' && p[key]).map((key) => `<tr><th>${esc(key.replace('_', ' '))}</th><td>${esc(p[key])}</td></tr>`).join('');
   const nav = `https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}`;
   const water = p.waterbody_id ? waterById(String(p.waterbody_id)) : undefined;
-  const waterAction = water ? `<button class="link" data-open-water="${esc(water.id)}">Open ${esc(waterDisplayName(water))} details ↗</button>` : '';
+  const waterAction = water ? `<button class="link" data-open-water="${esc(water.id)}">Associated water · Open ${esc(waterDisplayName(water))} ↗</button>` : '';
   return `<h3>${esc(p.name ?? ACCESS_LABELS[k])}</h3>
   <p>${symbolHtml(k)}${esc(ACCESS_LABELS[k])}</p>
   <p>${esc(accessLocation(p, coords))}</p>
