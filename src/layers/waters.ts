@@ -15,6 +15,7 @@ export type Water = {
   species_note?: string;
   location_label?: string;
   county?: string;
+  county_source?: { label: string; url: string; method: string };
 };
 export type WaterRecordKind = 'public-fishing-lake' | 'agency-access-data' | 'fishing-info' | 'agency-waterbody' | 'nhd-reference' | 'other-water';
 export type WaterRecordStatus = { kind: WaterRecordKind; label: string; detail: string };
@@ -134,6 +135,12 @@ export function waterAdministrativeLabel(w: Pick<Water, 'county' | 'location_lab
   return `${county ? `${county} · ` : ''}${w.state}`;
 }
 
+export function waterCountySourceHtml(w: Pick<Water, 'county_source'>): string {
+  const source = w.county_source;
+  if (!source) return '';
+  return `<p class="muted small">${esc(source.method)} <a href="${esc(source.url)}" target="_blank" rel="noopener">${esc(source.label)} ↗</a></p>`;
+}
+
 /** Describe what a water record actually establishes, without treating a map feature as open fishing access. */
 export function waterRecordStatus(w: Pick<Water, 'id' | 'species' | 'catalog_sources'>): WaterRecordStatus {
   const sources = (w.catalog_sources ?? []).map((source) => `${source.label} ${source.url}`.toLocaleLowerCase());
@@ -177,6 +184,7 @@ export function waterHtml(w: Water, nhd?: Record<string, unknown>): string {
   <p class="muted">${acres}${esc(w.river ? w.river + ' basin · ' : '')}${esc(location)}${w.manager ? ' · ' + esc(w.manager) : ''}</p>
   <div class="water-record-status" data-record-kind="${status.kind}"><b>${esc(status.label)}</b><span>${esc(status.detail)}</span></div>
   ${w.location_note ? `<p class="muted small">${esc(w.location_note)}</p>` : ''}
+  ${waterCountySourceHtml(w)}
   <h4>Species</h4>
   <div class="chips">${w.species.map((s) => `<button class="chip species-chip" data-species="${esc(s.name)}" data-state="${esc(w.state)}" data-water-id="${esc(w.id)}" aria-label="Learn about ${esc(s.name)} at ${esc(w.name)}">${esc(s.name)} ↗</button>`).join('')}</div>
   ${w.notes ? `<p>${esc(w.notes)}</p>` : ''}

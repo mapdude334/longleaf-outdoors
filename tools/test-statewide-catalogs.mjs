@@ -58,6 +58,19 @@ for (const catalog of ['access', 'fish-structures', 'restrooms', 'habitat']) {
 }
 const waters = (await json('waters')).waters;
 const dams = (await json('dams')).dams;
+const alLinkedWaters = waters.filter((water) => String(water.state).split(/[\/,;]/).map((code) => code.trim().toUpperCase()).includes('AL'));
+const alLinkedWithCounty = alLinkedWaters.filter((water) => water.county_source);
+const offshoreAlabamaReefs = waters.filter((water) => water.id === 'water-alabama-gulf-public-reefs');
+assert.equal(alLinkedWaters.length, 65, 'Alabama-linked curated destinations must retain their catalog total');
+assert.equal(alLinkedWithCounty.length, 62, 'Every mapped Alabama-linked destination with a land county must have the new county label');
+assert.ok(alLinkedWithCounty.every((water) => water.county && water.county_source.url.includes('cb_2025_us_county_500k.zip') && water.county_source.method.includes('representative map point')), 'Alabama county labels must have visible Census provenance and point-level scope');
+assert.equal(alLinkedWaters.filter((water) => !water.center).length, 2, 'Unlocated Alabama destinations must remain unlocated rather than receive guessed counties');
+assert.equal(offshoreAlabamaReefs.length, 1, 'The offshore Alabama reef destination must remain in the catalog');
+assert.ok(!offshoreAlabamaReefs[0].county && !offshoreAlabamaReefs[0].county_source, 'Offshore reef references must not be assigned a land county');
+assert.equal(waters.filter((water) => water.county_source && !String(water.state).split(/[\/,;]/).map((code) => code.trim().toUpperCase()).includes('AL')).length, 0, 'The Alabama county enrichment must not modify other states');
+const countyManifest = coverageManifest.sources.al_destination_counties;
+assert.equal(countyManifest?.record_count, 62, 'Coverage metadata must report the Alabama county enrichment');
+assert.ok(countyManifest?.method?.includes('representative map point') && countyManifest?.url.includes('cb_2025_us_county_500k.zip'), 'County coverage metadata must document source and method');
 const scDams = dams.filter((dam) => ['hartwell-dam', 'russell-dam', 'thurmond-dam', 'saluda-dam', 'santee-dam', 'pinopolis-dam'].includes(dam.id));
 assert.equal(scDams.length, 6, 'South Carolina major dam records are incomplete');
 assert.ok(scDams.every((dam) => dam.coords[0] >= MAP_BOUNDS[0][0] && dam.coords[0] <= MAP_BOUNDS[1][0] && dam.coords[1] >= MAP_BOUNDS[0][1] && dam.coords[1] <= MAP_BOUNDS[1][1] && dam.links.length), 'South Carolina dam points must be mappable and sourced');
