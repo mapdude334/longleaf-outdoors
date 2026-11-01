@@ -653,7 +653,10 @@ def main():
             "note": "Generalized reference outline; used for display/context, not legal jurisdiction.",
         },
     }
-    scope = (old_products["coverage"].get("scope", "") + "; Florida is partial coverage limited to FWC Northwest Region destinations and verified public data; no statewide Florida completeness claim.").strip(" ;")
+    florida_scope = "Florida is partial coverage limited to FWC Northwest Region destinations and verified public data; no statewide Florida completeness claim."
+    scope_base = re.sub(r"(?:;\s*)?Florida is partial coverage limited to FWC Northwest Region destinations and verified public data; no statewide Florida completeness claim\.?", "", str(old_products["coverage"].get("scope", "")))
+    scope_base = re.sub(r"\s*;\s*$", "", scope_base).strip()
+    scope = "; ".join(part for part in (scope_base, florida_scope) if part)
     coverage = build_coverage_manifest(products, old_products["coverage"], updated=NOW, scope=scope, source_updates=coverage_source_updates)
     write(CANDIDATE / "coverage.json", coverage, pretty=True)
     write(CANDIDATE / "report.json", {

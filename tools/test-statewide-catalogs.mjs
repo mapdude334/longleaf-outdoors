@@ -25,6 +25,7 @@ assert.deepEqual(coverageManifest.counts, expectedCounts, 'Coverage manifest tot
 assert.deepEqual(coverageManifest.state_counts, expectedStateCounts, 'Per-state coverage must match packaged feature state fields');
 assert.match(coverageManifest.scope, /South Carolina/i, 'Coverage scope must acknowledge the current SC pilot');
 assert.match(coverageManifest.scope, /Florida is partial coverage limited to FWC Northwest Region/i, 'Coverage must not imply statewide Florida completeness');
+assert.equal((coverageManifest.scope.match(/Florida is partial coverage limited to FWC Northwest Region/g) ?? []).length, 1, 'Florida coverage scope must not accumulate duplicate notices');
 assert.equal(coverageManifest.sources.sc_access?.reuse_terms_reviewed, false, 'Open South Carolina access-layer reuse review must remain visible');
 assert.equal(coverageManifest.sources.sc_attractors?.reuse_terms_reviewed, false, 'Open South Carolina attractor-layer reuse review must remain visible');
 assert.equal(coverageManifest.sources.florida_nw_access?.accepted, 485, 'Florida access provenance must report only verified, open facilities');
@@ -33,7 +34,12 @@ assert.equal(coverageManifest.sources.florida_nw_attractors?.accepted, 47, 'Flor
 const moduleUrl = (source) => `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source)).toString('base64')}`;
 const configSource = (await readFile(new URL('../src/config.ts', import.meta.url), 'utf8')).replaceAll('import.meta.env', JSON.stringify({ BASE_URL: '/' }));
 const configUrl = moduleUrl(configSource);
-const { AOI, MAP_BOUNDS } = await import(configUrl);
+const { AOI, MAP_BOUNDS, LIVE_BOUNDS } = await import(configUrl);
+const floridaPilotExtent = [[-87.75, 29.35], [-83.5, 31.1]];
+assert.ok(MAP_BOUNDS[0][0] <= floridaPilotExtent[0][0] && MAP_BOUNDS[0][1] <= floridaPilotExtent[0][1]
+  && MAP_BOUNDS[1][0] >= floridaPilotExtent[1][0] && MAP_BOUNDS[1][1] >= floridaPilotExtent[1][1], 'The app-wide map extent must include the complete Northwest Florida pilot');
+assert.ok(LIVE_BOUNDS[0] <= floridaPilotExtent[0][0] && LIVE_BOUNDS[1] <= floridaPilotExtent[0][1]
+  && LIVE_BOUNDS[2] >= floridaPilotExtent[1][0] && LIVE_BOUNDS[3] >= floridaPilotExtent[1][1], 'Live map services must include the complete Northwest Florida pilot');
 const coverage = await import(moduleUrl((await readFile(new URL('../src/coverage.ts', import.meta.url), 'utf8')).replace("'./config'", JSON.stringify(configUrl))));
 const outsideCore = ([x, y]) => x < AOI[0] || x > AOI[2] || y < AOI[1] || y > AOI[3];
 
