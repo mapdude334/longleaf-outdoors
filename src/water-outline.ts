@@ -47,7 +47,8 @@ export function showSelectedWaterOutline(map: Map, water: Water | undefined, onS
   const revision = ++state.revision;
   state.data = EMPTY;
   setMapData(map, EMPTY);
-  setStatus(state, 'Loading mapped shoreline from USGS…');
+  const sourceName = water.outline_source || 'USGS NHD';
+  setStatus(state, `Loading mapped shoreline from ${sourceName}…`);
   const url = waterOutlineQueryUrl(water);
   if (!url) return setStatus(state, 'No mapped shoreline is available for this destination.');
 
@@ -65,7 +66,7 @@ export function showSelectedWaterOutline(map: Map, water: Water | undefined, onS
           let response = await cache.match(queryUrl);
           if (!response) {
             response = await fetch(queryUrl, { signal: AbortSignal.timeout(25000) });
-            if (!response.ok) throw new Error(`USGS returned ${response.status}`);
+            if (!response.ok) throw new Error(`${sourceName} returned ${response.status}`);
             if (Number(response.headers.get('content-length') ?? 0) > 4 * 1024 * 1024) throw new Error('Waterbody outline is too large to cache safely.');
             await cache.put(queryUrl, response.clone());
           }
@@ -81,7 +82,7 @@ export function showSelectedWaterOutline(map: Map, water: Water | undefined, onS
       const data: BoundaryCollection = { type: 'FeatureCollection', features };
       state!.data = data;
       setMapData(map, data);
-      setStatus(state!, 'Approximate mapped shoreline · USGS NHD. Reservoir shorelines can change with water levels.');
+      setStatus(state!, `Approximate mapped shoreline · ${sourceName}. Reservoir shorelines can change with water levels.`);
     } catch {
       if (states.get(map)?.revision !== revision) return;
       setMapData(map, EMPTY);

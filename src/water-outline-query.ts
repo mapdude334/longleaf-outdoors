@@ -5,6 +5,15 @@ const NHD_WATERBODIES = 'https://hydro.nationalmap.gov/arcgis/rest/services/nhd/
 /** Build a bounded USGS NHD request from a destination's official names and approximate local extent. */
 export function waterOutlineQueryUrl(water: Water, usePermanentIdentifiers = true) {
   if (!water.center) return null;
+  if (water.outline_source === 'NC OneMap' && water.onemap_object_ids?.length) {
+    const params = new URLSearchParams({
+      objectIds: water.onemap_object_ids.join(','),
+      outFields: 'objectid,waterbody,stream_nam,riv_basin',
+      returnGeometry: 'true', outSR: '4326', f: 'geojson',
+      maxAllowableOffset: '0.00008', geometryPrecision: '5', resultRecordCount: '100',
+    });
+    return `https://services.nconemap.gov/secure/rest/services/NC1Map_Hydrography/FeatureServer/2/query?${params.toString()}`;
+  }
   const [lng, lat] = water.center;
   const acreageRadiusKm = Math.sqrt(Math.max(1, water.acres ?? 5000) * 0.00404686 / Math.PI) * 2.4;
   let radiusKm = Math.max(8, acreageRadiusKm);

@@ -16,6 +16,9 @@ export type Water = {
   location_label?: string;
   county?: string;
   county_source?: { label: string; url: string; method: string };
+  onemap_object_ids?: string[];
+  outline_source?: string;
+  source_note?: string;
 };
 export type WaterRecordKind = 'public-fishing-lake' | 'agency-access-data' | 'fishing-info' | 'agency-waterbody' | 'nhd-reference' | 'other-water';
 export type WaterRecordStatus = { kind: WaterRecordKind; label: string; detail: string };
@@ -26,7 +29,7 @@ const norm = (s: string) => s.toLowerCase().replace(/\blake\b|\breservoir\b/g, '
 const byName: Record<string, Water[]> = {};
 
 export async function loadWaters(map: Map) {
-  const [j, nhd] = await Promise.all([
+  const [j, nhd, nc] = await Promise.all([
     fetchJSON<{ waters: Water[]; regulations: typeof regulations }>(`${import.meta.env.BASE_URL}data/waters.json`),
     fetchJSON<{
       waters: Omit<Water, 'species' | 'species_note' | 'notes' | 'location_note' | 'links' | 'catalog_sources' | 'retrieved_at' | 'area_note'>[];
@@ -45,6 +48,10 @@ export async function loadWaters(map: Map) {
       console.warn('Supplemental NHD destinations are unavailable; curated destinations remain available.', error);
       return null;
     }),
+    fetchJSON<{ waters: Water[] }>(`${import.meta.env.BASE_URL}data/nc-destinations.json`).catch((error) => {
+      console.warn('Optional North Carolina destinations are unavailable; existing destination catalogs remain available.', error);
+      return null;
+    }),
   ]);
   const curatedIds = new Set(j.waters.map((water) => water.id));
   const nhdWaters: Water[] = nhd?.waters
@@ -60,7 +67,8 @@ export async function loadWaters(map: Map) {
       catalog_sources: [nhd.source.catalog_source],
       retrieved_at: nhd.retrieved_at,
     })) ?? [];
-  waters = [...j.waters, ...nhdWaters];
+  const ncWaters = (nc?.waters ?? []).filter((water) => water.id.startsWith('nc-onemap-') && water.state === 'NC' && water.center && water.onemap_object_ids?.length);
+  waters = [...j.waters, ...nhdWaters, ...ncWaters];
   const previous = store.get<string>('destination')?.v;
   if (previous === 'al-pfl') store.set('destination', 'lee-county-lake');
   if (previous === 'ga-pfa') store.set('destination', 'big-lazer-creek');
@@ -72,7 +80,7 @@ export async function loadWaters(map: Map) {
   }
   (map.getSource('waters') as GeoJSONSource).setData({
     type: 'FeatureCollection',
-    features: waters.filter((w) => w.center).map((w) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: w.center! }, properties: { id: w.id, name: w.name.replace(/\s*\(.*\)/, ''), nhd: w.id.startsWith('nhd-'), priority: w.id.startsWith('water-') || w.id.startsWith('nhd-') ? 1 : 0 } })),
+    features: waters.filter((w) => w.center).map((w) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: w.center! }, properties: { id: w.id, name: waterDisplayName(w).replace(/\s*\(.*\)/, ''), nhd: w.id.startsWith('nhd-'), priority: w.id.startsWith('water-') || w.id.startsWith('nhd-') ? 1 : 0 } })),
   });
 }
 
@@ -108,13 +116,13 @@ export function waterCountyLabel(w: Pick<Water, 'county' | 'location_label' | 's
   return placeTitleCase(county);
 }
 
-const PLACE_ACRONYMS = new Set(['ALT', 'BSF', 'CAT', 'CCA', 'CDH', 'DRH', 'DUA', 'HLHA', 'ICW', 'JL', 'KBY', 'KTK', 'MRY', 'NHD', 'PFA', 'SFC', 'USGS', 'WMA']);
+const PLACE_ACRONYMS = new Set(['ADA', 'AL', 'ALT', 'BSF', 'CAT', 'CCA', 'CDH', 'DCNR', 'DRH', 'DUA', 'FL', 'FWC', 'GA', 'HLHA', 'ICW', 'JL', 'KBY', 'KTK', 'MRY', 'NC', 'NCCGIA', 'NCWRC', 'NHD', 'OSM', 'PAD', 'PFA', 'SC', 'SFC', 'US', 'USACE', 'USGS', 'VA', 'WMA']);
 
 /** Normalize catalog place names while keeping acronyms and state codes readable. */
 export function placeTitleCase(value: string): string {
   return value.replace(/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu, (word) => {
     if (PLACE_ACRONYMS.has(word.toLocaleUpperCase())) return word.toLocaleUpperCase();
-    if (word.length > 1 && word[0] === word[0].toLocaleUpperCase() && word.slice(1) !== word.slice(1).toLocaleLowerCase()) return word;
+    if (word.length > 1 && word[0] === word[0].toLocaleUpperCase() && word !== word.toLocaleUpperCase() && word.slice(1) !== word.slice(1).toLocaleLowerCase()) return word;
     const lower = word.toLocaleLowerCase();
     if (/^mc[\p{L}]/u.test(lower)) return `Mc${lower[2].toLocaleUpperCase()}${lower.slice(3)}`;
     if (/^dekalb$/i.test(lower)) return 'DeKalb';
@@ -144,6 +152,11 @@ export function waterCountySourceHtml(w: Pick<Water, 'county_source'>): string {
 /** Describe what a water record actually establishes, without treating a map feature as open fishing access. */
 export function waterRecordStatus(w: Pick<Water, 'id' | 'species' | 'catalog_sources'>): WaterRecordStatus {
   const sources = (w.catalog_sources ?? []).map((source) => `${source.label} ${source.url}`.toLocaleLowerCase());
+  if (w.id.startsWith('nc-onemap-')) return {
+    kind: 'agency-waterbody',
+    label: 'NC OneMap mapped water · access unverified',
+    detail: 'NC OneMap hydrography identifies this water feature. It does not verify public access, fishing suitability, fish species, current water levels, or navigability.',
+  };
   if (w.id.startsWith('nhd-')) return {
     kind: 'nhd-reference',
     label: 'NHD mapped water · access unverified',

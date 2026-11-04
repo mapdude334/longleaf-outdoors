@@ -47,11 +47,20 @@ export async function loadAccessLive(map: Map) {
     const snapshot = await fetchJSON<{ type: string; updated: string; features: AccessFeature[] }>(`${import.meta.env.BASE_URL}data/access.json`, { timeout: 8000 });
     if (snapshot.type !== 'FeatureCollection' || !snapshot.features?.length || !snapshot.features.every((f) => f.geometry?.type === 'Point' && f.geometry.coordinates.length >= 2 && f.geometry.coordinates.every(Number.isFinite))) throw new Error('Invalid access catalog');
     const features = normalizePointKinds(snapshot.features, 'access', 'Access catalog');
-    accessCatalog = features;
+    let ncFeatures: AccessFeature[] = [];
+    try {
+      const nc = await fetchJSON<{ type: string; features: AccessFeature[] }>(`${import.meta.env.BASE_URL}data/nc-access.json`, { timeout: 8000 });
+      if (nc.type !== 'FeatureCollection' || !Array.isArray(nc.features) || !nc.features.every((f) => f.geometry?.type === 'Point' && f.geometry.coordinates.length >= 2 && f.geometry.coordinates.every(Number.isFinite) && f.properties?.point_state === 'NC')) throw new Error('Invalid NC access catalog');
+      ncFeatures = normalizePointKinds(nc.features, 'access', 'NCWRC access catalog');
+    } catch (error) {
+      console.warn('Optional North Carolina access catalog is unavailable; existing access records remain available.', error);
+    }
+    const combined = [...features, ...ncFeatures];
+    accessCatalog = combined;
     accessEdition = snapshot.updated;
     accessRetrievedAt = Date.now();
-    (map.getSource('access-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
-    return { count: features.length, offline: !navigator.onLine, source: 'published agency / OSM catalog' };
+    (map.getSource('access-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: combined });
+    return { count: combined.length, offline: !navigator.onLine, source: ncFeatures.length ? 'published agency / OSM catalog + NCWRC' : 'published agency / OSM catalog' };
   } catch { /* Older offline installations can still use their cached/live data. */ }
   const [w, s, e, n] = AOI;
   const bb = `(${s},${w},${n},${e})`;
@@ -83,7 +92,7 @@ export async function loadAccessLive(map: Map) {
   }
 }
 
-const KEEP = ['name', 'operator', 'maintenance', 'access', 'status', 'public_access', 'waterbody', 'waterbody_type', 'water_type', 'county', 'state', 'source_access_type', 'source_access_subtype', 'species_summary', 'fee', 'opening_hours', 'surface', 'parking_surface', 'lanes', 'website', 'phone', 'description', 'directions', 'parking', 'toilets', 'courtesy_dock', 'fishing_pier', 'picnic_area', 'accessibility', 'game_zone', 'fishing', 'lit', 'addr:street', 'addr:city'];
+const KEEP = ['name', 'operator', 'maintenance', 'access', 'status', 'closure_reason', 'caution_notes', 'access_notes', 'public_access', 'waterbody', 'waterbody_type', 'water_type', 'county', 'state', 'region', 'district', 'source_access_type', 'source_access_subtype', 'species_summary', 'fee', 'opening_hours', 'surface', 'parking_surface', 'lanes', 'website', 'phone', 'description', 'directions', 'parking', 'toilets', 'courtesy_dock', 'fishing_pier', 'picnic_area', 'accessibility', 'game_zone', 'fishing', 'lit', 'addr:street', 'addr:city', 'boat_ramp', 'public_fishing_area', 'pfa_status', 'pfa_waterbody'];
 
 /** Describe the mapped position without inventing a facility name or access conditions. */
 export function accessLocation(p: Record<string, any>, coords: [number, number]): string {
@@ -119,17 +128,20 @@ function pick(t: Record<string, string>) {
 
 export function accessHtml(p: Record<string, any>, coords: [number, number]): string {
   const k = p.kind ?? 'other';
-  const rows = KEEP.filter((key) => key !== 'name' && p[key]).map((key) => `<tr><th>${esc(key.replace('_', ' '))}</th><td>${esc(p[key])}</td></tr>`).join('');
+  const rows = KEEP.filter((key) => key !== 'name' && p[key]).map((key) => `<tr><th>${esc(key.replaceAll('_', ' '))}</th><td>${esc(p[key])}</td></tr>`).join('');
   const nav = `https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}`;
   const water = p.waterbody_id ? waterById(String(p.waterbody_id)) : undefined;
   const waterAction = water ? `<button class="link" data-open-water="${esc(water.id)}">Associated water · Open ${esc(waterDisplayName(water))} ↗</button>` : '';
-  return `<h3>${esc(p.name ?? ACCESS_LABELS[k])}</h3>
-  <p>${symbolHtml(k)}${esc(ACCESS_LABELS[k])}</p>
+  const typeLabel = p.source_access_type ? placeTitleCase(String(p.source_access_type)) : ACCESS_LABELS[k];
+  const closed = /closed|decommissioned/i.test(String(p.status ?? ''));
+  return `<h3>${esc(p.name ? placeTitleCase(String(p.name)) : ACCESS_LABELS[k])}</h3>
+  <p>${symbolHtml(k)}${esc(typeLabel)}</p>
   <p>${esc(accessLocation(p, coords))}</p>
+  ${p.source_note ? `<details class="data-provenance"><summary>NCWRC data-use and accuracy notice</summary><p class="muted small">${esc(p.source_note)}</p></details>` : ''}
   ${waterAction}
   <p class="muted small">${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}</p>
-  ${['boat_ramp', 'paddle_launch'].includes(k) ? `<button class="btn primary" data-use-launch data-launch-id="${esc(p.osm ?? p.record_id ?? coords.join(','))}" data-launch-name="${esc(p.name || ACCESS_LABELS[k])}" data-launch-lng="${coords[0]}" data-launch-lat="${coords[1]}" ${/closed|decommissioned/i.test(String(p.status ?? '')) ? 'disabled title="Agency lists this facility as closed"' : ''}>Use as my launch</button>` : ''}
-  ${k === 'fishing' ? `<button class="btn primary" data-use-spot data-launch-id="${esc(p.osm ?? coords.join(','))}" data-launch-name="${esc(p.name || ACCESS_LABELS[k])}" data-launch-lng="${coords[0]}" data-launch-lat="${coords[1]}">Add fishing spot to trip</button>` : ''}
+  ${['boat_ramp', 'paddle_launch'].includes(k) ? `<button class="btn primary" data-use-launch data-launch-id="${esc(p.osm ?? p.record_id ?? coords.join(','))}" data-launch-name="${esc(p.name || ACCESS_LABELS[k])}" data-launch-lng="${coords[0]}" data-launch-lat="${coords[1]}" ${closed ? 'disabled title="Agency lists this facility as closed"' : ''}>Use as my launch</button>` : ''}
+  ${k === 'fishing' && !p.source_access_type ? `<button class="btn primary" data-use-spot data-launch-id="${esc(p.osm ?? coords.join(','))}" data-launch-name="${esc(p.name || ACCESS_LABELS[k])}" data-launch-lng="${coords[0]}" data-launch-lat="${coords[1]}" ${closed ? 'disabled title="Agency lists this facility as closed"' : ''}>Add fishing spot to trip</button>` : ''}
   ${rows ? `<table class="props">${rows}</table>` : ''}
   <p><a href="${nav}" target="_blank" rel="noopener">Driving directions ↗</a>${p.osm ? ` · <a href="https://www.openstreetmap.org/${esc(p.osm)}" target="_blank" rel="noopener">Fix/add info on OSM ↗</a>` : ''}</p>
   ${sourceMetadata(p.data_source ? p : { ...p, data_source: 'OpenStreetMap contributors' })}<p class="muted small">A mapped access point does not confirm current opening, permissions or launch conditions. Confirm access with the operator.</p>`;

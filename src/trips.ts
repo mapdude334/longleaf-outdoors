@@ -1,6 +1,6 @@
 import type { Map, MapMouseEvent } from 'maplibre-gl';
 import { symbolHtml, highlightLocation } from './symbols';
-import { waters, waterDisplayLabel, waterDisplayName, waterRecordStatus } from './layers/waters';
+import { waters, placeTitleCase, waterDisplayLabel, waterDisplayName, waterRecordStatus } from './layers/waters';
 import { getWpts } from './waypoints';
 import { loadAccessLive, accessLocation, accessFeatures } from './layers/access';
 import { isCompactLayout, setSheetSnap, type SheetSnap } from './sheet';
@@ -231,7 +231,7 @@ export function renderTrips(root: HTMLElement, map: Map, openDestination: (id: s
       const name = String(f.properties.name ?? '').trim();
       const hasName = !!name && !/^(boat ramp|launch|paddle launch)$/i.test(name);
       if (hasName) namedRampIds.add(id);
-      candidates.set(id, { id, name: hasName ? name : f.properties.kind === 'paddle_launch' ? 'Paddle launch' : 'Boat ramp', coords });
+      candidates.set(id, { id, name: hasName ? placeTitleCase(name) : f.properties.kind === 'paddle_launch' ? 'Paddle launch' : 'Boat ramp', coords });
       rampDetails.set(id, { location: accessLocation(f.properties, coords), source: String(f.properties.data_source ?? (f.properties.osm ? 'OpenStreetMap contributors' : 'Mapped access catalog')) });
     }
     for (const w of getWpts().filter((w) => w.type === 'ramp')) {

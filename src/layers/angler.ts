@@ -52,13 +52,18 @@ async function catalog(path: string): Promise<Catalog> {
 }
 
 export async function loadAnglerData(map: Map) {
-  const [structures, toilets, vegetation, states, floridaDepths, floridaContours] = await Promise.all([
-    catalog('fish-structures.json'), catalog('restrooms.json'), catalog('habitat.json'),
+  const [structures, toilets, ncToilets, vegetation, states, floridaDepths, floridaContours] = await Promise.all([
+    catalog('fish-structures.json'), catalog('restrooms.json'),
+    catalog('nc-restrooms.json').catch((error) => {
+      console.warn('Optional North Carolina restroom records are unavailable; existing restroom catalogs remain available.', error);
+      return { type: 'FeatureCollection', updated: '', features: [] } as Catalog;
+    }),
+    catalog('habitat.json'),
     fetchJSON<any>(`${import.meta.env.BASE_URL}data/state-boundaries.json`),
     bathymetryCatalog('florida-bathymetry.json'), bathymetryCatalog('florida-depth-contours.json'),
   ]);
   fishStructures = structures.features;
-  restrooms = toilets.features;
+  restrooms = [...toilets.features, ...ncToilets.features];
   habitats = vegetation.features;
   (map.getSource('fish-structures-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: fishStructures });
   (map.getSource('restrooms-live') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: restrooms });
@@ -92,14 +97,15 @@ export function restroomHtml(p: Record<string, any>) {
     ['Access', access], ['Hours', p.opening_hours], ['Fee', p.fee], ['Wheelchair access', p['toilets:wheelchair'] || p.wheelchair],
     ['Changing table', p.changing_table], ['Operator', p.operator],
   ].filter((row) => row[1]).map(([label, value]) => `<tr><th>${label}</th><td>${esc(value)}</td></tr>`).join('');
-  const locationNote = p.location_accuracy === 'facility point (restroom may be nearby)'
+  const locationNote = p.location_accuracy === 'facility point (restroom may be nearby)' || /exact position is not supplied/i.test(String(p.location_accuracy ?? ''))
     ? 'The mapped point identifies a recreation facility tagged with restrooms. The restroom building may be elsewhere within the facility.'
     : 'This point is mapped as a restroom. Hours, access, and facility conditions can change; verify before relying on it.';
-  return `<h3>${esc(p.name || 'Public restroom')}</h3>
-    <p>${p.facility ? `${esc(p.facility)} · ` : ''}Restroom reported by ${esc(p.data_source || 'the mapped facility source')}</p>
+  return `<h3>${esc(p.name ? placeTitleCase(String(p.name)) : 'Public restroom')}</h3>
+    <p>${p.facility ? `${esc(placeTitleCase(String(p.facility)))} · ` : ''}Restroom reported by ${esc(p.data_source || 'the mapped facility source')}</p>
     <p>${esc(pointLocation(p, 'Mapped facility'))}</p>
     ${linkedWaterAction(p)}
     ${rows ? `<table class="props">${rows}</table>` : ''}
     <p class="muted small">${locationNote}</p>
+    ${p.source_note ? `<details class="data-provenance"><summary>NCWRC data-use and accuracy notice</summary><p class="muted small">${esc(p.source_note)}</p></details>` : ''}
     ${sourceMetadata(p)}`;
 }

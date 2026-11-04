@@ -28,13 +28,14 @@ export const STATES: StateDefinition[] = [
   { code: 'GA', name: 'Georgia', coverage: 'available', bounds: [[-85.7, 30.25], [-79.5, 35.05]] },
   { code: 'SC', name: 'South Carolina', coverage: 'available', bounds: [[-83.55, 31.85], [-78.4, 35.25]] },
   { code: 'FL', name: 'Florida', coverage: 'partial', bounds: [[-87.635, 24.39], [-80.03, 31.001]] },
-  { code: 'NC', name: 'North Carolina', coverage: 'planned', bounds: [[-84.5, 33.75], [-75.3, 36.65]] },
+  { code: 'NC', name: 'North Carolina', coverage: 'partial', bounds: [[-84.32182, 33.75288], [-75.40039, 36.58814]] },
   { code: 'VA', name: 'Virginia', coverage: 'planned', bounds: [[-83.7, 36.45], [-75.0, 39.5]] },
 ];
 
 const AL_GULF: GeographicBounds = [[-88.65, 28.5], [-87.25, 31.35]];
 const GA_ATLANTIC: GeographicBounds = [[-82.35, 30.25], [-79.5, 32.5]];
 const SC_ATLANTIC: GeographicBounds = [[-81.55, 31.85], [-78.4, 35.25]];
+const NC_ATLANTIC: GeographicBounds = [[-78.6, 33.75], [-75.4, 36.59]];
 const FL_PANHANDLE: GeographicBounds = [[-87.75, 29.35], [-83.5, 31.1]];
 
 /** Keep the existing region IDs, labels, bounds, and membership behavior stable. */
@@ -45,12 +46,14 @@ export const REGIONS: RegionDefinition[] = [
   { id: 'alabama', label: 'Alabama · statewide & Gulf', states: ['AL'], bounds: STATES[0].bounds, viewBounds: [[-88.47323, 30.14469], [-84.88825, 35.01604]] },
   { id: 'georgia', label: 'Georgia · statewide & Atlantic', states: ['GA'], bounds: STATES[1].bounds, viewBounds: [[-85.60897, 30.35576], [-80.78296, 35.0013]] },
   { id: 'south-carolina', label: 'South Carolina · statewide & coast', states: ['SC'], bounds: STATES[2].bounds, viewBounds: [[-83.3539, 31.99595], [-78.4993, 35.21522]] },
+  { id: 'north-carolina', label: 'North Carolina · statewide & coast', states: ['NC'], bounds: STATES[4].bounds, viewBounds: [[-84.46, 33.62], [-75.23, 36.72]] },
   { id: 'florida-panhandle', label: 'Florida · Panhandle (FWC Northwest Region)', states: ['FL'], bounds: FL_PANHANDLE, viewBounds: FL_PANHANDLE },
-  { id: 'coastal', label: 'Gulf & Atlantic Coast', bounds: [[-88.65, 28.5], [-78.4, 35.25]], membership: [
+  { id: 'coastal', label: 'Gulf & Atlantic Coast', bounds: [[-88.65, 28.5], [-75.23, 36.72]], membership: [
     { states: ['AL'], bounds: AL_GULF },
     { states: ['FL'], bounds: FL_PANHANDLE },
     { states: ['GA'], bounds: GA_ATLANTIC },
     { states: ['SC'], bounds: SC_ATLANTIC },
+    { states: ['NC'], bounds: NC_ATLANTIC },
   ] },
   { id: 'gulf', label: 'Alabama Gulf & coast', bounds: AL_GULF, membership: [{ states: ['AL'], bounds: AL_GULF }] },
   { id: 'atlantic', label: 'Georgia Atlantic & coast', bounds: GA_ATLANTIC, membership: [{ states: ['GA'], bounds: GA_ATLANTIC }] },

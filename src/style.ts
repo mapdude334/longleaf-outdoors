@@ -65,7 +65,7 @@ export function buildStyle(av: Availability): StyleSpecification {
   // ---------- terrain ----------
   sources.dem = { type: 'raster-dem', tiles: [demSource.sharedDemProtocolUrl], encoding: 'terrarium', maxzoom: 12, tileSize: 256, attribution: 'Terrain: AWS Terrain Tiles / USGS 3DEP' };
   // The selected destination outline is fetched from USGS NHD and can be cached offline.
-  sources['selected-water-boundary'] = { ...EMPTY, attribution: 'USGS National Hydrography Dataset (NHD)' };
+  sources['selected-water-boundary'] = { ...EMPTY, attribution: 'USGS National Hydrography Dataset (NHD); NC OneMap / NCCGIA' };
   // A separate source lets map taps highlight any inspected feature without
   // replacing the destination shoreline outline.
   sources['identify-selection'] = { ...EMPTY };

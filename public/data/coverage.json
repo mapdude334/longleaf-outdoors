@@ -1,7 +1,7 @@
 {
   "offline_packs": "Existing regional archives are unchanged. Online maps and catalog points extend beyond them. Save map areas separately for expanded geography.",
-  "updated": "2026-11-01T05:30:23Z",
-  "scope": "Alabama and Georgia statewide agency catalogs, plus selected South Carolina agency catalogs; records are source-limited and not an exhaustive inventory. Adjacent coastal and offshore sources are included where documented.; Florida is partial coverage limited to FWC Northwest Region destinations and verified public data; no statewide Florida completeness claim.",
+  "updated": "2026-11-04T03:16:33Z",
+  "scope": "Alabama and Georgia statewide agency catalogs, plus selected South Carolina agency catalogs; records are source-limited and not an exhaustive inventory. Adjacent coastal and offshore sources are included where documented.; Florida is partial coverage limited to FWC Northwest Region destinations and verified public data; no statewide Florida completeness claim. North Carolina includes NC OneMap mapped-water references and NCWRC public access records; the NCWRC subset is non-commercial and source-limited, not an exhaustive fishery inventory.",
   "sources": {
     "al_access": {
       "source_count": 134,
@@ -87,7 +87,7 @@
     "state-boundaries": {
       "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0",
       "agency": "U.S. Census Bureau TIGERweb",
-      "states_in_catalog": 3
+      "states_in_catalog": 5
     },
     "nhd_destinations": {
       "record_count": 5686,
@@ -185,15 +185,76 @@
       "state": "FL",
       "retrieved_at": "2026-11-01T05:30:23Z",
       "note": "Generalized reference outline; used for display/context, not legal jurisdiction."
+    },
+    "nc_ba_area": {
+      "source_count": 267,
+      "accepted": 267,
+      "url": "https://services1.arcgis.com/YfqBAUM5nWR3yhGP/ArcGIS/rest/services/NCWRC_Boating_Access_Areas_view/FeatureServer/0",
+      "item_url": "https://www.arcgis.com/home/item.html?id=825b21606e2040aabed210d878b2f3e5",
+      "agency": "North Carolina Wildlife Resources Commission",
+      "source_updated": "2026-10-28T14:06:19Z",
+      "terms": "free, public, non-commercial use only",
+      "note": "Public boating access sites. Free, public, non-commercial use only; see the source disclaimer on each location card."
+    },
+    "nc_public_fishing_areas": {
+      "source_count": 261,
+      "accepted": 261,
+      "distinct_symbols": 255,
+      "merged_coincident_with_boating_access": 6,
+      "url": "https://services1.arcgis.com/YfqBAUM5nWR3yhGP/ArcGIS/rest/services/NCWRC_Public_Fishing_Areas_view/FeatureServer/0",
+      "item_url": "https://www.arcgis.com/home/item.html?id=8f95684ae6ad4f6f95532100c6e41b79",
+      "agency": "North Carolina Wildlife Resources Commission",
+      "source_updated": "2026-08-13T21:22:49Z",
+      "terms": "free, public, non-commercial use only",
+      "note": "Public fishing areas; point locations are agency map locations, not surveyed fishing spots. Free, public, non-commercial use only."
+    },
+    "nc_restrooms": {
+      "accepted": 162,
+      "agency": "North Carolina Wildlife Resources Commission",
+      "source_urls": [
+        "https://services1.arcgis.com/YfqBAUM5nWR3yhGP/ArcGIS/rest/services/NCWRC_Boating_Access_Areas_view/FeatureServer/0",
+        "https://services1.arcgis.com/YfqBAUM5nWR3yhGP/ArcGIS/rest/services/NCWRC_Public_Fishing_Areas_view/FeatureServer/0"
+      ],
+      "source_updated": {
+        "baa": "2026-10-28T14:06:19Z",
+        "pfa": "2026-08-13T21:22:49Z"
+      },
+      "terms": "free, public, non-commercial use only",
+      "note": "Facility-level restroom flags; exact restroom building positions are not supplied."
+    },
+    "nc_onemap_waterbodies": {
+      "record_count": 176,
+      "source_polygon_count": 315,
+      "named_polygon_count": 313,
+      "url": "https://services.nconemap.gov/secure/rest/services/NC1Map_Hydrography/FeatureServer/2",
+      "agency": "North Carolina Center for Geographic Information and Analysis (NCCGIA)",
+      "terms_url": "https://www.nconemap.gov/pages/terms",
+      "retrieved_at": "2026-10-30T21:53:58Z",
+      "reuse_terms_reviewed": true,
+      "note": "Mapped hydrography subset, not a complete inventory of fishable waters or verified public access."
+    },
+    "nc_state_boundary": {
+      "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0",
+      "agency": "U.S. Census Bureau TIGERweb",
+      "state": "NC",
+      "retrieved_at": "2026-11-04T03:16:33Z",
+      "note": "Generalized state outline for map context and zoom extents; not a legal boundary."
+    },
+    "nc_fish_attractors": {
+      "raw_features_published": 0,
+      "terms_status": "unconfirmed",
+      "url": "https://services1.arcgis.com/YfqBAUM5nWR3yhGP/ArcGIS/rest/services/Fish_Attractors_public_view/FeatureServer/0",
+      "official_map": "https://www.ncwildlife.gov/fishing/where-fish",
+      "note": "Raw locations excluded because the service did not state item-level redistribution terms."
     }
   },
   "counts": {
-    "access": 3305,
+    "access": 3827,
     "fish-structures": 5336,
-    "restrooms": 1328,
+    "restrooms": 1490,
     "habitat": 7660,
-    "state-boundaries": 4,
-    "waters": 802
+    "state-boundaries": 5,
+    "waters": 978
   },
   "state_counts": {
     "GA": {
@@ -225,6 +286,14 @@
       "restrooms": 442,
       "state-boundaries": 1,
       "waters": 18
+    },
+    "NC": {
+      "access": 522,
+      "fish-structures": 0,
+      "restrooms": 162,
+      "habitat": 0,
+      "state-boundaries": 1,
+      "waters": 176
     }
   }
 }
