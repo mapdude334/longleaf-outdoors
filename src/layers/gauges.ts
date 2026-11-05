@@ -13,7 +13,7 @@ const CODES = Object.keys(PARAMS);
 const keyQS = USGS_API_KEY ? `&api_key=${encodeURIComponent(USGS_API_KEY)}` : '';
 export let gauges: Gauge[] = [];
 // Bump when geographic coverage changes so old device caches cannot mask new states.
-const GAUGE_CACHE_KEY = 'gauges-al-ga-sc-fl-v4';
+const GAUGE_CACHE_KEY = 'gauges-al-ga-sc-fl-nc-v5';
 
 function mapFeature(g: Gauge, now: number) {
   const times = Object.values(g.readings).map((r) => Date.parse(r.time)).filter(Number.isFinite);
@@ -89,9 +89,9 @@ async function fromOgc(): Promise<Gauge[]> {
     for (const f of locations) {
       const id = String(f.properties?.monitoring_location_number ?? f.id ?? '').replace(/^USGS-/, '');
       const state = String(f.properties?.state_code ?? '');
-      if (byId[id] && ['01', '12', '13', '45'].includes(state) && f.properties?.agency_code === 'USGS') {
+      if (byId[id] && ['01', '12', '13', '37', '45'].includes(state) && f.properties?.agency_code === 'USGS') {
         byId[id].name = f.properties.monitoring_location_name || byId[id].name;
-        byId[id].state = ({ '01': 'AL', '12': 'FL', '13': 'GA', '45': 'SC' } as Record<string, string>)[state];
+        byId[id].state = ({ '01': 'AL', '12': 'FL', '13': 'GA', '37': 'NC', '45': 'SC' } as Record<string, string>)[state];
         inScope.add(id);
       }
     }
@@ -105,7 +105,7 @@ async function fromOgc(): Promise<Gauge[]> {
 
 async function fromLegacy(): Promise<Gauge[]> {
   const byId: Record<string, Gauge> = {};
-  const stateNames = { al: 'AL', ga: 'GA', sc: 'SC', fl: 'FL' } as const;
+  const stateNames = { al: 'AL', ga: 'GA', sc: 'SC', fl: 'FL', nc: 'NC' } as const;
   for (const [stateCode, stateName] of Object.entries(stateNames)) {
     const url = `${USGS_LEGACY_IV}?format=json&stateCd=${stateCode}&parameterCd=${CODES.join(',')}&siteStatus=active`;
     const j = await fetchJSON<any>(url, { timeout: 30000 });

@@ -41,7 +41,7 @@ const MANAGER_COLOR: ExpressionSpecification = [
 
 export const ACCESS_COLORS = Object.fromEntries(['boat_ramp', 'paddle_launch', 'fishing', 'marina', 'campground', 'trailhead', 'parking', 'other'].map((kind) => [kind, SYMBOL_COLORS[kind]]));
 
-const badge = (id: string, source: string, kind: string): LayerSpecification => ({ id, source, type: 'symbol', layout: { 'icon-image': 'll-' + kind, 'icon-size': ['interpolate', ['linear'], ['zoom'], 7, 0.65, 12, 0.9, 15, 1], 'icon-padding': 3 } });
+const badge = (id: string, source: string, kind: string): LayerSpecification => ({ id, source, type: 'symbol', layout: { 'icon-image': 'll-' + kind, 'icon-size': ['interpolate', ['linear'], ['zoom'], 7, 0.65, 12, 0.9, 15, 1], 'icon-padding': 4, 'icon-allow-overlap': false, 'icon-ignore-placement': false } });
 
 export function buildStyle(av: Availability): StyleSpecification {
   for (const k of Object.keys(groups)) delete groups[k];
@@ -197,23 +197,23 @@ export function buildStyle(av: Availability): StyleSpecification {
   add('waters', { ...badge('waters-pt', 'waters', 'water'), filter: ['!=', ['get', 'nhd'], true], minzoom: POINT_SYMBOL_MIN_ZOOM.destinations } as LayerSpecification, L);
   add('waters', { ...badge('nhd-waters-pt', 'waters', 'water'), filter: ['==', ['get', 'nhd'], true], minzoom: POINT_SYMBOL_MIN_ZOOM.nhdDestinations } as LayerSpecification, L);
   add('waters', {
-    id: 'waters-lbl', type: 'symbol', source: 'waters', minzoom: 7, filter: ['!=', ['get', 'nhd'], true],
-    layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 11, 12, 15], 'text-font': ['Noto Sans Medium'], 'text-ignore-placement': false, 'text-allow-overlap': false, 'symbol-sort-key': ['coalesce', ['get', 'priority'], 1], 'text-max-width': 8, 'text-offset': [0, 1.25], 'text-anchor': 'top' },
+    id: 'waters-lbl', type: 'symbol', source: 'waters', minzoom: 8.5, filter: ['!=', ['get', 'nhd'], true],
+    layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 8.5, 10, 12, 13], 'text-font': ['Noto Sans Medium'], 'text-ignore-placement': false, 'text-allow-overlap': false, 'symbol-sort-key': ['coalesce', ['get', 'priority'], 1], 'text-max-width': 7, 'text-offset': [0, 1.25], 'text-anchor': 'top' },
     paint: { 'text-color': '#0d47a1', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
   }, L);
   add('waters', {
-    id: 'nhd-waters-lbl', type: 'symbol', source: 'waters', minzoom: 11, filter: ['==', ['get', 'nhd'], true],
-    layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10, 13, 12], 'text-font': ['Noto Sans Medium'], 'text-ignore-placement': false, 'text-allow-overlap': false, 'symbol-sort-key': ['coalesce', ['get', 'priority'], 1], 'text-max-width': 8, 'text-offset': [0, 1.25], 'text-anchor': 'top' },
+    id: 'nhd-waters-lbl', type: 'symbol', source: 'waters', minzoom: 12, filter: ['==', ['get', 'nhd'], true],
+    layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12, 9, 14, 11], 'text-font': ['Noto Sans Medium'], 'text-ignore-placement': false, 'text-allow-overlap': false, 'symbol-sort-key': ['coalesce', ['get', 'priority'], 1], 'text-max-width': 7, 'text-offset': [0, 1.25], 'text-anchor': 'top' },
     paint: { 'text-color': '#0d47a1', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
   }, L);
 
   sources.dams = { ...EMPTY };
   add('dams', { ...badge('dams-pt', 'dams', 'dam'), minzoom: POINT_SYMBOL_MIN_ZOOM.dams }, L);
-  add('dams', { id: 'dams-lbl', type: 'symbol', source: 'dams', minzoom: 9, layout: { 'text-ignore-placement': true, 'text-allow-overlap': true, 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.3], 'text-anchor': 'top', 'text-font': ['Noto Sans Medium'] }, paint: { 'text-color': '#263238', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
+  add('dams', { id: 'dams-lbl', type: 'symbol', source: 'dams', minzoom: 10, layout: { 'text-ignore-placement': false, 'text-allow-overlap': false, 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.3], 'text-anchor': 'top', 'text-font': ['Noto Sans Medium'] }, paint: { 'text-color': '#263238', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
 
   sources.gauges = { ...EMPTY };
-  add('gauges', { id: 'gauges-pt', type: 'symbol', source: 'gauges', minzoom: POINT_SYMBOL_MIN_ZOOM.gauges, layout: { 'icon-image': ['case', ['get', 'stale'], 'll-stale', 'll-gauge'], 'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.65, 9, 0.8, 13, 0.95], 'icon-padding': 3, 'icon-allow-overlap': true, 'icon-ignore-placement': true } }, L);
-  add('gauges', { id: 'gauges-lbl', type: 'symbol', source: 'gauges', minzoom: 10, layout: { 'text-ignore-placement': true, 'text-allow-overlap': true, 'text-field': ['get', 'summary'], 'text-size': 10, 'text-offset': [0, 1.6], 'text-anchor': 'top', 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': '#704700', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
+  add('gauges', { id: 'gauges-pt', type: 'symbol', source: 'gauges', minzoom: POINT_SYMBOL_MIN_ZOOM.gauges, layout: { 'icon-image': ['case', ['get', 'stale'], 'll-stale', 'll-gauge'], 'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.65, 9, 0.8, 13, 0.95], 'icon-padding': 5, 'icon-allow-overlap': false, 'icon-ignore-placement': false } }, L);
+  add('gauges', { id: 'gauges-lbl', type: 'symbol', source: 'gauges', minzoom: 12, layout: { 'text-ignore-placement': false, 'text-allow-overlap': false, 'text-optional': true, 'text-field': ['get', 'summary'], 'text-size': 10, 'text-offset': [0, 1.6], 'text-anchor': 'top', 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': '#704700', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } }, L);
 
   sources.track = { ...EMPTY };
   add('mine', { id: 'track-line', type: 'line', source: 'track', paint: { 'line-color': '#d81b60', 'line-width': 3, 'line-opacity': 0.85 } }, L);

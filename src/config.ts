@@ -16,12 +16,12 @@ export const POINT_SYMBOL_MIN_ZOOM = {
   dams: 8,
   destinations: 8.5,
   nhdDestinations: 10,
-  gauges: 8.5,
+  gauges: 9.5,
   waypoints: 8.5,
   access: 9,
   restrooms: 10,
-  fishStructures: 11,
-  habitat: 11,
+  fishStructures: 12,
+  habitat: 12,
   osmDams: 11,
 } as const;
 export const LIVE_BOUNDS: [number, number, number, number] = [-88.6, 28.5, -74.7, 37.2];

@@ -538,12 +538,12 @@ function openSpecies(label: string, back: () => void, state?: string, waterId?: 
 const OVERLAY_ROWS: [string, string, string?][] = [
   ['public_lands', 'Public lands (PAD-US)', 'WMAs, national/state forests & parks, USACE lands, easements'],
   ['access', 'Boat ramps & access', 'Ramps, piers, paddle launches, marinas, campgrounds'],
-  ['fish_structures', 'Fish attractors & reefs', 'AL/GA/SC and Northwest Florida agency freshwater structures and coastal reefs · zoom 11+'],
-  ['habitat', 'Aquatic habitat surveys', 'Georgia DNR historical vegetation records · zoom 11+'],
+  ['fish_structures', 'Fish attractors & reefs', 'AL/GA/SC and Northwest Florida agency freshwater structures and coastal reefs · zoom 12+'],
+  ['habitat', 'Aquatic habitat surveys', 'AL/GA/SC records, mostly historical · zoom 12+'],
   ['state_boundaries', 'State boundaries', 'Census generalized outlines; offshore sites may lie beyond state borders'],
   ['restrooms', 'Public restrooms', 'AL/GA/SC and Northwest Florida agency reports, NCWRC facility-level reports, and regional OSM points · zoom 10+'],
   ['waters', 'Lake & river fishing info', 'Species and notes for major waters'],
-  ['gauges', 'Live river gauges & lake levels', 'USGS flow, stage, elevation, water temp'],
+  ['gauges', 'Live river gauges & lake levels', 'Recent USGS readings in AL, GA, SC, FL & NC'],
   ['dams', 'Dams & release schedules', 'Georgia Power, Alabama Power, USACE'],
   ['water', 'Lakes & streams', 'USGS NHD and NC OneMap hydrography'],
   ['parcels', 'Property parcels', 'Lee Co. AL, Muscogee Co. GA (zoom 13+)'],
@@ -595,7 +595,7 @@ function renderLayers() {
       <div>${symbolHtml('structure')}Fish attractor / artificial reef</div><div>${symbolHtml('habitat')}Aquatic habitat survey · historical vegetation record</div><div>${symbolHtml('restroom')}Public restroom · facility-level reports may be approximate</div>
       <div style="margin-top:.5rem"><b>Underwater depths · Alabama public fishing lakes</b><br>Depth bands are 1-foot intervals; contours are 1-foot minor and 5-foot major. Only mapped ADCNR lakes are covered. Source: <a href="https://www.outdooralabama.com/where-freshwater-fish/state-public-fishing-lakes" target="_blank" rel="noopener">Outdoor Alabama ↗</a>. Survey age and coverage vary; planning aid, not navigation.</div>
       <div style="margin-top:.5rem"><b>Underwater depths · Florida Panhandle</b><br>Depth bands (ft): <span class="sw" style="background:#a4cce1"></span>0–4 <span class="sw" style="background:#81b6d4"></span>5–9 <span class="sw" style="background:#5a9dc3"></span>10–19 <span class="sw" style="background:#367fa9"></span>20–29 <span class="sw" style="background:#205e87"></span>30+; contours are in feet. FWC sonar-derived data currently cover Lake Jackson and Hurricane Lake only. Survey date and vertical reference are not consistently supplied; planning aid, not navigation. <a href="https://ocean.floridamarine.org/arcgis/rest/services/Projects_FWC/WhatsHappeningOnMyLake/MapServer/31" target="_blank" rel="noopener">FWC bathymetry source ↗</a></div>
-      <p class="muted small">Layer switches control what is shown. Access icons appear from zoom 9 and labels from zoom 12. Icons may be hidden where crowded; zoom in to separate them. Some layers appear only when zoomed in; live layers need a connection unless cached.</p>
+      <p class="muted small">Layer switches control what is shown. Map symbols declutter as features overlap; zoom in to reveal individual locations. Access labels appear at zoom 12+, gauge readings at zoom 12+, and individual habitat or structure points at zoom 12+. Some layers appear only when zoomed in; live layers need a connection unless cached.</p>
     </details>
     <p class="muted small">Data: ${esc(dataStatus || 'loading…')}<br>
     Overlays: ${av.overlays ? (av.overlays.where === 'device' ? 'offline pack on device' : 'streaming') : 'live services (install packs in Offline tab)'}.</p>`;
